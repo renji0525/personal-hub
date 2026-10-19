@@ -41,10 +41,8 @@
             </form>
             <button id="logoutButton" class="btn-utility" onclick="signOut()" hidden>ログアウト</button>
             <small>動画はローカルの情報から50件ずつ表示します。起動・ログイン・更新時にシートと同期し、既読変更もまとめて保存します。</small>
+            <small>チャンネル・動画データは共通で利用し、登録先と既読状態はユーザーごとに保存します。</small>
         </section>
-        <label class="section-title" for="apiKeyInput">接続・設定</label>
-        <input type="password" id="apiKeyInput" class="input-bar" placeholder="apikey..." aria-label="認証キー" aria-describedby="apiKeyHint" oninput="saveApiKey()">
-        <small id="apiKeyHint">キーはこのブラウザに自動保存されます。</small>
         <div class="settings-actions">
         <button class="btn-utility" onclick="exportJSON()">📊 バックアップ(JSON)</button>
         <button class="btn-utility" onclick="document.getElementById('importFile').click()">📂 データを復元</button>

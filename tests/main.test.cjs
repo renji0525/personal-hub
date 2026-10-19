@@ -115,16 +115,12 @@ test('旧バックアップの欠落したShorts IDを補完し既読状態を�
     assert.throws(() => run('validateState(backup)'));
 });
 
-test('認証キーは独立して保存・復元し、空入力で削除する', () => {
-    const { run } = app();
-    run("document.getElementById('apiKeyInput').value = ' test-key '; saveApiKey()");
-    assert.equal(run("localStorage.getItem('yt_rss_api_key')"), 'test-key');
-    run("document.getElementById('apiKeyInput').value = ''; loadApiKey()");
-    assert.equal(run("document.getElementById('apiKeyInput').value"), 'test-key');
-    assert.equal(run("JSON.stringify(appState).includes('test-key')"), false);
-    run("document.getElementById('apiKeyInput').value = ''; saveApiKey(); loadApiKey()");
-    assert.equal(run("document.getElementById('apiKeyInput').value"), '');
+test('旧キーを起動時に削除し、ログインなしのRSS取得は通信しない', async () => {
+    const { context, run } = app();
+    run("localStorage.setItem('yt_rss_api_key', 'old-key'); window.onload()");
     assert.equal(run("localStorage.getItem('yt_rss_api_key')"), undefined);
+    context.fetch = () => { throw new Error('未認証で通信してはいけません'); };
+    assert.equal(await run("fetchFeed('channel')"), null);
 });
 
 test('更新は選択中のチャンネルに関係なく全件処理し、進捗と失敗を表示する', async () => {

@@ -87,25 +87,6 @@ function save() {
     }
 }
 
-// 認証キーはバックアップ対象の状態から分離して、このブラウザだけに保存する
-function saveApiKey() {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    try {
-        if (key) localStorage.setItem('yt_rss_api_key', key);
-        else localStorage.removeItem('yt_rss_api_key');
-    } catch (error) {
-        showNotification('認証キーを保存できません。ブラウザの保存設定を確認してください。', 'error');
-    }
-}
-
-function loadApiKey() {
-    try {
-        document.getElementById('apiKeyInput').value = localStorage.getItem('yt_rss_api_key') || '';
-    } catch (error) {
-        showNotification('認証キーを読み込めません。設定から入力してください。', 'error');
-    }
-}
-
 function safeURL(value) {
     const url = new URL(value);
     if (!['https:', 'http:'].includes(url.protocol)) throw new Error('無効なURLです');
@@ -184,36 +165,18 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {string} inChannelName - ログ表示用のチャンネル名
  * @param {string} addText - 進行状況などの追加テキスト
  */
-async function fetchFeed(channelId, inChannelName="None", addText="", quiet=false) {
-    // 簡易認証キーの取得
-    const myApikey = document.getElementById('apiKeyInput').value.trim();
-
-    // 認証キーが無い場合はエラー文を表示して終了
+async function fetchFeed(channelId, inChannelName="None", addText="", quiet=false, refresh=false) {
     const signedIn = typeof authSession !== 'undefined' && authSession;
-    if(!signedIn && `${myApikey}` === '') {
-        if (!quiet) showNotification(`エラー apikeyが未入力です。`,"error");
+    if (!signedIn) {
+        if (!quiet) showNotification('設定からログインしてください。', 'error');
         return null;
     }
 
     await sleep(500); // サーバー負荷軽減のための短い待機
     if(!quiet && addText !== '') showNotification(addText);
 
-    // APIのパラメータ構築
-    const params = new URLSearchParams({
-        channel_id: channelId,
-        key: myApikey // 簡易的な認証キー
-    });
-    const baseUrl = `https://script.google.com/macros/s/AKfycbyXRNKLdzWdJAc5iJEfp1hAEbScOERyGboIJZD8hZFprfPo7g57Ip3BjddtiHRdWwyB/exec`;
-    const apiUrl = `${baseUrl}?${params.toString()}`;
-
     try {
-        let data;
-        if (signedIn) data = await accountApi('feed', { channelId });
-        else {
-            const res = await fetch(apiUrl);
-            if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-            data = await res.json();
-        }
+        const data = await accountApi('feed', { channelId, refresh });
         
         if (data.status === 'ok') {
             // 取得したデータをアプリ内の共通フォーマットに変換
@@ -316,7 +279,7 @@ async function refreshAll() {
     try {
         for (const [index, ch] of channels.entries()) {
             label.textContent = `${index + 1} / ${channels.length} 件を更新中：${ch.title}`;
-            const result = await fetchFeed(ch.id, ch.title, '', true);
+            const result = await fetchFeed(ch.id, ch.title, '', true, true);
             if (result) {
                 if (ch.title.startsWith('Channel(')) ch.title = result.name;
                 mergeVideos(result.items);
@@ -331,7 +294,7 @@ async function refreshAll() {
             resetLibraryPager(); synced = await reloadLibrary();
         }
         label.textContent = channels.length ? `更新完了：${channels.length - failures.length} / ${channels.length} 件成功` : '登録チャンネルはありません。';
-        if (failures.length) label.textContent += `（失敗：${failures.join('、')}。ログイン状態・認証キー・チャンネルIDを確認してください）`;
+        if (failures.length) label.textContent += `（失敗：${failures.join('、')}。ログイン状態・チャンネルIDを確認してください）`;
         if (!synced) label.textContent += ' シートとの同期に失敗しました。ローカルの情報を表示しています。';
     } catch (error) { label.textContent = '更新を中断しました：' + error.message; }
     finally { button.disabled = false; }
@@ -536,7 +499,7 @@ async function importJSON(e) {
  */
 function resetAll() {
     if (busy) return showNotification('取得が終わってから初期化してください。');
-    if (confirm("認証キーを含むすべての設定と既読情報を削除しますか？")) {
+    if (confirm("このブラウザに保存した設定と既読情報を削除しますか？")) {
         try {
             localStorage.removeItem('yt_rss_api_key');
             localStorage.removeItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
@@ -550,7 +513,8 @@ function resetAll() {
  */
 window.onload = () => {
     if (typeof initAccount === 'function') initAccount();
-    loadApiKey();
+    // 廃止した認証キーを、このブラウザから削除する
+    try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
     load(); // ストレージからデータを読み込む
     if (typeof authSession !== 'undefined' && authSession) reloadLibrary();
     //refreshAll();
