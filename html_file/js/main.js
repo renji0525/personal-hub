@@ -184,19 +184,19 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @param {string} inChannelName - ログ表示用のチャンネル名
  * @param {string} addText - 進行状況などの追加テキスト
  */
-async function fetchFeed(channelId, inChannelName="None", addText="") {
+async function fetchFeed(channelId, inChannelName="None", addText="", quiet=false) {
     // 簡易認証キーの取得
     const myApikey = document.getElementById('apiKeyInput').value.trim();
 
     // 認証キーが無い場合はエラー文を表示して終了
     const signedIn = typeof authSession !== 'undefined' && authSession;
     if(!signedIn && `${myApikey}` === '') {
-        showNotification(`エラー apikeyが未入力です。`,"error");
+        if (!quiet) showNotification(`エラー apikeyが未入力です。`,"error");
         return null;
     }
 
     await sleep(500); // サーバー負荷軽減のための短い待機
-    if(addText !== '') showNotification(addText);
+    if(!quiet && addText !== '') showNotification(addText);
 
     // APIのパラメータ構築
     const params = new URLSearchParams({
@@ -232,13 +232,13 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
             };
             validateState({ channels: [{ id: channelId, title: result.name }], videos: result.items,
                 darkMode: true, selectedChannel: 'all' });
-            showNotification(`成功 [${inChannelName}]`, 'success');
+            if (!quiet) showNotification(`成功 [${inChannelName}]`, 'success');
             return result;
         } else {
             throw new Error(data.message || "取得失敗");
         }
     } catch (e) {
-        showNotification(`エラー [${channelId}]: ${e.message}`, "error");
+        if (!quiet) showNotification(`エラー [${channelId}]: ${e.message}`, "error");
         return null;
     }
 }
@@ -267,6 +267,7 @@ async function addNewChannel() {
     save();
     renderChannels();
     renderVideos();
+    if (typeof authSession !== 'undefined' && authSession) { resetLibraryPager(); await reloadLibrary(); }
     });
 }
 
@@ -294,44 +295,46 @@ async function removeChannel(cid, event) {
     save();
     renderChannels();
     renderVideos();
+    if (typeof authSession !== 'undefined' && authSession) { resetLibraryPager(); await reloadLibrary(); }
 }
 
 /**
- * 全チャンネル（または選択中チャンネル）の最新動画を再取得する
+ * 全チャンネルを更新し、操作バーの下に進捗を表示する
  */
 async function refreshAll() {
     return withBusy(async () => {
-    showNotification(`RSS 更新開始`);
-    const selectTarget = `${appState.selectedChannel}`;
-    const channelCountMax = appState.channels.length;
-    let count = 1;
-
-    for (const ch of appState.channels) {
-        let addText = "";
-        // 特定のチャンネルが選択されている場合は、それ以外をスキップ
-        if(`${selectTarget}` !== 'all') {
-            if(`${selectTarget}` !== `${ch.id}`) { continue; }
-        } else {
-            // 全体更新の場合は進捗を出す
-            addText = `${count} / ${channelCountMax} 件目 処理開始`
-            count++;
+    const channels = [...appState.channels];
+    const panel = document.getElementById('refreshProgress');
+    const label = document.getElementById('refreshProgressText');
+    const bar = document.getElementById('refreshProgressBar');
+    const button = document.getElementById('refreshButton');
+    panel.hidden = false;
+    button.disabled = true;
+    bar.max = Math.max(channels.length, 1);
+    bar.value = 0;
+    const failures = [];
+    try {
+        for (const [index, ch] of channels.entries()) {
+            label.textContent = `${index + 1} / ${channels.length} 件を更新中：${ch.title}`;
+            const result = await fetchFeed(ch.id, ch.title, '', true);
+            if (result) {
+                if (ch.title.startsWith('Channel(')) ch.title = result.name;
+                mergeVideos(result.items);
+            } else failures.push(ch.title);
+            bar.value = index + 1;
         }
-        
-        const result = await fetchFeed(ch.id, ch.title, addText);
-        if (result) {
-            // 仮の名前(Channel(UC...))で登録されていた場合は正式名称に更新
-            if (ch.title.startsWith('Channel(')) ch.title = result.name;
-            mergeVideos(result.items);
+        appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+        save(); renderChannels(); renderVideos();
+        let synced = true;
+        if (typeof authSession !== 'undefined' && authSession) {
+            label.textContent = 'チャンネルの取得が終了しました。シートと同期中…';
+            resetLibraryPager(); synced = await reloadLibrary();
         }
-    }
-    
-    // 公開日の降順（新しい順）に並べ替え
-    appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
-    
-    save();
-    renderChannels();
-    renderVideos();
-    showNotification(`RSS 更新終了`);
+        label.textContent = channels.length ? `更新完了：${channels.length - failures.length} / ${channels.length} 件成功` : '登録チャンネルはありません。';
+        if (failures.length) label.textContent += `（失敗：${failures.join('、')}。ログイン状態・認証キー・チャンネルIDを確認してください）`;
+        if (!synced) label.textContent += ' シートとの同期に失敗しました。ローカルの情報を表示しています。';
+    } catch (error) { label.textContent = '更新を中断しました：' + error.message; }
+    finally { button.disabled = false; }
     });
 }
 
@@ -384,7 +387,7 @@ function renderVideos() {
     container.innerHTML = '';
     
     document.getElementById('unreadOnlyInput').checked = appState.unreadOnly;
-    const displayList = getDisplayVideos();
+    const displayList = getDisplayVideos().slice(0, typeof libraryPager !== 'undefined' ? libraryPager.limit : 50);
     if (displayList.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'empty-message';
@@ -423,6 +426,7 @@ function renderVideos() {
         checkbox.addEventListener('change', () => setWatched(v.id, checkbox.checked));
         container.appendChild(card);
     });
+    if (typeof renderLibrarySentinel === 'function') renderLibrarySentinel(container);
 }
 
 /**
@@ -431,8 +435,10 @@ function renderVideos() {
 function setWatched(vid, watched) {
     const video = appState.videos.find(v => v.id === vid);
     if (video) {
+        const previous = video.watched;
         // 現在の状態を反転(トグル)させる
         video.watched = watched === undefined ? !video.watched : watched;
+        if (typeof authSession !== 'undefined' && authSession) syncWatched(video, previous);
         save();
         renderVideos();
     }
@@ -447,6 +453,7 @@ function getDisplayVideos() {
 
 function setUnreadOnly(enabled) {
     appState.unreadOnly = enabled;
+    if (typeof resetLocalView === 'function') resetLocalView();
     save();
     renderVideos();
 }
@@ -456,6 +463,7 @@ function setUnreadOnly(enabled) {
  */
 function filterChan(id) {
     appState.selectedChannel = id;
+    if (typeof resetLocalView === 'function') resetLocalView();
     save();
     renderChannels();
     renderVideos();
@@ -473,8 +481,13 @@ function toggleTheme() {
 /**
  * バックアップ：現在のデータをJSONファイルとして保存する
  */
-function exportJSON() {
-    const blob = new Blob([JSON.stringify(appState, null, 2)], {type: 'application/json'});
+async function exportJSON() {
+    let state = appState;
+    if (typeof authSession !== 'undefined' && authSession) {
+        try { state = await accountBackup(); }
+        catch (error) { showNotification('バックアップを取得できません。' + error.message, 'error'); return; }
+    }
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `yt_rss_backup_${new Date().toISOString().slice(0,10)}.json`;
@@ -485,31 +498,37 @@ function exportJSON() {
 /**
  * 復元：選択したJSONファイルからデータを読み込む
  */
-function importJSON(e) {
+async function importJSON(e) {
     if (busy) {
         e.target.value = '';
         return showNotification('取得が終わってから復元してください。');
     }
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
     busy = true;
-    reader.onloadend = () => { busy = false; e.target.value = ''; };
-    reader.onerror = () => showNotification('ファイルを読み込めません。', 'error');
-    reader.onload = (event) => {
-        try {
-            const restored = validateState(JSON.parse(event.target.result));
-            try {
-                localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(restored));
-            } catch (error) {
-                showNotification('復元データを保存できません。ブラウザの保存容量・保存設定を確認してください。', 'error');
-                return;
-            }
+    const status = document.getElementById('importStatus');
+    const report = message => { if (status) status.textContent = message; };
+    let uploading = false;
+    try {
+        report('ファイルを確認中…');
+        const restored = validateState(JSON.parse((await file.text()).replace(/^\uFEFF/, '')));
+        if (typeof authSession !== 'undefined' && authSession) {
+            uploading = true;
+            await restoreAccount(restored, report);
+            appState = { ...restored, videos: [] };
+            document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
+            const loaded = await reloadLibrary();
+            report(loaded ? 'スプレッドシートへの復元が完了しました。' : 'シートへの保存は完了しました。一覧の読み込みを再試行してください。');
+        } else {
+            localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(restored));
             appState = restored;
-            location.reload(); // 読み込み後はページをリフレッシュして全反映
-        } catch (err) { showNotification('復元できません。JSONの形式または動画データを確認してください。', 'error'); }
-    };
-    reader.readAsText(file);
+            document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
+            renderChannels(); renderVideos();
+            report('このブラウザに復元しました。シートへの保存にはログインして復元してください。');
+        }
+    } catch (error) {
+        report(uploading ? 'シートへの復元が中断しました。一部が保存済みの可能性があります。同じJSONで再実行できます。' + error.message : '復元できません。ファイルの形式・内容・保存容量を確認してください。');
+    } finally { busy = false; e.target.value = ''; }
 }
 
 /**
@@ -533,5 +552,6 @@ window.onload = () => {
     if (typeof initAccount === 'function') initAccount();
     loadApiKey();
     load(); // ストレージからデータを読み込む
+    if (typeof authSession !== 'undefined' && authSession) reloadLibrary();
     //refreshAll();
 };

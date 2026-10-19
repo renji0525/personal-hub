@@ -126,3 +126,21 @@ test('認証キーは独立して保存・復元し、空入力で削除する',
     assert.equal(run("document.getElementById('apiKeyInput').value"), '');
     assert.equal(run("localStorage.getItem('yt_rss_api_key')"), undefined);
 });
+
+test('更新は選択中のチャンネルに関係なく全件処理し、進捗と失敗を表示する', async () => {
+    const { context, run } = app();
+    const elements = {};
+    context.document.getElementById = id => elements[id] ||= {};
+    run(`appState.channels = [{ id: 'one', title: 'チャンネル1' }, { id: 'two', title: 'チャンネル2' }];
+        appState.selectedChannel = 'one'; requests = [];
+        fetchFeed = async (id, name, text, quiet) => { requests.push({ id, quiet }); return id === 'one' ? { name, items: [] } : null; };`);
+    await run('refreshAll()');
+    assert.equal(run('requests.map(r => r.id).join()'), 'one,two');
+    assert.equal(run('requests.every(r => r.quiet)'), true);
+    assert.equal(elements.refreshProgressBar.value, 2);
+    assert.equal(elements.refreshProgressBar.max, 2);
+    assert.match(elements.refreshProgressText.textContent, /1 \/ 2 件成功/);
+    assert.match(elements.refreshProgressText.textContent, /チャンネル2/);
+    assert.equal(elements.refreshButton.disabled, false);
+    assert.equal(run('appState.selectedChannel'), 'one');
+});
