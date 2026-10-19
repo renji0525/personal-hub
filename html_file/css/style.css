@@ -79,6 +79,11 @@ aside {
 
 /* チャンネル名リンク */
 .channel-link {
+    background: transparent;
+    color: inherit;
+    border-radius: 0;
+    text-align: left;
+    min-width: 0;
     display: flex;
     align-items: center;
     padding: 10px 12px;
@@ -96,6 +101,9 @@ aside {
 
 /* チャンネル削除ボタン（通常は透明、親要素ホバーで表示） */
 .btn-delete-ch {
+    background: transparent;
+    padding: 0;
+    flex-shrink: 0;
     width: 24px;
     height: 24px;
     display: flex;
@@ -109,6 +117,7 @@ aside {
     transition: opacity 0.2s, background 0.2s;
 }
 .channel-item-container:hover .btn-delete-ch { opacity: 1; }
+.channel-item-container:focus-within .btn-delete-ch { opacity: 1; }
 .btn-delete-ch:hover { background-color: rgba(255,255,255,0.1); color: #ff4444; }
 
 /* サイドバー下部のユーティリティ（設定など） */

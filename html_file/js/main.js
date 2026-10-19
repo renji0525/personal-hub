@@ -76,21 +76,75 @@ function repositionNotifications() {
  * データの永続化（保存）
  * 現在の appState を JSON文字列にして LocalStorage に書き込みます。
  */
-function save() { localStorage.setItem('yt_v5_final', JSON.stringify(appState)); }
+function save() {
+    try {
+        localStorage.setItem('yt_v5_final', JSON.stringify(appState));
+        return true;
+    } catch (error) {
+        showNotification('データを保存できません。JSONでバックアップしてください。', 'error');
+        return false;
+    }
+}
+
+function safeURL(value) {
+    const url = new URL(value);
+    if (!['https:', 'http:'].includes(url.protocol)) throw new Error('無効なURLです');
+    return url.href;
+}
+
+function videoId(value) {
+    const url = new URL(safeURL(value));
+    const host = url.hostname.toLowerCase();
+    if (host === 'youtu.be') return url.pathname.split('/')[1];
+    if (host !== 'youtube.com' && !host.endsWith('.youtube.com')) throw new Error('YouTubeのURLではありません');
+    return url.searchParams.get('v') || (/^\/(shorts|embed|live)\//.test(url.pathname) ? url.pathname.split('/')[2] : null);
+}
+
+function validateState(state) {
+    const fail = () => { throw new Error('データの形式が正しくありません'); };
+    if (!state || !Array.isArray(state.channels) || !Array.isArray(state.videos) ||
+        typeof state.darkMode !== 'boolean' || typeof state.selectedChannel !== 'string') fail();
+    const channels = state.channels.map(c => {
+        if (!c || typeof c.id !== 'string' || !c.id || typeof c.title !== 'string') fail();
+        return { id: c.id, title: c.title };
+    });
+    if (new Set(channels.map(c => c.id)).size !== channels.length) fail();
+    const videos = state.videos.map(v => {
+        if (!v || !['id', 'channelId', 'channelName', 'title', 'thumb', 'url', 'published'].every(k => typeof v[k] === 'string') ||
+            !v.id || typeof v.watched !== 'boolean' || !Number.isFinite(Date.parse(v.published)) ||
+            !channels.some(c => c.id === v.channelId)) fail();
+        if (!videoId(v.url)) fail();
+        safeURL(v.thumb);
+        return { id: v.id, channelId: v.channelId, channelName: v.channelName, title: v.title,
+            thumb: v.thumb, url: v.url, published: v.published, watched: v.watched };
+    });
+    return { channels, videos, darkMode: state.darkMode,
+        selectedChannel: channels.some(c => c.id === state.selectedChannel) ? state.selectedChannel : 'all' };
+}
+
+let busy = false;
+async function withBusy(action) {
+    if (busy) return;
+    busy = true;
+    try { await action(); }
+    catch (error) { showNotification(error.message, 'error'); }
+    finally { busy = false; }
+}
 
 /**
  * データの復元（読み込み）
  * ブラウザに保存されているデータを読み込み、UIを初期化します。
  */
 function load() {
-    const data = localStorage.getItem('yt_v5_final');
-    if (data) {
-        appState = JSON.parse(data);
-        // 保存されていたモードを適用
-        document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
-        renderChannels(); // サイドバー再描画
-        renderVideos();   // メインエリア再描画
+    try {
+        const data = localStorage.getItem('yt_v5_final');
+        if (data) appState = validateState(JSON.parse(data));
+    } catch (error) {
+        showNotification('保存データを読み込めません。バックアップから復元してください。', 'error');
     }
+    document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
+    renderChannels();
+    renderVideos();
 }
 
 /**
@@ -131,12 +185,11 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
         const data = await res.json();
         
         if (data.status === 'ok') {
-            showNotification(`成功 [${inChannelName}]`, "success");
             // 取得したデータをアプリ内の共通フォーマットに変換
-            return {
+            const result = {
                 name: data.feed.title,
                 items: data.items.map(item => ({
-                    id: item.link.split('v=')[1], // URLから動画IDを抽出
+                    id: videoId(item.link),
                     channelId: channelId,
                     channelName: data.feed.title,
                     title: item.title,
@@ -146,6 +199,10 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
                     watched: false // デフォルトは未読
                 }))
             };
+            validateState({ channels: [{ id: channelId, title: result.name }], videos: result.items,
+                darkMode: true, selectedChannel: 'all' });
+            showNotification(`成功 [${inChannelName}]`, 'success');
+            return result;
         } else {
             throw new Error(data.message || "取得失敗");
         }
@@ -159,6 +216,7 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
  * 新しいチャンネルをリストに追加する
  */
 async function addNewChannel() {
+    return withBusy(async () => {
     let input = document.getElementById('channelIdInput').value.trim();
     // 入力がURLの場合でもID部分(UC...)だけを抜き出す正規表現
     const idMatch = input.match(/(UC[a-zA-Z0-9_-]{22})/);
@@ -177,6 +235,8 @@ async function addNewChannel() {
     if (result) mergeVideos(result.items); // 動画リストを合流
     save();
     renderChannels();
+    renderVideos();
+    });
 }
 
 /**
@@ -184,6 +244,7 @@ async function addNewChannel() {
  */
 function removeChannel(cid, event) {
     event.stopPropagation(); // 親要素のクリックイベント（フィルタ切り替え）を阻止
+    if (busy) return showNotification('取得が終わってから削除してください。');
     if (!confirm("チャンネルと動画データを削除しますか？")) return;
     
     // チャンネルリストと動画リストの両方から削除
@@ -202,7 +263,8 @@ function removeChannel(cid, event) {
  * 全チャンネル（または選択中チャンネル）の最新動画を再取得する
  */
 async function refreshAll() {
-    showNotification(`RRS 更新開始`);
+    return withBusy(async () => {
+    showNotification(`RSS 更新開始`);
     const selectTarget = `${appState.selectedChannel}`;
     const channelCountMax = appState.channels.length;
     let count = 1;
@@ -233,16 +295,22 @@ async function refreshAll() {
     renderChannels();
     renderVideos();
     showNotification(`RSS 更新終了`);
+    });
 }
 
 /**
  * 重複を避けて動画リストを統合する
  */
 function mergeVideos(newVideos) {
+    const ids = new Set(appState.videos.map(v => v.id));
     newVideos.forEach(nv => {
         // すでに存在するID（動画）は追加しない
-        if (!appState.videos.some(v => v.id === nv.id)) appState.videos.push(nv);
+        if (!ids.has(nv.id)) {
+            appState.videos.push(nv);
+            ids.add(nv.id);
+        }
     });
+    appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
 }
 
 /**
@@ -250,18 +318,23 @@ function mergeVideos(newVideos) {
  */
 function renderChannels() {
     const list = document.getElementById('channel-list');
-    list.innerHTML = `
-        <div class="channel-item-container all-view ${appState.selectedChannel === 'all' ? 'active' : ''}">
-            <div class="channel-link" onclick="filterChan('all')">すべて表示</div>
-        </div>`;
-        
-    appState.channels.forEach(ch => {
+    list.replaceChildren();
+    [{ id: 'all', title: 'すべて表示' }, ...appState.channels].forEach(ch => {
         const item = document.createElement('div');
-        item.className = `channel-item-container ${appState.selectedChannel === ch.id ? 'active' : ''}`;
-        item.innerHTML = `
-            <div class="channel-link" onclick="filterChan('${ch.id}')">${ch.title}</div>
-            <div class="btn-delete-ch" title="削除" onclick="removeChannel('${ch.id}', event)">✕</div>
-        `;
+        item.className = `channel-item-container ${ch.id === 'all' ? 'all-view' : ''} ${appState.selectedChannel === ch.id ? 'active' : ''}`;
+        const link = document.createElement('button');
+        link.className = 'channel-link';
+        link.textContent = ch.title;
+        link.addEventListener('click', () => filterChan(ch.id));
+        item.appendChild(link);
+        if (ch.id !== 'all') {
+            const remove = document.createElement('button');
+            remove.className = 'btn-delete-ch';
+            remove.title = '削除';
+            remove.textContent = '✕';
+            remove.addEventListener('click', event => removeChannel(ch.id, event));
+            item.appendChild(remove);
+        }
         list.appendChild(item);
     });
 }
@@ -282,19 +355,31 @@ function renderVideos() {
         const card = document.createElement('div');
         card.className = `video-card ${v.watched ? 'watched' : ''}`; // 既読なら薄くするCSSを適用
         card.innerHTML = `
-            <a href="${v.url}" target="_blank" class="thumb-wrapper" onclick="setWatched('${v.id}')">
-                <img src="${v.thumb}" loading="lazy">
+            <a target="_blank" rel="noopener noreferrer" class="thumb-wrapper">
+                <img loading="lazy" alt="">
             </a>
             <div class="video-info">
-                <div class="video-title" title="${v.title}">${v.title}</div>
-                <div class="channel-name">${v.channelName}</div>
+                <div class="video-title"></div>
+                <div class="channel-name"></div>
                 <div class="meta-row">
                     <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
-                        <input type="checkbox" ${v.watched ? 'checked' : ''} onchange="setWatched('${v.id}')"> 既読
+                        <input type="checkbox"> 既読
                     </label>
-                    <span>${new Date(v.published).toLocaleDateString()}</span>
+                    <span></span>
                 </div>
             </div>`;
+        const link = card.querySelector('a');
+        link.href = safeURL(v.url);
+        link.addEventListener('click', () => setWatched(v.id, true));
+        card.querySelector('img').src = safeURL(v.thumb);
+        const title = card.querySelector('.video-title');
+        title.textContent = v.title;
+        title.title = v.title;
+        card.querySelector('.channel-name').textContent = v.channelName;
+        card.querySelector('.meta-row span').textContent = new Date(v.published).toLocaleDateString();
+        const checkbox = card.querySelector('input');
+        checkbox.checked = v.watched;
+        checkbox.addEventListener('change', () => setWatched(v.id, checkbox.checked));
         container.appendChild(card);
     });
 }
@@ -302,11 +387,11 @@ function renderVideos() {
 /**
  * 動画の既読/未読状態を切り替える
  */
-function setWatched(vid) {
+function setWatched(vid, watched) {
     const video = appState.videos.find(v => v.id === vid);
     if (video) {
         // 現在の状態を反転(トグル)させる
-        video.watched = !video.watched;
+        video.watched = watched === undefined ? !video.watched : watched;
         save();
         renderVideos();
     }
@@ -353,21 +438,30 @@ function exportJSON() {
     a.href = URL.createObjectURL(blob);
     a.download = `yt_rss_backup_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /**
  * 復元：選択したJSONファイルからデータを読み込む
  */
 function importJSON(e) {
+    if (busy) {
+        e.target.value = '';
+        return showNotification('取得が終わってから復元してください。');
+    }
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
+    busy = true;
+    reader.onloadend = () => { busy = false; e.target.value = ''; };
+    reader.onerror = () => showNotification('ファイルを読み込めません。', 'error');
     reader.onload = (event) => {
         try {
-            appState = JSON.parse(event.target.result);
-            save();
+            const restored = validateState(JSON.parse(event.target.result));
+            localStorage.setItem('yt_v5_final', JSON.stringify(restored));
+            appState = restored;
             location.reload(); // 読み込み後はページをリフレッシュして全反映
-        } catch (err) { alert("無効なJSONファイルです"); }
+        } catch (err) { showNotification('復元できません。JSONの内容または保存容量を確認してください。', 'error'); }
     };
     reader.readAsText(file);
 }
@@ -376,9 +470,12 @@ function importJSON(e) {
  * 初期化（全消去）
  */
 function resetAll() {
+    if (busy) return showNotification('取得が終わってから初期化してください。');
     if (confirm("すべての設定と既読情報を削除しますか？")) {
-        localStorage.removeItem('yt_v5_final');
-        location.reload();
+        try {
+            localStorage.removeItem('yt_v5_final');
+            location.reload();
+        } catch (error) { showNotification('保存データを削除できません。', 'error'); }
     }
 }
 
