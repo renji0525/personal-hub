@@ -73,3 +73,31 @@ test('corrupt storage does not interrupt initial rendering', () => {
     run('load()');
     assert.equal(context.renders, 1);
 });
+
+test('未読表示はチャンネル条件と組み合わせ、既読化で対象から外れる', () => {
+    const { run } = app();
+    run(`appState.videos = [
+        { id: 'a', channelId: 'one', watched: false },
+        { id: 'b', channelId: 'one', watched: true },
+        { id: 'c', channelId: 'two', watched: false }
+    ]; setUnreadOnly(true);`);
+    assert.equal(run('getDisplayVideos().length'), 2);
+    run("appState.selectedChannel = 'one'");
+    assert.equal(run("getDisplayVideos()[0].id"), 'a');
+    run("setWatched('a', true)");
+    assert.equal(run('getDisplayVideos().length'), 0);
+    run('setUnreadOnly(false)');
+    assert.equal(run('getDisplayVideos().length'), 2);
+});
+
+test('旧バックアップの互換性を保ち、未読表示設定を保存・検証する', () => {
+    const { run } = app();
+    run("backup = { channels: [], videos: [], darkMode: true, selectedChannel: 'all' }");
+    assert.equal(run('validateState(backup).unreadOnly'), false);
+    run('backup.unreadOnly = true');
+    assert.equal(run('validateState(backup).unreadOnly'), true);
+    run("backup.unreadOnly = 'true'");
+    assert.throws(() => run('validateState(backup)'));
+    run('setUnreadOnly(true); appState.unreadOnly = false; load()');
+    assert.equal(run('appState.unreadOnly'), true);
+});

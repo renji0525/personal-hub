@@ -6,7 +6,8 @@ let appState = {
     channels: [],       // 登録されたチャンネル情報 {id, title}
     videos: [],         // 取得した動画の全リスト
     darkMode: true,     // ダークモードの設定状態
-    selectedChannel: 'all' // 現在表示しているフィルタ（'all' または チャンネルID）
+    selectedChannel: 'all', // 現在表示しているフィルタ（'all' または チャンネルID）
+    unreadOnly: false      // 未読動画だけを表示するか
 };
 
 /**
@@ -104,6 +105,7 @@ function validateState(state) {
     const fail = () => { throw new Error('データの形式が正しくありません'); };
     if (!state || !Array.isArray(state.channels) || !Array.isArray(state.videos) ||
         typeof state.darkMode !== 'boolean' || typeof state.selectedChannel !== 'string') fail();
+    if (state.unreadOnly !== undefined && typeof state.unreadOnly !== 'boolean') fail();
     const channels = state.channels.map(c => {
         if (!c || typeof c.id !== 'string' || !c.id || typeof c.title !== 'string') fail();
         return { id: c.id, title: c.title };
@@ -118,7 +120,7 @@ function validateState(state) {
         return { id: v.id, channelId: v.channelId, channelName: v.channelName, title: v.title,
             thumb: v.thumb, url: v.url, published: v.published, watched: v.watched };
     });
-    return { channels, videos, darkMode: state.darkMode,
+    return { channels, videos, darkMode: state.darkMode, unreadOnly: state.unreadOnly ?? false,
         selectedChannel: channels.some(c => c.id === state.selectedChannel) ? state.selectedChannel : 'all' };
 }
 
@@ -346,10 +348,14 @@ function renderVideos() {
     const container = document.getElementById('video-container');
     container.innerHTML = '';
     
-    // 現在選択されているチャンネルに応じてフィルタリング
-    const displayList = appState.selectedChannel === 'all' 
-        ? appState.videos 
-        : appState.videos.filter(v => v.channelId === appState.selectedChannel);
+    document.getElementById('unreadOnlyInput').checked = appState.unreadOnly;
+    const displayList = getDisplayVideos();
+    if (displayList.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-message';
+        empty.textContent = appState.unreadOnly ? '未読の動画はありません。' : '表示する動画はありません。';
+        container.appendChild(empty);
+    }
 
     displayList.forEach(v => {
         const card = document.createElement('div');
@@ -397,15 +403,15 @@ function setWatched(vid, watched) {
     }
 }
 
-/**
- * 表示されているすべての動画を既読にする
- */
-function markAllWatched() {
-    const currentList = appState.selectedChannel === 'all' 
-        ? appState.videos 
-        : appState.videos.filter(v => v.channelId === appState.selectedChannel);
-        
-    currentList.forEach(v => v.watched = true);
+// チャンネルと未読条件を組み合わせて表示対象を選ぶ
+function getDisplayVideos() {
+    return appState.videos.filter(v =>
+        (appState.selectedChannel === 'all' || v.channelId === appState.selectedChannel) &&
+        (!appState.unreadOnly || !v.watched));
+}
+
+function setUnreadOnly(enabled) {
+    appState.unreadOnly = enabled;
     save();
     renderVideos();
 }

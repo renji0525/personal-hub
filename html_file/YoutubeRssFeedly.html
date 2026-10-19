@@ -15,6 +15,16 @@
         <div id="channel-list"></div>
     </div>
     <div class="sidebar-bottom">
+        <button class="btn-utility" onclick="document.getElementById('settingsDialog').showModal()">⚙️ 設定</button>
+    </div>
+</aside>
+
+<dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="settings-heading">
+        <h2 id="settingsTitle">設定</h2>
+        <form method="dialog"><button class="btn-utility" aria-label="設定を閉じる" autofocus>✕ 閉じる</button></form>
+    </div>
+    <div class="settings-content">
         <label class="section-title" for="apiKeyInput">接続・設定</label>
         <input type="text" id="apiKeyInput" class="input-bar" placeholder="apikey..." aria-label="認証キー">
         <div class="settings-actions">
@@ -25,7 +35,7 @@
         <button class="btn-danger" onclick="resetAll()">🗑️ ストレージ破棄</button>
         </div>
     </div>
-</aside>
+</dialog>
 
 <main>
     <header>
@@ -35,7 +45,7 @@
         </div>
         <div class="video-actions">
         <button class="btn-utility" onclick="refreshAll()">🔄 更新</button>
-        <button class="btn-utility" onclick="markAllWatched()">✔️ すべて既読にする</button>
+        <label class="unread-filter"><input type="checkbox" id="unreadOnlyInput" onchange="setUnreadOnly(this.checked)"> 未読のみ表示</label>
         </div>
     </header>
     <div id="video-container"></div>
