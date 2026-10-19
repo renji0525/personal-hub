@@ -79,7 +79,7 @@ function repositionNotifications() {
  */
 function save() {
     try {
-        localStorage.setItem('yt_v5_final', JSON.stringify(appState));
+        localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(appState));
         return true;
     } catch (error) {
         showNotification('データを保存できません。JSONでバックアップしてください。', 'error');
@@ -163,7 +163,7 @@ async function withBusy(action) {
  */
 function load() {
     try {
-        const data = localStorage.getItem('yt_v5_final');
+        const data = localStorage.getItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
         if (data) appState = validateState(JSON.parse(data));
     } catch (error) {
         showNotification('保存データを読み込めません。バックアップから復元してください。', 'error');
@@ -189,7 +189,8 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
     const myApikey = document.getElementById('apiKeyInput').value.trim();
 
     // 認証キーが無い場合はエラー文を表示して終了
-    if(`${myApikey}` === '') {
+    const signedIn = typeof authSession !== 'undefined' && authSession;
+    if(!signedIn && `${myApikey}` === '') {
         showNotification(`エラー apikeyが未入力です。`,"error");
         return null;
     }
@@ -206,9 +207,13 @@ async function fetchFeed(channelId, inChannelName="None", addText="") {
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
     try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-        const data = await res.json();
+        let data;
+        if (signedIn) data = await accountApi('feed', { channelId });
+        else {
+            const res = await fetch(apiUrl);
+            if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+            data = await res.json();
+        }
         
         if (data.status === 'ok') {
             // 取得したデータをアプリ内の共通フォーマットに変換
@@ -268,10 +273,16 @@ async function addNewChannel() {
 /**
  * チャンネルの削除
  */
-function removeChannel(cid, event) {
+async function removeChannel(cid, event) {
     event.stopPropagation(); // 親要素のクリックイベント（フィルタ切り替え）を阻止
     if (busy) return showNotification('取得が終わってから削除してください。');
     if (!confirm("チャンネルと動画データを削除しますか？")) return;
+    if (typeof authSession !== 'undefined' && authSession) {
+        busy = true;
+        try { await accountApi('removeChannel', { channelId: cid }); }
+        catch (error) { showNotification(error.message, 'error'); return; }
+        finally { busy = false; }
+    }
     
     // チャンネルリストと動画リストの両方から削除
     appState.channels = appState.channels.filter(c => c.id !== cid);
@@ -489,7 +500,7 @@ function importJSON(e) {
         try {
             const restored = validateState(JSON.parse(event.target.result));
             try {
-                localStorage.setItem('yt_v5_final', JSON.stringify(restored));
+                localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(restored));
             } catch (error) {
                 showNotification('復元データを保存できません。ブラウザの保存容量・保存設定を確認してください。', 'error');
                 return;
@@ -509,7 +520,7 @@ function resetAll() {
     if (confirm("認証キーを含むすべての設定と既読情報を削除しますか？")) {
         try {
             localStorage.removeItem('yt_rss_api_key');
-            localStorage.removeItem('yt_v5_final');
+            localStorage.removeItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
             location.reload();
         } catch (error) { showNotification('保存データを削除できません。', 'error'); }
     }
@@ -519,6 +530,7 @@ function resetAll() {
  * ページ読み込み完了時の処理
  */
 window.onload = () => {
+    if (typeof initAccount === 'function') initAccount();
     loadApiKey();
     load(); // ストレージからデータを読み込む
     //refreshAll();

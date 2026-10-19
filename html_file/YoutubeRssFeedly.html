@@ -26,6 +26,22 @@
         <form method="dialog"><button class="btn-utility" aria-label="設定を閉じる" autofocus>✕ 閉じる</button></form>
     </div>
     <div class="settings-content">
+        <section class="account-settings" aria-labelledby="accountTitle">
+            <h3 id="accountTitle">ユーザーアカウント</h3>
+            <p id="accountStatus" role="status" aria-live="polite">ログインしていません</p>
+            <form id="accountForm" onsubmit="event.preventDefault(); signIn('login')">
+                <label for="userIdInput">ユーザーID</label>
+                <input id="userIdInput" class="input-bar" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" required placeholder="英数字・下線・ハイフン（3〜32文字）">
+                <label for="passwordInput">パスワード</label>
+                <input id="passwordInput" class="input-bar" type="password" autocomplete="current-password" minlength="12" maxlength="128" required placeholder="12〜128文字">
+                <div class="account-actions">
+                    <button type="submit" class="btn-add">ログイン</button>
+                    <button type="button" class="btn-utility" onclick="signIn('register')">新規登録</button>
+                </div>
+            </form>
+            <button id="logoutButton" class="btn-utility" onclick="signOut()" hidden>ログアウト</button>
+            <small>ログイン中の追加・更新で、チャンネルとRSSをアカウント専用に保存します。既読状態はこのブラウザで管理します。</small>
+        </section>
         <label class="section-title" for="apiKeyInput">接続・設定</label>
         <input type="password" id="apiKeyInput" class="input-bar" placeholder="apikey..." aria-label="認証キー" aria-describedby="apiKeyHint" oninput="saveApiKey()">
         <small id="apiKeyHint">キーはこのブラウザに自動保存されます。</small>
@@ -54,5 +70,6 @@
 </main>
 
 <script src="js/main.js"></script>
+<script src="js/accounts.js"></script>
 </body>
 </html>

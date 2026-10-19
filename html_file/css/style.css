@@ -65,6 +65,12 @@ dialog::backdrop { background:#061019b8; backdrop-filter:blur(5px); }
 .settings-heading h2 { margin:0; font-size:22px; }
 .settings-content { display:grid; gap:12px; }
 .settings-content small { color:var(--text-secondary); font-size:11px; }
+.account-settings { display:grid; gap:12px; padding-bottom:24px; margin-bottom:12px; border-bottom:1px solid var(--border-color); }
+.account-settings h3,.account-settings p { margin:0; }
+.account-settings p { color:var(--accent-color); overflow-wrap:anywhere; }
+#accountForm { display:grid; gap:10px; }
+.account-actions { display:flex; flex-wrap:wrap; gap:8px; }
+[hidden] { display:none !important; }
 .settings-content .section-title { padding:0; }
 .settings-actions { display:grid; gap:10px; padding-top:12px; }
 .settings-actions button { justify-content:flex-start; padding:13px 16px; }
