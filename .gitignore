@@ -1,3 +1,9 @@
 /docs/
 /AGENTS.md
 /savedata/
+node_modules/
+.clasprc.json
+.clasprc-*.json
+.clasp.json
+/.pnpm-store/
+/gas/
