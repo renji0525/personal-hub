@@ -101,3 +101,16 @@ test('旧バックアップの互換性を保ち、未読表示設定を保存�
     run('setUnreadOnly(true); appState.unreadOnly = false; load()');
     assert.equal(run('appState.unreadOnly'), true);
 });
+
+test('旧バックアップの欠落したShorts IDを補完し既読状態を維持する', () => {
+    const { run } = app();
+    run(`backup = { channels: [{ id: 'channel', title: 'チャンネル' }],
+        videos: [{ channelId: 'channel', channelName: 'チャンネル', title: '動画',
+            thumb: 'https://example.com/image.jpg', url: 'https://www.youtube.com/shorts/abc123',
+            published: '2026-10-16', watched: true }], darkMode: true, selectedChannel: 'channel' };`);
+    assert.equal(run('validateState(backup).videos[0].id'), 'abc123');
+    assert.equal(run('validateState(backup).videos[0].watched'), true);
+    assert.equal(run('backup.videos[0].id'), undefined);
+    run("backup.videos[0].url = 'javascript:alert(1)'");
+    assert.throws(() => run('validateState(backup)'));
+});

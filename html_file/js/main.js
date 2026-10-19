@@ -110,14 +110,19 @@ function validateState(state) {
         if (!c || typeof c.id !== 'string' || !c.id || typeof c.title !== 'string') fail();
         return { id: c.id, title: c.title };
     });
-    if (new Set(channels.map(c => c.id)).size !== channels.length) fail();
+    const channelIds = new Set(channels.map(c => c.id));
+    if (channelIds.size !== channels.length) fail();
     const videos = state.videos.map(v => {
-        if (!v || !['id', 'channelId', 'channelName', 'title', 'thumb', 'url', 'published'].every(k => typeof v[k] === 'string') ||
-            !v.id || typeof v.watched !== 'boolean' || !Number.isFinite(Date.parse(v.published)) ||
-            !channels.some(c => c.id === v.channelId)) fail();
-        if (!videoId(v.url)) fail();
+        if (!v || !['channelId', 'channelName', 'title', 'thumb', 'url', 'published'].every(k => typeof v[k] === 'string') ||
+            typeof v.watched !== 'boolean' || !Number.isFinite(Date.parse(v.published)) ||
+            !channelIds.has(v.channelId)) fail();
+        const urlId = videoId(v.url);
+        if (!urlId) fail();
+        // 旧バックアップではShortsの動画IDが欠けるため、URLから補完する
+        const id = v.id === undefined || v.id === null || v.id === '' ? urlId : v.id;
+        if (typeof id !== 'string') fail();
         safeURL(v.thumb);
-        return { id: v.id, channelId: v.channelId, channelName: v.channelName, title: v.title,
+        return { id, channelId: v.channelId, channelName: v.channelName, title: v.title,
             thumb: v.thumb, url: v.url, published: v.published, watched: v.watched };
     });
     return { channels, videos, darkMode: state.darkMode, unreadOnly: state.unreadOnly ?? false,
@@ -464,10 +469,15 @@ function importJSON(e) {
     reader.onload = (event) => {
         try {
             const restored = validateState(JSON.parse(event.target.result));
-            localStorage.setItem('yt_v5_final', JSON.stringify(restored));
+            try {
+                localStorage.setItem('yt_v5_final', JSON.stringify(restored));
+            } catch (error) {
+                showNotification('復元データを保存できません。ブラウザの保存容量・保存設定を確認してください。', 'error');
+                return;
+            }
             appState = restored;
             location.reload(); // 読み込み後はページをリフレッシュして全反映
-        } catch (err) { showNotification('復元できません。JSONの内容または保存容量を確認してください。', 'error'); }
+        } catch (err) { showNotification('復元できません。JSONの形式または動画データを確認してください。', 'error'); }
     };
     reader.readAsText(file);
 }
