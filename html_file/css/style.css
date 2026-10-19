@@ -28,11 +28,14 @@
 /* ==========================================================================
    2. ベースレイアウト
    ========================================================================== */
+* { box-sizing: border-box; }
+
 body {
     font-family: "Roboto", Arial, sans-serif;
     margin: 0;
     display: flex;             /* サイドバーとメインを横並びにする */
     height: 100vh;             /* 画面全体の高さに固定 */
+    height: 100dvh;
     background-color: var(--bg-color);
     color: var(--text-color);
     transition: background-color 0.2s; /* テーマ切り替えを滑らかに */
@@ -45,6 +48,8 @@ body {
 aside {
     width: 260px;
     min-width: 260px;
+    min-height: 0;
+    overflow-y: auto;
     background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -53,7 +58,7 @@ aside {
 }
 
 /* チャンネルリスト部分：溢れたらスクロール可能に */
-.sidebar-top { flex-grow: 1; overflow-y: auto; }
+.sidebar-top { flex: 1 0 auto; min-width: 0; }
 
 /* セクションの見出し（「登録チャンネル」など） */
 .section-title {
@@ -84,11 +89,11 @@ aside {
     border-radius: 0;
     text-align: left;
     min-width: 0;
-    display: flex;
+    display: block;
     align-items: center;
     padding: 10px 12px;
     cursor: pointer;
-    flex-grow: 1;
+    flex: 1;
     font-size: 14px;
     white-space: nowrap;      /* 改行させない */
     overflow: hidden;         /* はみ出しを隠す */
@@ -122,6 +127,7 @@ aside {
 
 /* サイドバー下部のユーティリティ（設定など） */
 .sidebar-bottom {
+    flex-shrink: 0;
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid var(--border-color);
@@ -130,10 +136,13 @@ aside {
     gap: 6px;
 }
 
+.settings-actions { display: grid; gap: 6px; }
+.sidebar-bottom .section-title { padding: 0 12px 4px; }
+
 /* ==========================================================================
    4. メインコンテンツ & ヘッダー
    ========================================================================== */
-main { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 header {
     padding: 12px 20px;
@@ -142,10 +151,18 @@ header {
     display: flex;
     gap: 10px;
     align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
+
+.channel-add { display: flex; flex: 1 1 300px; min-width: 0; gap: 8px; }
+.video-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.channel-add .input-bar { width: 0; flex: 1; }
 
 /* 検索バー（YouTube風のデザイン） */
 .input-bar {
+    min-width: 0;
+    width: 100%;
     flex-grow: 1;
     padding: 8px 16px;
     border: 1px solid var(--border-color);
@@ -158,6 +175,9 @@ header {
 
 /* 共通ボタンスタイル */
 button {
+    min-height: 36px;
+    flex-shrink: 0;
+    font-family: inherit;
     cursor: pointer;
     padding: 8px 16px;
     border: none;
@@ -169,6 +189,7 @@ button {
     gap: 6px;
     transition: transform 0.1s;
 }
+button:focus-visible, .input-bar:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
 button:active { transform: scale(0.95); } /* クリックした瞬間の沈み込み演出 */
 
 .btn-add { background-color: var(--accent-color); color: white; }
@@ -179,6 +200,10 @@ button:active { transform: scale(0.95); } /* クリックした瞬間の沈み�
    5. ビデオグリッドレイアウト
    ========================================================================== */
 #video-container {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     padding: 24px;
     overflow-y: auto;          /* コンテンツが増えたらここがスクロールする */
     display: grid;
@@ -186,12 +211,14 @@ button:active { transform: scale(0.95); } /* クリックした瞬間の沈み�
 }
 
 /* ビデオカード個別 */
-.video-card { display: flex; gap: 10px; transition: opacity 0.3s; }
+.video-card { display: flex; align-items: flex-start; min-width: 0; gap: 16px; transition: opacity 0.3s; }
+.video-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .video-card.watched { opacity: var(--watched-opacity); } /* 視聴済みは薄くする */
 
 /* サムネイルの親要素（アスペクト比維持） */
 .thumb-wrapper { 
-    width: 10%; 
+    width: clamp(140px, 22%, 240px);
+    flex-shrink: 0;
     position: relative; 
     border-radius: 12px; 
     overflow: hidden; 
@@ -213,7 +240,40 @@ button:active { transform: scale(0.95); } /* クリックした瞬間の沈み�
 }
 
 .channel-name { font-size: 13px; color: var(--text-secondary); }
-.meta-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+
+/* 狭い画面では設定・チャンネルを上に並べ、ページ全体をスクロールする */
+@media (max-width: 760px) {
+    body { display: block; height: auto; min-height: 100dvh; overflow: auto; }
+    aside { width: 100%; min-width: 0; overflow: visible; border-right: 0; border-bottom: 1px solid var(--border-color); }
+    #channel-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .channel-item-container { display: flex; flex: 0 0 auto; max-width: min(280px, 85vw); }
+    .sidebar-bottom { display: grid; grid-template-columns: minmax(0, 1fr); }
+    .settings-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-actions button { justify-content: center; padding: 8px; border-radius: 10px; }
+    .btn-danger { margin-top: 0; }
+    .btn-delete-ch { opacity: 1; }
+    main { overflow: visible; }
+    header { padding: 12px; gap: 12px; }
+    .channel-add { flex-basis: 100%; }
+    .video-actions { width: 100%; }
+    .video-actions button { flex: 1; justify-content: center; }
+    #video-container { overflow: visible; padding: 16px 12px; gap: 20px; }
+    .thumb-wrapper { width: clamp(120px, 32%, 200px); border-radius: 8px; }
+    .video-card { gap: 12px; }
+}
+
+/* 最小幅ではサムネイルと説明を縦に並べて読みやすさを保つ */
+@media (max-width: 420px) {
+    .video-card { flex-direction: column; }
+    .thumb-wrapper { width: 100%; }
+    .video-info { width: 100%; }
+    .settings-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (hover: none) {
+    .btn-delete-ch { opacity: 1; }
+}
 
 /* ==========================================================================
    6. UI演出（アニメーション & スクロールバー）

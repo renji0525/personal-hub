@@ -15,21 +15,28 @@
         <div id="channel-list"></div>
     </div>
     <div class="sidebar-bottom">
-        <input type="text" id="apiKeyInput" class="input-bar" placeholder="apikey...">
+        <label class="section-title" for="apiKeyInput">接続・設定</label>
+        <input type="text" id="apiKeyInput" class="input-bar" placeholder="apikey..." aria-label="認証キー">
+        <div class="settings-actions">
         <button class="btn-utility" onclick="exportJSON()">📊 バックアップ(JSON)</button>
         <button class="btn-utility" onclick="document.getElementById('importFile').click()">📂 データを復元</button>
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importJSON(event)">
         <button class="btn-utility" onclick="toggleTheme()">🌓 ダークモード切替</button>
         <button class="btn-danger" onclick="resetAll()">🗑️ ストレージ破棄</button>
+        </div>
     </div>
 </aside>
 
 <main>
     <header>
-        <input type="text" id="channelIdInput" class="input-bar" placeholder="YouTube Channel ID (例: UC...)">
+        <div class="channel-add">
+        <input type="text" id="channelIdInput" class="input-bar" placeholder="YouTube Channel ID (例: UC...)" aria-label="追加するチャンネルID">
         <button class="btn-add" onclick="addNewChannel()">追加</button>
+        </div>
+        <div class="video-actions">
         <button class="btn-utility" onclick="refreshAll()">🔄 更新</button>
         <button class="btn-utility" onclick="markAllWatched()">✔️ すべて既読にする</button>
+        </div>
     </header>
     <div id="video-container"></div>
 </main>
