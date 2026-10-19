@@ -8,7 +8,7 @@ function app() {
     const input = { value: 'UCtest' };
     const context = vm.createContext({
         URL, URLSearchParams, setTimeout, window: {},
-        localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v) },
+        localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) },
         document: { getElementById: () => input, body: { setAttribute() {} } }
     });
     vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../html_file/js/main.js'), 'utf8'), context);
@@ -113,4 +113,16 @@ test('旧バックアップの欠落したShorts IDを補完し既読状態を�
     assert.equal(run('backup.videos[0].id'), undefined);
     run("backup.videos[0].url = 'javascript:alert(1)'");
     assert.throws(() => run('validateState(backup)'));
+});
+
+test('認証キーは独立して保存・復元し、空入力で削除する', () => {
+    const { run } = app();
+    run("document.getElementById('apiKeyInput').value = ' test-key '; saveApiKey()");
+    assert.equal(run("localStorage.getItem('yt_rss_api_key')"), 'test-key');
+    run("document.getElementById('apiKeyInput').value = ''; loadApiKey()");
+    assert.equal(run("document.getElementById('apiKeyInput').value"), 'test-key');
+    assert.equal(run("JSON.stringify(appState).includes('test-key')"), false);
+    run("document.getElementById('apiKeyInput').value = ''; saveApiKey(); loadApiKey()");
+    assert.equal(run("document.getElementById('apiKeyInput').value"), '');
+    assert.equal(run("localStorage.getItem('yt_rss_api_key')"), undefined);
 });

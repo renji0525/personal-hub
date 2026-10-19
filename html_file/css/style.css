@@ -1,305 +1,91 @@
-/* ==========================================================================
-   1. デザインシステム（変数定義）
-   ========================================================================== */
-:root {
-    /* ダークモード（デフォルト）のカラーパレット */
-    --bg-color: #0f0f0f;         /* 全体の背景色 */
-    --sidebar-bg: #121212;      /* サイドバーの背景色 */
-    --card-bg: #1e1e1e;         /* カード要素の背景色 */
-    --text-color: #ffffff;      /* メインの文字色 */
-    --text-secondary: #aaaaaa;  /* 補助的な情報の文字色（投稿者名など） */
-    --border-color: #2a2a2a;    /* 境界線や枠線の色 */
-    --accent-color: #f04b4b;    /* 強調色（追加ボタンなど） */
-    --hover-bg: #2a2a2a;        /* ホバー時の背景色 */
-    --watched-opacity: 0.25;    /* 視聴済みビデオの透明度 */
+/* 配色はテーマ間で共有し、操作画面と設定画面を統一する */
+:root { color-scheme: dark; --bg-color:#10171e; --sidebar-bg:#141e27; --card-bg:#1a2631; --text-color:#edf4f5; --text-secondary:#a2b5c1; --border-color:#2b3c48; --accent-color:#8ae2c5; --accent-ink:#102d26; --hover-bg:#243641; --active-bg:#233e3b; --watched-opacity:.55; }
+[data-theme="light"] { color-scheme:light; --bg-color:#f1f5f3; --sidebar-bg:#f9fbfa; --card-bg:#fff; --text-color:#192d33; --text-secondary:#526b73; --border-color:#d7e2de; --accent-color:#176b54; --accent-ink:#fff; --hover-bg:#e6efeb; --active-bg:#dbeee4; }
+* { box-sizing:border-box; }
+body { margin:0; display:flex; height:100vh; height:100dvh; overflow:hidden; background:var(--bg-color); color:var(--text-color); font-family:"Segoe UI","Yu Gothic UI",Meiryo,sans-serif; font-size:14px; line-height:1.6; }
+button,input { font:inherit; }
+button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; padding:9px 16px; border:1px solid transparent; border-radius:10px; font-weight:600; cursor:pointer; transition:background .18s,border-color .18s,transform .18s; }
+button:active { transform:translateY(1px); }
+button:focus-visible,input:focus-visible,a:focus-visible { outline:2px solid var(--accent-color); outline-offset:3px; }
+.btn-utility { background:var(--card-bg); border-color:var(--border-color); color:var(--text-color); }
+.btn-utility:hover { background:var(--hover-bg); border-color:var(--text-secondary); }
+.btn-add { background:var(--accent-color); color:var(--accent-ink); padding-inline:22px; }
+.btn-add:hover { filter:brightness(1.08); }
+.btn-danger { color:#f18a8a; background:transparent; border:1px dashed var(--border-color); }
+[data-theme="light"] .btn-danger { color:#b43333; }
+.btn-danger:hover { background:var(--hover-bg); }
+.input-bar { width:100%; min-width:0; min-height:44px; padding:10px 14px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-color); color:var(--text-color); }
+.input-bar::placeholder { color:var(--text-secondary); opacity:.85; }
+/* チャンネルナビゲーション */
+aside { display:flex; flex-direction:column; flex:0 0 260px; min-width:0; min-height:0; padding:28px 18px 18px; border-right:1px solid var(--border-color); background:var(--sidebar-bg); }
+.brand { display:flex; align-items:center; gap:12px; padding:0 8px 32px; font-size:25px; font-weight:750; letter-spacing:-.8px; }
+.brand-mark { display:grid; place-items:center; width:40px; height:40px; border-radius:13px; background:var(--accent-color); color:var(--accent-ink); font-size:17px; }
+.brand span:not(.brand-mark) { display:block; color:var(--text-secondary); font-size:9px; letter-spacing:1.5px; font-weight:600; }
+.sidebar-top { flex:1; min-height:0; overflow-y:auto; }
+.section-title { display:block; padding:0 12px 12px; color:var(--text-secondary); font-size:11px; font-weight:700; letter-spacing:1px; }
+.channel-item-container { display:flex; align-items:center; gap:4px; padding-right:6px; margin-bottom:5px; border-radius:10px; border:1px solid transparent; }
+.channel-item-container:hover { background:var(--hover-bg); }
+.channel-item-container.active { background:var(--active-bg); border-color:var(--border-color); color:var(--accent-color); }
+.channel-link { display:block; flex:1; min-width:0; padding:11px 12px; background:transparent; color:inherit; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; font-weight:500; }
+.channel-link::before { content:'◉'; margin-right:10px; color:var(--text-secondary); }
+.all-view .channel-link::before { content:'▦'; color:var(--accent-color); }
+.btn-delete-ch { flex-shrink:0; min-height:30px; width:30px; padding:0; background:transparent; color:var(--text-secondary); opacity:0; }
+.channel-item-container:hover .btn-delete-ch,.channel-item-container:focus-within .btn-delete-ch { opacity:1; }
+.btn-delete-ch:hover { color:#f18a8a; background:var(--card-bg); }
+.sidebar-bottom { flex-shrink:0; padding-top:16px; margin-top:16px; border-top:1px solid var(--border-color); }
+.sidebar-bottom button { width:100%; justify-content:flex-start; background:transparent; }
+/* 見出しと操作バー */
+main { flex:1; display:flex; flex-direction:column; min-width:0; min-height:0; overflow:hidden; }
+header { display:flex; align-items:center; flex-wrap:wrap; gap:12px; flex-shrink:0; margin:0 36px; padding:16px 0 22px; border-bottom:1px solid var(--border-color); }
+.channel-add { display:flex; gap:8px; min-width:0; flex:1 1 300px; }
+.channel-add input { flex:1; width:0; }
+.video-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.unread-filter { display:flex; align-items:center; gap:9px; min-height:42px; padding:8px 12px; border-radius:10px; color:var(--text-secondary); cursor:pointer; font-size:12px; }
+.unread-filter:has(:checked) { color:var(--accent-color); background:var(--active-bg); }
+input[type="checkbox"] { width:16px; height:16px; accent-color:var(--accent-color); cursor:pointer; }
+/* 幅に合わせたカード一覧 */
+#video-container { flex:1; min-height:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr)); align-content:start; gap:24px; overflow-y:auto; padding:28px 36px 36px; }
+.video-card { min-width:0; display:flex; flex-direction:column; overflow:hidden; border-radius:14px; border:1px solid var(--border-color); background:var(--card-bg); box-shadow:0 12px 32px #00000010; transition:opacity .2s,border-color .2s; }
+#video-container { grid-auto-rows:max-content; }
+.video-card:hover { border-color:var(--text-secondary); }
+.video-card.watched { opacity:var(--watched-opacity); }
+.video-card.watched:hover { opacity:.85; }
+.thumb-wrapper { display:block; flex-shrink:0; width:100%; aspect-ratio:16/9; overflow:hidden; background:var(--hover-bg); }
+.thumb-wrapper img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s; }
+.thumb-wrapper:hover img { transform:scale(1.025); }
+.video-info { width:100%; min-width:0; padding:17px 18px 14px; overflow-wrap:anywhere; }
+.video-title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; height:3.1em; font-size:14px; font-weight:650; line-height:1.55; }
+.channel-name { margin-top:10px; font-size:11px; color:var(--text-secondary); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+.meta-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-color); font-size:11px; color:var(--text-secondary); }
+.empty-message { grid-column:1/-1; padding:64px 16px; text-align:center; color:var(--text-secondary); border:1px dashed var(--border-color); border-radius:14px; }
+/* 設定ウィンドウ */
+dialog { width:min(480px,calc(100% - 28px)); max-height:calc(100dvh - 28px); overflow-y:auto; padding:28px; border:1px solid var(--border-color); border-radius:20px; background:var(--sidebar-bg); color:var(--text-color); box-shadow:0 24px 100px #0006; }
+dialog::backdrop { background:#061019b8; backdrop-filter:blur(5px); }
+.settings-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:20px; margin-bottom:24px; border-bottom:1px solid var(--border-color); }
+.settings-heading h2 { margin:0; font-size:22px; }
+.settings-content { display:grid; gap:12px; }
+.settings-content small { color:var(--text-secondary); font-size:11px; }
+.settings-content .section-title { padding:0; }
+.settings-actions { display:grid; gap:10px; padding-top:12px; }
+.settings-actions button { justify-content:flex-start; padding:13px 16px; }
+.settings-actions .btn-danger { margin-top:12px; }
+/* 狭い画面ではナビゲーションを上部へ移す */
+@media(max-width:760px) {
+ body { display:block; height:auto; min-height:100dvh; overflow:auto; }
+ aside { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:16px; border-right:0; border-bottom:1px solid var(--border-color); }
+ .brand { font-size:22px; padding:0; } .brand-mark { width:34px; height:34px; }
+ .sidebar-top { grid-row:2; grid-column:1/-1; overflow:hidden; } .sidebar-top .section-title { display:none; }
+ #channel-list { display:flex; gap:6px; overflow-x:auto; padding:4px 0; }
+ .channel-item-container { flex:0 0 auto; max-width:min(260px,80vw); margin:0; } .btn-delete-ch { opacity:1; }
+ .sidebar-bottom { grid-column:2; grid-row:1; margin:0; padding:0; border:0; }
+ main { overflow:visible; }
+ header { margin:0 20px; padding:12px 0 18px; } .channel-add { flex-basis:100%; }
+ .video-actions { width:100%; justify-content:space-between; }
+ #video-container { overflow:visible; padding:20px; gap:18px; grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr)); }
 }
-
-/* ライトモード設定：HTML要素に [data-theme="light"] が付与された際に変数を上書き */
-[data-theme="light"] {
-    --bg-color: #f9f9f9;
-    --sidebar-bg: #ffffff;
-    --card-bg: #ffffff;
-    --text-color: #0f0f0f;
-    --text-secondary: #606060;
-    --border-color: #e5e5e5;
-    --hover-bg: #f2f2f2;
-}
-
-/* ==========================================================================
-   2. ベースレイアウト
-   ========================================================================== */
-* { box-sizing: border-box; }
-
-body {
-    font-family: "Roboto", Arial, sans-serif;
-    margin: 0;
-    display: flex;             /* サイドバーとメインを横並びにする */
-    height: 100vh;             /* 画面全体の高さに固定 */
-    height: 100dvh;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    transition: background-color 0.2s; /* テーマ切り替えを滑らかに */
-    overflow: hidden;          /* ブラウザ全体のスクロールを禁止 */
-}
-
-/* ==========================================================================
-   3. サイドバー (Aside)
-   ========================================================================== */
-aside {
-    width: 260px;
-    min-width: 260px;
-    min-height: 0;
-    overflow-y: auto;
-    background-color: var(--sidebar-bg);
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;    /* 上部リストと下部ボタンを縦に並べる */
-    padding: 12px;
-}
-
-/* チャンネルリスト部分：溢れたらスクロール可能に */
-.sidebar-top { flex: 1 0 auto; min-width: 0; }
-
-/* セクションの見出し（「登録チャンネル」など） */
-.section-title {
-    font-size: 12px;
-    color: var(--text-secondary);
-    padding: 8px 12px;
-    text-transform: uppercase; /* 英字を大文字に強制 */
-}
-
-/* 各チャンネル項目の外枠 */
-.channel-item-container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 8px;
-    margin-bottom: 2px;
-    transition: background 0.1s;
-    padding-right: 8px;
-}
-
-.channel-item-container:hover { background-color: var(--hover-bg); }
-.channel-item-container.active { background-color: var(--hover-bg); font-weight: bold; }
-
-/* チャンネル名リンク */
-.channel-link {
-    background: transparent;
-    color: inherit;
-    border-radius: 0;
-    text-align: left;
-    min-width: 0;
-    display: block;
-    align-items: center;
-    padding: 10px 12px;
-    cursor: pointer;
-    flex: 1;
-    font-size: 14px;
-    white-space: nowrap;      /* 改行させない */
-    overflow: hidden;         /* はみ出しを隠す */
-    text-overflow: ellipsis;  /* 長い名前は「...」にする */
-}
-
-/* 擬似要素でアイコンを付与（HTMLを汚さない手法） */
-.channel-link::before { content: "📺"; margin-right: 10px; font-size: 14px; }
-.all-view .channel-link::before { content: "🌐"; }
-
-/* チャンネル削除ボタン（通常は透明、親要素ホバーで表示） */
-.btn-delete-ch {
-    background: transparent;
-    padding: 0;
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    cursor: pointer;
-    color: var(--text-secondary);
-    font-size: 12px;
-    opacity: 0;
-    transition: opacity 0.2s, background 0.2s;
-}
-.channel-item-container:hover .btn-delete-ch { opacity: 1; }
-.channel-item-container:focus-within .btn-delete-ch { opacity: 1; }
-.btn-delete-ch:hover { background-color: rgba(255,255,255,0.1); color: #ff4444; }
-
-/* サイドバー下部のユーティリティ（設定など） */
-.sidebar-bottom {
-    flex-shrink: 0;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.settings-actions { display: grid; gap: 6px; }
-.settings-content { display: grid; gap: 12px; }
-.settings-content .section-title { padding: 0; }
-.settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-.settings-heading h2 { font-size: 20px; margin: 0; }
-dialog {
-    width: min(460px, calc(100% - 24px));
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    padding: 24px;
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    background: var(--sidebar-bg);
-    color: var(--text-color);
-}
-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
-.unread-filter { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
-.unread-filter input { accent-color: var(--accent-color); }
-.empty-message { color: var(--text-secondary); text-align: center; padding: 32px 0; }
-
-/* ==========================================================================
-   4. メインコンテンツ & ヘッダー
-   ========================================================================== */
-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-
-header {
-    padding: 12px 20px;
-    background-color: var(--bg-color);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
-
-.channel-add { display: flex; flex: 1 1 300px; min-width: 0; gap: 8px; }
-.video-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.channel-add .input-bar { width: 0; flex: 1; }
-
-/* 検索バー（YouTube風のデザイン） */
-.input-bar {
-    min-width: 0;
-    width: 100%;
-    flex-grow: 1;
-    padding: 8px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    background: #000;
-    color: #fff;
-    outline: none;
-}
-[data-theme="light"] .input-bar { background: #fff; color: #000; }
-
-/* 共通ボタンスタイル */
-button {
-    min-height: 36px;
-    flex-shrink: 0;
-    font-family: inherit;
-    cursor: pointer;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: transform 0.1s;
-}
-button:focus-visible, .input-bar:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
-button:active { transform: scale(0.95); } /* クリックした瞬間の沈み込み演出 */
-
-.btn-add { background-color: var(--accent-color); color: white; }
-.btn-utility { background-color: var(--hover-bg); color: var(--text-color); }
-.btn-danger { color: #ff4444; background-color: transparent; font-size: 12px; margin-top: 5px; }
-
-/* ==========================================================================
-   5. ビデオグリッドレイアウト
-   ========================================================================== */
-#video-container {
-    flex: 1;
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    padding: 24px;
-    overflow-y: auto;          /* コンテンツが増えたらここがスクロールする */
-    display: grid;
-    gap: 24px 16px;
-}
-
-/* ビデオカード個別 */
-.video-card { display: flex; align-items: flex-start; min-width: 0; gap: 16px; transition: opacity 0.3s; }
-.video-info { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.video-card.watched { opacity: var(--watched-opacity); } /* 視聴済みは薄くする */
-
-/* サムネイルの親要素（アスペクト比維持） */
-.thumb-wrapper { 
-    width: clamp(140px, 22%, 240px);
-    flex-shrink: 0;
-    position: relative; 
-    border-radius: 12px; 
-    overflow: hidden; 
-    aspect-ratio: 16 / 9; /* モダンなアスペクト比固定法 */
-    background-color: #222; 
-}
-.thumb-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-/* 動画タイトル：2行を超えると「...」で省略 */
-.video-title { 
-    font-size: 15px; 
-    font-weight: 600; 
-    line-height: 1.4; 
-    display: -webkit-box; 
-    -webkit-line-clamp: 2; 
-    -webkit-box-orient: vertical; 
-    overflow: hidden; 
-    height: 2.8em; 
-}
-
-.channel-name { font-size: 13px; color: var(--text-secondary); }
-.meta-row { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
-
-/* 狭い画面では設定・チャンネルを上に並べ、ページ全体をスクロールする */
-@media (max-width: 760px) {
-    body { display: block; height: auto; min-height: 100dvh; overflow: auto; }
-    aside { width: 100%; min-width: 0; overflow: visible; border-right: 0; border-bottom: 1px solid var(--border-color); }
-    #channel-list { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-    .channel-item-container { display: flex; flex: 0 0 auto; max-width: min(280px, 85vw); }
-    .sidebar-bottom { display: grid; grid-template-columns: minmax(0, 1fr); }
-    .settings-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .settings-actions button { justify-content: center; padding: 8px; border-radius: 10px; }
-    .btn-danger { margin-top: 0; }
-    .btn-delete-ch { opacity: 1; }
-    main { overflow: visible; }
-    header { padding: 12px; gap: 12px; }
-    .channel-add { flex-basis: 100%; }
-    .video-actions { width: 100%; }
-    .video-actions button { flex: 1; justify-content: center; }
-    #video-container { overflow: visible; padding: 16px 12px; gap: 20px; }
-    .thumb-wrapper { width: clamp(120px, 32%, 200px); border-radius: 8px; }
-    .video-card { gap: 12px; }
-}
-
-/* 最小幅ではサムネイルと説明を縦に並べて読みやすさを保つ */
-@media (max-width: 420px) {
-    .video-card { flex-direction: column; }
-    .thumb-wrapper { width: 100%; }
-    .video-info { width: 100%; }
-    .settings-actions { grid-template-columns: minmax(0, 1fr); }
-}
-
-@media (hover: none) {
-    .btn-delete-ch { opacity: 1; }
-}
-
-/* ==========================================================================
-   6. UI演出（アニメーション & スクロールバー）
-   ========================================================================== */
-/* 右からスライドイン/アウトする通知用のアニメーション定義 */
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-
-/* Chrome/Safari系のカスタムスクロールバー（目立たないように細く暗い色に） */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3e3e3e; border-radius: 10px; }
+@media(max-width:420px) { header { margin-inline:16px; } #video-container { padding:20px 16px; } dialog { padding:20px; } }
+@media(hover:none) { .btn-delete-ch { opacity:1; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; } }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+@keyframes slideOut { from { transform:translateX(0); opacity:1; } to { transform:translateX(100%); opacity:0; } }
+::-webkit-scrollbar { width:7px; height:5px; } ::-webkit-scrollbar-thumb { background:var(--border-color); border-radius:8px; }

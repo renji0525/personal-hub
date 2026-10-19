@@ -87,6 +87,25 @@ function save() {
     }
 }
 
+// 認証キーはバックアップ対象の状態から分離して、このブラウザだけに保存する
+function saveApiKey() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    try {
+        if (key) localStorage.setItem('yt_rss_api_key', key);
+        else localStorage.removeItem('yt_rss_api_key');
+    } catch (error) {
+        showNotification('認証キーを保存できません。ブラウザの保存設定を確認してください。', 'error');
+    }
+}
+
+function loadApiKey() {
+    try {
+        document.getElementById('apiKeyInput').value = localStorage.getItem('yt_rss_api_key') || '';
+    } catch (error) {
+        showNotification('認証キーを読み込めません。設定から入力してください。', 'error');
+    }
+}
+
 function safeURL(value) {
     const url = new URL(value);
     if (!['https:', 'http:'].includes(url.protocol)) throw new Error('無効なURLです');
@@ -487,8 +506,9 @@ function importJSON(e) {
  */
 function resetAll() {
     if (busy) return showNotification('取得が終わってから初期化してください。');
-    if (confirm("すべての設定と既読情報を削除しますか？")) {
+    if (confirm("認証キーを含むすべての設定と既読情報を削除しますか？")) {
         try {
+            localStorage.removeItem('yt_rss_api_key');
             localStorage.removeItem('yt_v5_final');
             location.reload();
         } catch (error) { showNotification('保存データを削除できません。', 'error'); }
@@ -499,6 +519,7 @@ function resetAll() {
  * ページ読み込み完了時の処理
  */
 window.onload = () => {
+    loadApiKey();
     load(); // ストレージからデータを読み込む
     //refreshAll();
 };
