@@ -1,23 +1,9 @@
 :root { color-scheme: dark; font-family: "Segoe UI", "Yu Gothic UI", sans-serif; color: #e7eef5; background: #101923; }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 85% 0%, #203e45 0, transparent 48%); }
-a { color: inherit; }
-.header, main, footer { width: min(1040px, calc(100% - 48px)); margin-inline: auto; }
-.header { padding-block: 32px; border-bottom: 1px solid #30404c; }
-.brand { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 12px 24px; text-decoration: none; font-size: 20px; font-weight: 700; }
-.brand span { font-size: 12px; font-weight: 400; color: #a4b4c2; }
-main { padding-block: 64px 80px; }
-.eyebrow { color: #8cddc4; font-size: 12px; letter-spacing: .2em; font-weight: 700; }
-h1 { margin: 20px 0; font-size: clamp(32px, 5vw, 52px); line-height: 1.4; letter-spacing: .02em; }
-.description { color: #a4b4c2; line-height: 1.8; }
-.tools { margin-top: 52px; }
-h2 { font-size: 14px; margin-bottom: 20px; color: #b7c5d0; }
-.tool-card { max-width: 500px; padding: 32px; border: 1px solid #354b57; border-radius: 20px; background: #192733; }
-.tool-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #91e1c9; background: #29443f; }
-h3 { margin: 24px 0 12px; font-size: 23px; }
-.tool-card p { margin: 0 0 28px; color: #b7c5d0; line-height: 1.9; font-size: 14px; }
-.open-button { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; padding: 14px 18px; border-radius: 10px; background: #91e1c9; color: #122b26; text-decoration: none; font-size: 14px; font-weight: 700; }
-.open-button:hover { background: #b0eddb; }
-a:focus-visible { outline: 3px solid #e7eef5; outline-offset: 5px; }
-footer { padding-block: 24px; border-top: 1px solid #30404c; color: #869ba9; font-size: 12px; }
-@media (max-width: 480px) { .header, main, footer { width: calc(100% - 32px); } main { padding-block: 40px 56px; } .tool-card { padding: 24px; } }
+body { margin: 0; }
+main { width: min(560px, calc(100% - 40px)); margin: 64px auto; }
+h1 { margin: 0 0 28px; font-size: 24px; font-weight: 600; }
+.tool-link { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 52px; padding: 16px 20px; border: 1px solid #354b57; border-radius: 8px; background: #192733; color: #b0eddb; font-size: 15px; text-decoration: none; }
+.tool-link:hover { background: #243744; }
+.tool-link:focus-visible { outline: 2px solid #b0eddb; outline-offset: 4px; }
+@media (max-width: 480px) { main { margin-block: 36px; } }
