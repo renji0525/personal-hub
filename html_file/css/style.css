@@ -79,7 +79,7 @@ dialog::backdrop { background:#061019b8; backdrop-filter:blur(5px); }
 #refreshProgress { padding:6px 0 10px; }
 #refreshProgressText { color:var(--text-secondary); font-size:12px; overflow-wrap:anywhere; }
 #refreshProgressBar { display:block; width:100%; height:8px; margin-top:8px; accent-color:var(--accent-color); }
-#refreshButton:disabled { cursor:wait; opacity:.6; }
+#refreshButton:disabled, #syncButton:disabled { cursor:wait; opacity:.6; }
 @media(max-width:760px) { .activity-area { margin-inline:20px; } }
 @media(max-width:420px) { .activity-area { margin-inline:16px; } }
 .settings-content .section-title { padding:0; }

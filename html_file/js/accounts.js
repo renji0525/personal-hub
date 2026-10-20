@@ -15,6 +15,14 @@ function resetLocalView() {
     document.getElementById('video-container').scrollTop = 0;
 }
 
+async function manualSync() {
+    if (!authSession) {
+        showNotification('設定からログインしてから同期してください。', 'error');
+        return;
+    }
+    await withBusy(() => reloadLibrary());
+}
+
 async function reloadLibrary() {
     if (!authSession) return;
     if (librarySync && librarySync.session === authSession && librarySync.generation === libraryPager.generation) return librarySync.promise;
@@ -22,6 +30,8 @@ async function reloadLibrary() {
     const sync = { session, generation };
     sync.promise = (async () => {
         libraryPager.loading = true;
+        const button = document.getElementById('syncButton');
+        if (button) button.disabled = true;
         setSyncStatus('同期中…');
         try {
             await migrateLocalWatched(session);
@@ -44,7 +54,11 @@ async function reloadLibrary() {
             }
             return false;
         } finally {
-            if (librarySync === sync) { libraryPager.loading = false; librarySync = null; }
+            if (librarySync === sync) {
+                libraryPager.loading = false;
+                librarySync = null;
+                if (button) button.disabled = false;
+            }
         }
     })();
     librarySync = sync;
