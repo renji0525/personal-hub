@@ -7,3 +7,5 @@ node_modules/
 .clasp.json
 /.pnpm-store/
 /gas/
+# 個人環境に依存するブラウザ検証スクリプトはローカルで保持
+/tests/browser/

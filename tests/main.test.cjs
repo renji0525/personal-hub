@@ -11,7 +11,7 @@ function app() {
         localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) },
         document: { getElementById: () => input, body: { setAttribute() {} } }
     });
-    vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../html_file/js/main.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/main.js'), 'utf8'), context);
     vm.runInContext('renderVideos = () => { renders++; }; renderChannels = () => {}; showNotification = () => {};', context);
     context.renders = 0;
     return { context, run: code => vm.runInContext(code, context) };
