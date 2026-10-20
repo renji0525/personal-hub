@@ -34,8 +34,9 @@ async function reloadLibrary() {
         setSyncStatus('同期中…');
         try {
             await migrateLocalWatched(session);
-            await flushWatched(session);
-            const data = await accountApi('syncLibrary', {}, session);
+            const changes = await flushWatched(session, true);
+            const data = await accountApi('syncLibrary', changes.length ? { watched: changes } : {}, session);
+            if (data.watchedSaved) acknowledgeWatched(session, changes);
             if (session !== authSession || generation !== libraryPager.generation) return false;
             const pending = pendingWatched(session);
             const state = validateState({ ...appState, channels: data.channels, videos: data.videos.map(v => ({
@@ -74,15 +75,22 @@ function pendingWatched(session = authSession) {
     return JSON.parse(localStorage.getItem('yt_rss_pending_watched:' + session.userId) || '{}');
 }
 
-async function flushWatched(session) {
+function acknowledgeWatched(session, batch) {
+    const remaining = pendingWatched(session);
+    batch.forEach(v => { if (remaining[v.id] && remaining[v.id].watched === v.watched) delete remaining[v.id]; });
+    localStorage.setItem('yt_rss_pending_watched:' + session.userId, JSON.stringify(remaining));
+}
+
+async function flushWatched(session, keepLastBatch = false) {
     const changes = Object.values(pendingWatched(session));
     for (let start = 0; start < changes.length; start += 100) {
         const batch = changes.slice(start, start + 100);
+        // 最後の100件以下は一覧取得と同時に送信する
+        if (keepLastBatch && start + 100 >= changes.length) return batch;
         await accountApi('setWatchedBatch', { videos: batch }, session);
-        const remaining = pendingWatched(session);
-        batch.forEach(v => { if (remaining[v.id] && remaining[v.id].watched === v.watched) delete remaining[v.id]; });
-        localStorage.setItem('yt_rss_pending_watched:' + session.userId, JSON.stringify(remaining));
+        acknowledgeWatched(session, batch);
     }
+    return [];
 }
 
 async function restoreAccount(state, report) {

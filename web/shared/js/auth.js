@@ -3,6 +3,7 @@ window.HubAuth = (() => {
     const API_URL = 'https://script.google.com/macros/s/AKfycbyXRNKLdzWdJAc5iJEfp1hAEbScOERyGboIJZD8hZFprfPo7g57Ip3BjddtiHRdWwyB/exec';
     const KEY = 'personal_hub_session';
     let expiryTimer;
+    const verifications = new Map();
 
     function valid(session) {
         return session && typeof session.userId === 'string' && /^[a-zA-Z0-9_-]{3,32}$/.test(session.userId) &&
@@ -92,17 +93,24 @@ window.HubAuth = (() => {
         } finally { clearTimeout(timeout); }
     }
 
-    async function verify(session = read()) {
-        if (!session) return null;
-        const result = await api('session', {}, session);
-        if (result.userId !== session.userId) {
-            clear(session);
-            throw new Error('ログイン情報を確認できませんでした。');
-        }
-        const current = read();
-        if (!current || current.token !== session.token) return null;
-        scheduleExpiry(current);
-        return current;
+    function verify(session = read()) {
+        if (!session) return Promise.resolve(null);
+        const key = session.userId + ':' + session.token;
+        if (verifications.has(key)) return verifications.get(key);
+        // 同時確認だけを集約し、確認済み認証を時間キャッシュしない
+        const promise = (async () => {
+            const result = await api('session', {}, session);
+            if (result.userId !== session.userId) {
+                clear(session);
+                throw new Error('ログイン情報を確認できませんでした。');
+            }
+            const current = read();
+            if (!current || current.token !== session.token) return null;
+            scheduleExpiry(current);
+            return current;
+        })().finally(() => verifications.delete(key));
+        verifications.set(key, promise);
+        return promise;
     }
 
     async function signIn(action, userId, password) {

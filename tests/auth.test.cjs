@@ -106,3 +106,22 @@ test('ログアウト後は古いタブのセッションを復活させず、�
     assert.equal(s.legacy.size, 0);
     assert.equal(s.events.at(-1).detail, null);
 });
+
+test('同時の認証確認だけを1回へ集約し、完了後はサーバーで再確認する', async () => {
+    const s = auth();
+    s.storage.set('personal_hub_session', JSON.stringify(session()));
+    let calls = 0, complete;
+    s.context.fetch = async () => {
+        calls++;
+        return new Promise(resolve => { complete = () => resolve({ ok: true, json: async () => ({ status: 'ok', userId: 'alice' }) }); });
+    };
+    const first = s.api.verify(), second = s.api.verify(), third = s.api.verify();
+    assert.equal(calls, 1);
+    complete();
+    const results = await Promise.all([first, second, third]);
+    assert.ok(results.every(value => value.userId === 'alice'));
+    const next = s.api.verify();
+    assert.equal(calls, 2);
+    complete();
+    await next;
+});

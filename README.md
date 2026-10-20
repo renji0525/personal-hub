@@ -44,3 +44,5 @@ node --test tests/*.test.cjs
 ログインはPersonal Hub全体で共通です。認証セッションはlocalStorage（personal_hub_session）に保存し、ブラウザを終了してもログインから最大30日間維持します。パスワードは保存しません。旧sessionStorageのセッションは元の期限を保って自動移行し、次回ログインから30日になります。ログアウトは同じブラウザの各タブへ反映し、通信できた場合はサーバー側セッションも無効化します。保護画面はGASでセッションを確認してから表示し、期限切れ・失効時はトップへ戻ります。通信で認証を確認できない場合もトップで再確認できます。
 
 GASはユーザー情報（Users・Sessions）とYouTube RSS（Channels・Videos・UserChannels・Watched）を別スプレッドシートで管理する構成に対応しています。既存データの分離はGASエディタでsetupSplitDatabasesを実行します。詳細はgas/README.mdを参照してください。
+
+既読変更は一覧取得と同時に送信し、通常の同期をAPI1回にまとめます。連続したシート更新も一括処理します。現行のローカルブラウザ検証はtests/browser/README.md、旧仕様の検証はtests/browser/legacy/に分けています。GASの補助スクリプトはgas/scripts/、ライセンスはgas/licenses/です。
