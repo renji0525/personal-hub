@@ -10,34 +10,61 @@ window.HubAuth = (() => {
             Number.isFinite(session.expiresAt) && session.expiresAt > Date.now();
     }
 
+    const MIGRATED_KEY = 'personal_hub_auth_migrated';
+
+    function removeLegacy() {
+        sessionStorage.removeItem(KEY);
+        sessionStorage.removeItem('yt_rss_session');
+    }
+
     function read() {
         try {
-            let session = JSON.parse(sessionStorage.getItem(KEY) || 'null');
-            if (!session) {
-                const previous = JSON.parse(sessionStorage.getItem('yt_rss_session') || 'null');
-                if (valid(previous)) {
-                    sessionStorage.setItem(KEY, JSON.stringify(previous));
-                    session = previous;
-                }
-                sessionStorage.removeItem('yt_rss_session');
+            const raw = localStorage.getItem(KEY);
+            if (raw !== null) {
+                const session = JSON.parse(raw);
+                return valid(session) ? session : null;
             }
-            return valid(session) ? session : null;
+            // 一度移行・ログアウトした端末では古いタブのセッションを復活させない
+            if (localStorage.getItem(MIGRATED_KEY)) return null;
+            const previous = JSON.parse(sessionStorage.getItem(KEY) || sessionStorage.getItem('yt_rss_session') || 'null');
+            if (!valid(previous)) return null;
+            localStorage.setItem(KEY, JSON.stringify(previous));
+            localStorage.setItem(MIGRATED_KEY, '1');
+            removeLegacy();
+            return previous;
         } catch (error) { return null; }
     }
 
-    function notify(session) {
+    function scheduleExpiry(session) {
         clearTimeout(expiryTimer);
-        if (session) expiryTimer = setTimeout(() => clear(session), Math.max(0, session.expiresAt - Date.now()));
+        if (!session) return;
+        // 30日はタイマー上限を超えるため、短い区間で期限を再確認する
+        expiryTimer = setTimeout(() => {
+            if (session.expiresAt <= Date.now()) clear(session);
+            else scheduleExpiry(session);
+        }, Math.min(Math.max(0, session.expiresAt - Date.now()), 24 * 60 * 60 * 1000));
+    }
+
+    function notify(session) {
+        scheduleExpiry(session);
         window.dispatchEvent(new CustomEvent('hub-auth-changed', { detail: session }));
     }
 
     function clear(expected) {
         const current = read();
         if (expected && current && current.token !== expected.token) return;
-        sessionStorage.removeItem(KEY);
-        sessionStorage.removeItem('yt_rss_session');
+        localStorage.setItem(MIGRATED_KEY, '1');
+        localStorage.removeItem(KEY);
+        removeLegacy();
         notify(null);
     }
+
+    window.addEventListener('storage', event => {
+        if (event.storageArea === localStorage && (event.key === KEY || event.key === null)) {
+            removeLegacy();
+            notify(read());
+        }
+    });
 
     function randomToken() {
         return Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -74,8 +101,7 @@ window.HubAuth = (() => {
         }
         const current = read();
         if (!current || current.token !== session.token) return null;
-        clearTimeout(expiryTimer);
-        expiryTimer = setTimeout(() => clear(current), Math.max(0, current.expiresAt - Date.now()));
+        scheduleExpiry(current);
         return current;
     }
 
@@ -84,14 +110,14 @@ window.HubAuth = (() => {
         const result = await api(action, { userId, password, newToken: token, salt: randomToken().slice(0, 32) }, null);
         const session = { userId: result.userId, token, expiresAt: result.expiresAt };
         if (!valid(session)) throw new Error('ログイン情報が正しくありません。');
-        sessionStorage.setItem(KEY, JSON.stringify(session));
-        sessionStorage.removeItem('yt_rss_session');
+        localStorage.setItem(KEY, JSON.stringify(session));
+        localStorage.setItem(MIGRATED_KEY, '1');
+        removeLegacy();
         notify(session);
         return session;
     }
 
-    async function signOut() {
-        const session = read();
+    async function signOut(session = read()) {
         try { if (session) await api('logout', {}, session); }
         finally { clear(session); }
     }
@@ -102,17 +128,21 @@ window.HubAuth = (() => {
     }
 
     function protect() {
+        let protectedToken = null;
         const check = async () => {
             document.documentElement.setAttribute('data-auth-pending', '');
             if (!read()) { toTop(); return null; }
             try {
                 const session = await verify();
                 if (!session) { toTop(); return null; }
+                protectedToken = session.token;
                 notify(session);
                 return session;
             } catch (error) { toTop(error.code === 'AUTH_EXPIRED' ? 'expired' : 'connection'); return null; }
         };
-        window.addEventListener('hub-auth-changed', event => { if (!event.detail) toTop('expired'); });
+        window.addEventListener('hub-auth-changed', event => {
+            if (!event.detail || protectedToken && event.detail.token !== protectedToken) toTop('expired');
+        });
         window.addEventListener('pageshow', async event => {
             if (event.persisted && await check()) document.documentElement.removeAttribute('data-auth-pending');
         });

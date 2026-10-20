@@ -169,16 +169,11 @@ function syncWatched(video, previous) {
 async function initAccount() {
     authSession = await HubAuth.ready;
     if (!authSession) return false;
-    renderAccount();
     return true;
 }
 
 function accountStorageKey() {
     return authSession ? 'yt_rss_user:' + authSession.userId : 'yt_v5_final';
-}
-
-function renderAccount(message) {
-    document.getElementById('accountStatus').textContent = message || (authSession ? authSession.userId + ' としてログイン中' : 'ログインしていません');
 }
 
 async function accountApi(action, params = {}, session = authSession) {
@@ -188,15 +183,18 @@ async function accountApi(action, params = {}, session = authSession) {
 async function signOut() {
     if (busy || !authSession) return;
     busy = true;
+    const session = authSession;
     try {
-        await flushWatched(authSession);
-        await HubAuth.signOut();
-    } catch (error) { renderAccount(error.message); }
+        // 未送信既読はキューに残し、同期失敗時もログアウトを優先する
+        try { await flushWatched(session); }
+        catch (error) { showNotification('未送信の既読は次回ログイン時に同期します。', 'error'); }
+        await HubAuth.signOut(session);
+    } catch (error) { showNotification(error.message, 'error'); }
     finally { busy = false; }
 }
 
 window.addEventListener('hub-auth-changed', event => {
-    if (!event.detail) {
+    if (!event.detail || authSession && event.detail.token !== authSession.token) {
         authSession = null;
         resetLibraryPager();
         appState = { channels: [], videos: [], darkMode: appState.darkMode, selectedChannel: 'all', unreadOnly: false };

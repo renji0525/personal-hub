@@ -30,12 +30,8 @@
         <form method="dialog"><button class="btn-utility" aria-label="設定を閉じる" autofocus>✕ 閉じる</button></form>
     </div>
     <div class="settings-content">
-        <section class="account-settings" aria-labelledby="accountTitle">
-            <h3 id="accountTitle">Personal Hubアカウント</h3>
-            <p id="accountStatus" role="status" aria-live="polite">ログインしていません</p>
+        <section class="account-settings" aria-label="アカウント操作">
             <button id="logoutButton" class="btn-utility" onclick="signOut()">ログアウト</button>
-            <small>動画はローカルの情報から50件ずつ表示します。起動・ログイン・更新時にシートと同期し、既読変更もまとめて保存します。</small>
-            <small>チャンネル・動画データは共通で利用し、登録先と既読状態はユーザーごとに保存します。</small>
         </section>
         <div class="settings-actions">
         <button class="btn-utility" onclick="exportJSON()">📊 バックアップ(JSON)</button>

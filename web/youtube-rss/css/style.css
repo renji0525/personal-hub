@@ -66,10 +66,6 @@ dialog::backdrop { background:#061019b8; backdrop-filter:blur(5px); }
 .settings-content { display:grid; gap:12px; }
 .settings-content small { color:var(--text-secondary); font-size:11px; }
 .account-settings { display:grid; gap:12px; padding-bottom:24px; margin-bottom:12px; border-bottom:1px solid var(--border-color); }
-.account-settings h3,.account-settings p { margin:0; }
-.account-settings p { color:var(--accent-color); overflow-wrap:anywhere; }
-#accountForm { display:grid; gap:10px; }
-.account-actions { display:flex; flex-wrap:wrap; gap:8px; }
 [hidden] { display:none !important; }
 .load-more { grid-column:1/-1; justify-self:center; margin:12px 0; }
 .load-more:disabled { cursor:wait; opacity:.6; }

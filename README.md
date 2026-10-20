@@ -41,6 +41,6 @@ node --test tests/*.test.cjs
 
 詳しい記録は `docs/README.md`、GASの手順は `gas/README.md` を参照してください。ブラウザ検証はこのPCのPlaywrightとEdgeを使用します。
 
-ログインはPersonal Hub全体で共通です。セッションは同じタブ内のsessionStorage（personal_hub_session）に保存し、パスワードは保存しません。旧RSSセッションは自動移行します。保護画面はGASでセッションを確認してから表示し、期限切れ・失効時はトップへ戻ります。通信で認証を確認できない場合もトップで再確認できます。
+ログインはPersonal Hub全体で共通です。認証セッションはlocalStorage（personal_hub_session）に保存し、ブラウザを終了してもログインから最大30日間維持します。パスワードは保存しません。旧sessionStorageのセッションは元の期限を保って自動移行し、次回ログインから30日になります。ログアウトは同じブラウザの各タブへ反映し、通信できた場合はサーバー側セッションも無効化します。保護画面はGASでセッションを確認してから表示し、期限切れ・失効時はトップへ戻ります。通信で認証を確認できない場合もトップで再確認できます。
 
 GASはユーザー情報（Users・Sessions）とYouTube RSS（Channels・Videos・UserChannels・Watched）を別スプレッドシートで管理する構成に対応しています。既存データの分離はGASエディタでsetupSplitDatabasesを実行します。詳細はgas/README.mdを参照してください。

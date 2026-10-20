@@ -168,7 +168,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function fetchFeed(channelId, inChannelName="None", addText="", quiet=false, refresh=false) {
     const signedIn = typeof authSession !== 'undefined' && authSession;
     if (!signedIn) {
-        if (!quiet) showNotification('設定からログインしてください。', 'error');
+        if (!quiet) showNotification('トップページからログインしてください。', 'error');
         return null;
     }
 
@@ -487,7 +487,7 @@ async function importJSON(e) {
             appState = restored;
             document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
             renderChannels(); renderVideos();
-            report('このブラウザに復元しました。シートへの保存にはログインして復元してください。');
+            report('このブラウザに復元しました。シートへの保存にはトップページでログインして復元してください。');
         }
     } catch (error) {
         report(uploading ? 'シートへの復元が中断しました。一部が保存済みの可能性があります。同じJSONで再実行できます。' + error.message : '復元できません。ファイルの形式・内容・保存容量を確認してください。');
