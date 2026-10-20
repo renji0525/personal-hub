@@ -3,14 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Personal Hubのツール一覧">
+    <meta name="description" content="Personal Hubのログインとツール一覧">
     <title>Personal Hub</title>
     <link rel="stylesheet" href="style.css">
+    <script src="../shared/js/auth.js" defer></script>
+    <script src="main.js" defer></script>
 </head>
 <body>
     <main>
         <h1>Personal Hub</h1>
-        <nav aria-label="ツール一覧">
+        <section aria-label="共通アカウント">
+            <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
+            <form id="accountForm" hidden>
+                <label for="userIdInput">ユーザーID</label>
+                <input id="userIdInput" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" required>
+                <label for="passwordInput">パスワード</label>
+                <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+                <div class="account-actions">
+                    <button type="submit">ログイン</button>
+                    <button type="button" id="registerButton">新規登録</button>
+                </div>
+                <small>このアカウントはPersonal Hub全体で使用します。</small>
+            </form>
+            <button id="logoutButton" type="button" hidden>ログアウト</button>
+            <button id="retryButton" type="button" hidden>再確認</button>
+        </section>
+        <nav id="tools" aria-label="ツール一覧" hidden>
             <a class="tool-link" href="../youtube-rss/YoutubeRssFedly.html">YouTube RSSを開く <span aria-hidden="true">→</span></a>
         </nav>
     </main>

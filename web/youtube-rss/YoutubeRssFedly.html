@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-auth-pending>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="resource/icon/favicon.png">
     <title>YouTube RSS Reader</title>
+    <style>html[data-auth-pending] body { display: none !important; }</style>
+    <script src="../shared/js/auth.js"></script>
+    <script>HubAuth.ready = HubAuth.protect();</script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-theme="dark">
@@ -16,6 +19,7 @@
         <div id="channel-list"></div>
     </div>
     <div class="sidebar-bottom">
+        <a class="btn-utility" href="../top/index.html">トップへ戻る</a>
         <button class="btn-utility" onclick="document.getElementById('settingsDialog').showModal()">⚙️ 設定</button>
     </div>
 </aside>
@@ -27,19 +31,9 @@
     </div>
     <div class="settings-content">
         <section class="account-settings" aria-labelledby="accountTitle">
-            <h3 id="accountTitle">ユーザーアカウント</h3>
+            <h3 id="accountTitle">Personal Hubアカウント</h3>
             <p id="accountStatus" role="status" aria-live="polite">ログインしていません</p>
-            <form id="accountForm" onsubmit="event.preventDefault(); signIn('login')">
-                <label for="userIdInput">ユーザーID</label>
-                <input id="userIdInput" class="input-bar" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" required placeholder="英数字・下線・ハイフン（3〜32文字）">
-                <label for="passwordInput">パスワード</label>
-                <input id="passwordInput" class="input-bar" type="password" autocomplete="current-password" minlength="8" maxlength="128" required placeholder="8〜128文字">
-                <div class="account-actions">
-                    <button type="submit" class="btn-add">ログイン</button>
-                    <button type="button" class="btn-utility" onclick="signIn('register')">新規登録</button>
-                </div>
-            </form>
-            <button id="logoutButton" class="btn-utility" onclick="signOut()" hidden>ログアウト</button>
+            <button id="logoutButton" class="btn-utility" onclick="signOut()">ログアウト</button>
             <small>動画はローカルの情報から50件ずつ表示します。起動・ログイン・更新時にシートと同期し、既読変更もまとめて保存します。</small>
             <small>チャンネル・動画データは共通で利用し、登録先と既読状態はユーザーごとに保存します。</small>
         </section>

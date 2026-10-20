@@ -9,7 +9,7 @@ function app() {
     const context = vm.createContext({
         URL, URLSearchParams, setTimeout, window: {},
         localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) },
-        document: { getElementById: () => input, body: { setAttribute() {} } }
+        document: { documentElement: { removeAttribute() {} }, getElementById: () => input, body: { setAttribute() {} } }
     });
     vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/main.js'), 'utf8'), context);
     vm.runInContext('renderVideos = () => { renders++; }; renderChannels = () => {}; showNotification = () => {};', context);
@@ -117,7 +117,7 @@ test('旧バックアップの欠落したShorts IDを補完し既読状態を�
 
 test('旧キーを起動時に削除し、ログインなしのRSS取得は通信しない', async () => {
     const { context, run } = app();
-    run("localStorage.setItem('yt_rss_api_key', 'old-key'); window.onload()");
+    await run("localStorage.setItem('yt_rss_api_key', 'old-key'); window.onload()");
     assert.equal(run("localStorage.getItem('yt_rss_api_key')"), undefined);
     context.fetch = () => { throw new Error('未認証で通信してはいけません'); };
     assert.equal(await run("fetchFeed('channel')"), null);

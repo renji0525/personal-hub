@@ -10,6 +10,8 @@ web/
   top/
     index.html                    トップページ
     style.css                     トップ専用スタイル
+    main.js                       共通ログイン画面の操作
+  shared/js/auth.js               Personal Hub共通認証・GAS通信
   youtube-rss/
     YoutubeRssFedly.html           YouTube RSS画面
     css/                          RSS専用スタイル
@@ -25,14 +27,18 @@ docs/                             プロジェクト記録（Git対象外）
 
 ## 起動・検証
 
-`web/index.html` をブラウザで開くとトップへ移動します。`web/top/index.html` から直接開くこともできます。「YouTube RSSを開く」ボタンでRSS画面へ移動します。ビルドは不要です。クラウド同期にはGASとログインを使用します。
+`web/index.html` をブラウザで開くとトップへ移動します。`web/top/index.html` から直接開くこともできます。トップでログイン（または新規登録）すると「YouTube RSSを開く」ボタンを表示します。未ログインでRSS画面を直接開くとトップへ戻ります。ビルドは不要です。クラウド同期にはGASとログインを使用します。
 
 ```powershell
+node --check web/shared/js/auth.js
+node --check web/top/main.js
 node --check web/youtube-rss/js/main.js
 node --check web/youtube-rss/js/accounts.js
-node --test tests/main.test.cjs
+node --test tests/*.test.cjs
 ```
 
 以前のRSS画面は `web/youtube-rss/YoutubeRssFedly.html` へ移動しました。旧パスのブックマーク・配信設定は更新してください。保存データの形式は変更していません。
 
 詳しい記録は `docs/README.md`、GASの手順は `gas/README.md` を参照してください。ブラウザ検証はこのPCのPlaywrightとEdgeを使用します。
+
+ログインはPersonal Hub全体で共通です。セッションは同じタブ内のsessionStorage（personal_hub_session）に保存し、パスワードは保存しません。旧RSSセッションは自動移行します。保護画面はGASでセッションを確認してから表示し、期限切れ・失効時はトップへ戻ります。通信で認証を確認できない場合もトップで再確認できます。

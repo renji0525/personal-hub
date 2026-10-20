@@ -511,11 +511,12 @@ function resetAll() {
 /**
  * ページ読み込み完了時の処理
  */
-window.onload = () => {
-    if (typeof initAccount === 'function') initAccount();
+window.onload = async () => {
+    if (typeof initAccount === 'function' && !(await initAccount())) return;
     // 廃止した認証キーを、このブラウザから削除する
     try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
     load(); // ストレージからデータを読み込む
+    document.documentElement.removeAttribute('data-auth-pending');
     if (typeof authSession !== 'undefined' && authSession) reloadLibrary();
     //refreshAll();
 };

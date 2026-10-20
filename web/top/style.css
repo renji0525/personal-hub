@@ -7,3 +7,15 @@ h1 { margin: 0 0 28px; font-size: 24px; font-weight: 600; }
 .tool-link:hover { background: #243744; }
 .tool-link:focus-visible { outline: 2px solid #b0eddb; outline-offset: 4px; }
 @media (max-width: 480px) { main { margin-block: 36px; } }
+[hidden] { display: none !important; }
+section { margin-bottom: 28px; }
+#accountStatus { color: #b7c5d0; font-size: 14px; line-height: 1.7; }
+form { display: grid; gap: 10px; }
+label { font-size: 14px; }
+input, button { font: inherit; }
+input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #354b57; border-radius: 6px; color: #e7eef5; background: #192733; }
+button { min-height: 44px; padding: 10px 18px; border: 1px solid #354b57; border-radius: 6px; color: #b0eddb; background: #192733; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+input:focus-visible, button:focus-visible { outline: 2px solid #b0eddb; outline-offset: 3px; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+small { color: #a4b4c2; font-size: 12px; line-height: 1.7; }
