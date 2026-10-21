@@ -135,19 +135,14 @@ async function migrateLocalWatched(session) {
     localStorage.setItem(marker, '1');
 }
 
-// 全件キャッシュを使い、バックアップ時にも通信を発生させない
-async function accountBackup() {
-    return appState;
-}
-
 async function loadLibraryPage(first = false) {
     libraryPager.limit = first ? 50 : libraryPager.limit + 50;
-    renderVideos();
+    renderVideos(!first);
 }
 
-function renderLibrarySentinel(container) {
+function renderLibrarySentinel(container, total = getDisplayVideos().length) {
     if (libraryPager.observer) libraryPager.observer.disconnect();
-    if (getDisplayVideos().length <= libraryPager.limit) return;
+    if (total <= libraryPager.limit) return;
     const button = document.createElement('button');
     button.className = 'load-more btn-utility';
     button.textContent = '次の50件を表示';
@@ -173,7 +168,7 @@ function syncWatched(video, previous) {
     }
 }
 
-// 共通認証の確認が終わるまでユーザーのデータを描画しない
+// 端末の認証期限を確認後に表示し、同期APIでサーバー認証する
 async function initAccount() {
     authSession = await HubAuth.ready;
     if (!authSession) return false;
@@ -193,9 +188,7 @@ async function signOut() {
     busy = true;
     const session = authSession;
     try {
-        // 未送信既読はキューに残し、同期失敗時もログアウトを優先する
-        try { await flushWatched(session); }
-        catch (error) { showNotification('未送信の既読は次回ログイン時に同期します。', 'error'); }
+        // 未送信既読は端末に保持し、次回ログイン後の同期で送る
         await HubAuth.signOut(session);
     } catch (error) { showNotification(error.message, 'error'); }
     finally { busy = false; }

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-global.BudgetModel = require('../web/budget/model.js');
-const local = require('../web/budget/local.js');
+global.BudgetModel = require('../web/budget/js/model.js');
+const local = require('../web/budget/js/store.js');
 const initial = () => local.create({ revision: 0, categories: BudgetModel.defaults, entries: [] });
 const op = amount => ({ type: 'entrySave', value: { id: 'entry_local1', date: '2026-10-22', type: 'expense', categoryId: 'cat_food', amount, memo: '端末' } });
 test('端末で編集を蓄積し、再読込でもユーザー別に未同期状態を復元する', () => {
@@ -29,4 +29,17 @@ test('大量の変更は20件ずつ同期し、不正入力・端末保存失敗
     assert.throws(() => local.edit(state, op(-1)));
     assert.throws(() => local.write({setItem(){ throw new Error('容量不足'); }}, 'alice', state), /容量不足/);
     assert.throws(() => local.read({ getItem: () => '{broken' }, 'alice'));
+});
+
+test('家計簿の表示モデルは再利用し、追加編集で全未同期操作を再実行しない', () => {
+    let state = initial(), calls = 0;
+    const original = BudgetModel.apply;
+    BudgetModel.apply = (...args) => { calls++; return original(...args); };
+    try {
+        for (let i = 0; i < 100; i++) state = local.edit(state, op(i + 1));
+        const value = local.view(state);
+        assert.equal(local.view(state), value);
+        assert.equal(value.entries[0].amount, 100);
+        assert.equal(calls, 100);
+    } finally { BudgetModel.apply = original; }
 });

@@ -1,51 +1,41 @@
 # personal-hub
 
-日常のツールへ移動するトップページ、YouTube RSS、家計簿のアプリです。
+共通ログイン、YouTube RSS、家計簿を備える静的Webアプリです。
 
-## フォルダ構成
+## 構成
 
-```text
-web/
-  index.html                      トップへの入口
-  top/
-    index.html                    トップページ
-    style.css                     トップ専用スタイル
-    main.js                       共通ログイン画面の操作
-  shared/js/auth.js               Personal Hub共通認証・GAS通信
-  budget/                         家計簿・カテゴリ管理・月別集計
-  youtube-rss/
-    YoutubeRssFedly.html           YouTube RSS画面
-    css/                          RSS専用スタイル
-    js/                           RSSの状態管理・同期
-    resource/icon/                RSSのアイコン
-tests/                            Node.jsの自動テスト
-  browser/                        ローカルのEdge検証（Git対象外）
-gas/                              GAS同期環境（Git対象外）
-savedata/                         個人バックアップ（Git対象外）
-docs/                             プロジェクト記録（Git対象外）
-  screenshots/                    画面確認画像
-```
+各ページを `index.html`、`css/style.css`、`js/app.js` に揃えています。
 
-## 起動・検証
+- `web/index.html`：Topへの入口。
+- `web/top/`：共通ログイン・登録・ツール一覧。
+- `web/youtube-rss/`：RSS一覧、既読管理、JSONバックアップ・復元。同期処理は `js/sync.js`。
+- `web/budget/`：家計簿、自由カテゴリ・色、月集計。入力ルールは `js/model.js`、端末保存は `js/store.js`。
+- `web/shared/js/auth.js`：共通認証・GAS通信。
+- `tests/`：Node.js自動テスト。
+- `gas/`：GASソース・同期環境（Git対象外）。
+- `docs/`、`savedata/`、`tests/browser/`：作業記録・個人バックアップ・このPCのEdge検証（Git対象外）。
 
-`web/index.html` をブラウザで開くとトップへ移動します。`web/top/index.html` から直接開くこともできます。トップでログイン（または新規登録）すると「YouTube RSSを開く」ボタンを表示します。未ログインでRSS画面を直接開くとトップへ戻ります。ビルドは不要です。クラウド同期にはGASとログインを使用します。
+旧RSS URL `web/youtube-rss/YoutubeRssFedly.html` は新しい `index.html` へ転送します。
+
+## 起動と検証
+
+`web/index.html` をブラウザで開きます。ビルド不要です。クラウド同期にはGASと共通ログインを使用します。
 
 ```powershell
-node --check web/shared/js/auth.js
-node --check web/top/main.js
-node --check web/youtube-rss/js/main.js
-node --check web/youtube-rss/js/accounts.js
 node --test tests/*.test.cjs
+node --check web/shared/js/auth.js
+node --check web/top/js/app.js
+node --check web/youtube-rss/js/app.js
+node --check web/youtube-rss/js/sync.js
+node --check web/budget/js/app.js
 ```
 
-以前のRSS画面は `web/youtube-rss/YoutubeRssFedly.html` へ移動しました。旧パスのブックマーク・配信設定は更新してください。保存データの形式は変更していません。
+## 保存・通信
 
-詳しい記録は `docs/README.md`、GASの手順は `gas/README.md` を参照してください。ブラウザ検証はこのPCのPlaywrightとEdgeを使用します。
+ログイン情報をlocalStorageに保存し、最大30日間保持します。パスワードは保存しません。画面表示時は端末の有効期限を確認し、各データAPIでサーバー認証します。ログアウトは端末を即時解除し、サーバーへの無効化要求も送ります。通信失敗時は端末側だけの解除になります。
 
-ログインはPersonal Hub全体で共通です。認証セッションはlocalStorage（personal_hub_session）に保存し、ブラウザを終了してもログインから最大30日間維持します。パスワードは保存しません。旧sessionStorageのセッションは元の期限を保って自動移行し、次回ログインから30日になります。ログアウトは同じブラウザの各タブへ反映し、通信できた場合はサーバー側セッションも無効化します。Topと家計簿の画面表示は端末内のセッションと有効期限で確認します。家計簿の同期APIは毎回サーバーで認証し、失効が確認された場合はTopへ戻ります。RSSの表示前サーバー確認は維持しています。
+RSSはユーザー別の全件キャッシュを先に表示し、起動時に同期。通常は認証を含め1APIです（旧既読移行・100件超の既読送信は追加通信）。表示・絞込・既読・バックアップは通信なし。既読は次回同期でまとめて送信し、ログアウト時も未送信キューを維持します。「更新」は各チャンネルのRSS取得と最後の同期を行います。
 
-GASはユーザー情報（Users・Sessions）とYouTube RSS（Channels・Videos・UserChannels・Watched）を別スプレッドシートで管理する構成に対応しています。既存データの分離はGASエディタでsetupSplitDatabasesを実行します。詳細はgas/README.mdを参照してください。
+家計簿はユーザー別に端末保存し、ページを開いた時と「同期する」でのみ同期します。未同期操作は20件ずつ送信。変更がない時は更新番号だけ返し、記録シートの読込と全データ転送を省きます。別端末との競合時は未同期内容を保持して停止します。サイトデータを削除すると未同期分も消えるため、必要ならJSONバックアップを利用してください。
 
-既読変更は一覧取得と同時に送信し、通常の同期をAPI1回にまとめます。連続したシート更新も一括処理します。現行のローカルブラウザ検証はtests/browser/README.md、旧仕様の検証はtests/browser/legacy/に分けています。GASの補助スクリプトはgas/scripts/、ライセンスはgas/licenses/です。
-
-家計簿はTopの「家計簿を開く」から利用できます。収入・支出の記録、自由なカテゴリ名と色、月別収支、カテゴリ別集計、JSON書き出しに対応。初回利用時に専用スプレッドシートを自動作成し、データをユーザー別に保存します。編集はユーザー別にlocalStorageへ保存し、ページを開いた時と「同期する」を押した時だけGASと同期します。通常の収支・カテゴリ編集では通信しません。未同期分はログアウト後もこの端末に残り、同じユーザーで再ログインすると復元します。端末のサイトデータを削除すると未同期分も消えます。詳しい使い方はローカルのdocs/BUDGET.mdを参照してください。
+GASはユーザー情報、RSS、家計簿を別スプレッドシートで管理。既存DBの分離は `setupSplitDatabases` を使用します。手順はローカルの `gas/README.md`、現在の状態は `docs/STATUS.md`、家計簿の使い方は `docs/BUDGET.md` を参照してください。

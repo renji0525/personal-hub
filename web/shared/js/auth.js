@@ -73,13 +73,14 @@ window.HubAuth = (() => {
 
     async function api(action, params = {}, session = read()) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 90000);
+        const wait = action === 'logout' ? 8000 : ['feed', 'restoreBatch'].includes(action) ? 90000 : 30000;
+        const timeout = setTimeout(() => controller.abort(), wait);
         try {
             // GASへのプリフライトを避け、認証情報をURLに含めない
             const response = await fetch(API_URL, {
                 method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ ...params, action, token: session ? session.token : undefined }),
-                credentials: 'omit', redirect: 'follow', signal: controller.signal
+                keepalive: action === 'logout', credentials: 'omit', redirect: 'follow', signal: controller.signal
             });
             if (!response.ok) throw new Error('サーバーに接続できませんでした。');
             const result = await response.json();
@@ -90,6 +91,13 @@ window.HubAuth = (() => {
                 throw error;
             }
             return result;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                const timeoutError = new Error('通信が時間内に完了しませんでした。接続を確認して再試行してください。');
+                timeoutError.code = 'REQUEST_TIMEOUT';
+                throw timeoutError;
+            }
+            throw error;
         } finally { clearTimeout(timeout); }
     }
 
@@ -126,8 +134,10 @@ window.HubAuth = (() => {
     }
 
     async function signOut(session = read()) {
-        try { if (session) await api('logout', {}, session); }
-        finally { clear(session); }
+        // 端末を先に解除し、ページ遷移後もサーバー無効化の送信を継続する
+        const pending = session ? api('logout', {}, session) : Promise.resolve();
+        clear(session);
+        await pending;
     }
 
     function toTop(reason = 'login') {
@@ -157,5 +167,10 @@ window.HubAuth = (() => {
         return check();
     }
 
-    return { read, api, verify, signIn, signOut, protect };
+    function resume() {
+        const session = read();
+        scheduleExpiry(session);
+        return session;
+    }
+    return { read, resume, api, verify, signIn, signOut, protect };
 })();

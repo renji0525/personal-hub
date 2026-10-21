@@ -15,7 +15,7 @@ function library(count = 1) {
         save() {}, renderChannels() {}, renderVideos() {}, showNotification() {},
         HubAuth: { api: async (action, params) => { calls.push({ action, params }); return { channels: [], videos: [], watchedSaved: true }; } }
     });
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/youtube-rss/js/accounts.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/youtube-rss/js/sync.js'), 'utf8'), context);
     vm.runInContext("authSession = { userId: 'alice', token: 'a' };", context);
     return { context, calls, store, run: source => vm.runInContext(source, context) };
 }

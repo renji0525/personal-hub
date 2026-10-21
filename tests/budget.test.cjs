@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const model = require('../web/budget/model.js');
+const model = require('../web/budget/js/model.js');
 const initial = () => ({ categories: model.defaults.map(c => ({ ...c })), entries: [] });
 const entry = values => ({ id: 'entry_0001', date: '2026-10-21', type: 'expense', categoryId: 'cat_food', amount: 1200, memo: 'ランチ', ...values });
 

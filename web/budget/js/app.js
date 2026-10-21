@@ -3,8 +3,10 @@ const byId = id => document.getElementById(id);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
 let budgetBusy = false, budgetLoaded = false;
-let localBudget = null;
-const yen = value => new Intl.NumberFormat('ja-JP').format(value) + '円';
+let localBudget = null, savedRaw = null;
+let categoryIndex = new Map(), indexedState = null, months = new Map();
+const yenFormatter = new Intl.NumberFormat('ja-JP');
+const yen = value => yenFormatter.format(value) + '円';
 const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
 function node(tag, className, text) {
     const el = document.createElement(tag);
@@ -21,7 +23,7 @@ function setBusy(value) {
     byId('logoutButton').disabled = value;
 }
 function sameAccount() { return HubAuth.read()?.token === budgetSession?.token; }
-function categoryInfo(id) { return budgetState.categories.find(c => c.id === id) || { name: '未分類', color: '#9eacb9' }; }
+function categoryInfo(id) { return categoryIndex.get(id) || { name: '未分類', color: '#9eacb9' }; }
 function categoryLabel(id) {
     const c = categoryInfo(id), label = node('span', 'category-name');
     const dot = node('span', 'swatch'); dot.style.backgroundColor = c.color; dot.setAttribute('aria-hidden', 'true');
@@ -37,10 +39,22 @@ function fillCategories(select, filter = false) {
 }
 function render() {
     if (!budgetLoaded) return;
-    fillCategories(byId('entryCategory'));
-    fillCategories(byId('categoryFilter'), true);
+    const dataChanged = indexedState !== budgetState;
+    if (dataChanged) {
+        indexedState = budgetState;
+        categoryIndex = new Map(budgetState.categories.map(c => [c.id, c]));
+        months = new Map();
+        for (const entry of budgetState.entries) {
+            const month = entry.date.slice(0, 7);
+            if (!months.has(month)) months.set(month, []);
+            months.get(month).push(entry);
+        }
+        for (const entries of months.values()) entries.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        fillCategories(byId('entryCategory'));
+        fillCategories(byId('categoryFilter'), true);
+    }
     const month = byId('monthInput').value;
-    const entries = budgetState.entries.filter(e => e.date.slice(0, 7) === month);
+    const entries = months.get(month) || [];
     const summary = BudgetModel.summarize(entries);
     byId('incomeTotal').textContent = yen(summary.income);
     byId('expenseTotal').textContent = yen(summary.expense);
@@ -56,8 +70,7 @@ function render() {
         track.append(fill); row.append(heading, track); bars.append(row);
     });
     const filtered = entries.filter(e => (byId('typeFilter').value === 'all' || e.type === byId('typeFilter').value) &&
-        (byId('categoryFilter').value === 'all' || e.categoryId === byId('categoryFilter').value))
-        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        (byId('categoryFilter').value === 'all' || e.categoryId === byId('categoryFilter').value));
     byId('entryCount').textContent = filtered.length + '件';
     const list = byId('entries'); list.replaceChildren();
     if (!filtered.length) list.append(node('p', 'empty', entries.length ? '条件に合う記録がありません。' : 'この月の記録はまだありません。入力フォームから記録しましょう。'));
@@ -79,7 +92,8 @@ function render() {
         });
         actions.append(edit, remove); right.append(actions); row.append(left, right); list.append(row);
     });
-    renderCategoryList(); setBusy(budgetBusy);
+    if (dataChanged && byId('categoryDialog').open) renderCategoryList();
+    setBusy(budgetBusy);
 }
 function renderCategoryList() {
     const list = byId('categories'); list.replaceChildren();
@@ -118,10 +132,10 @@ function localStatus() {
     byId('status').textContent = localBudget.pending.length ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件' : '同期済み';
 }
 function saveLocal(value) {
-    if (localBudget && JSON.stringify(BudgetLocal.read(localStorage, budgetSession.userId)) !== JSON.stringify(localBudget)) {
+    if (localStorage.getItem(BudgetLocal.key(budgetSession.userId)) !== savedRaw) {
         throw new Error('別タブで変更されました。この画面を開き直してください。');
     }
-    BudgetLocal.write(localStorage, budgetSession.userId, value);
+    savedRaw = BudgetLocal.write(localStorage, budgetSession.userId, value);
     localBudget = value; budgetState = BudgetLocal.view(value); budgetLoaded = true;
 }
 async function loadBudget() {
@@ -138,9 +152,9 @@ async function loadBudget() {
                 saveLocal(BudgetLocal.ack(localBudget, result, packet.request.operations.length));
             }
         } else {
-            const result = await HubAuth.api('budgetLoad', {}, budgetSession);
+            const result = await HubAuth.api('budgetLoad', localBudget ? { knownRevision: localBudget.base.revision } : {}, budgetSession);
             if (!sameAccount()) return;
-            saveLocal(BudgetLocal.create(result));
+            if (!result.unchanged) saveLocal(BudgetLocal.create(result));
         }
         byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) {
@@ -183,7 +197,7 @@ byId('categoryForm').addEventListener('submit', async event => {
     const value = { id: byId('categoryId').value, name: byId('categoryName').value, color: byId('categoryColor').value };
     if (await mutate({ type: 'categorySave', value })) resetCategory();
 });
-byId('categoryButton').addEventListener('click', () => { byId('categoryStatus').textContent = ''; byId('categoryDialog').showModal(); });
+byId('categoryButton').addEventListener('click', () => { byId('categoryStatus').textContent = ''; renderCategoryList(); byId('categoryDialog').showModal(); });
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
 byId('cancelEntry').addEventListener('click', resetEntry); byId('cancelCategory').addEventListener('click', resetCategory);
 ['monthInput', 'typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
@@ -214,6 +228,7 @@ window.addEventListener('hub-auth-changed', event => {
     document.documentElement.removeAttribute('data-auth-pending');
     try {
         localBudget = BudgetLocal.read(localStorage, budgetSession.userId);
+        savedRaw = localStorage.getItem(BudgetLocal.key(budgetSession.userId));
         if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
     } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
     await loadBudget();

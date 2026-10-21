@@ -1,8 +1,12 @@
 // 未同期操作と同期元をユーザー別に保持し、再送でも同じ送信IDを使う
 var BudgetLocal = (() => {
+    const views = new WeakMap();
     const key = userId => 'personal_hub_budget_v1:' + userId;
     const create = state => ({ version: 1, base: { revision: state.revision, categories: state.categories, entries: state.entries }, pending: [], flight: null });
-    const view = local => ({ ...local.pending.reduce((state, op) => BudgetModel.apply(state, op), local.base), revision: local.base.revision });
+    function view(local) {
+        if (!views.has(local)) views.set(local, { ...local.pending.reduce((state, op) => BudgetModel.apply(state, op), local.base), revision: local.base.revision });
+        return views.get(local);
+    }
     function read(storage, userId) {
         const raw = storage.getItem(key(userId));
         if (raw === null) return null;
@@ -11,11 +15,14 @@ var BudgetLocal = (() => {
         view(local); return local;
     }
     function write(storage, userId, local) {
-        storage.setItem(key(userId), JSON.stringify(local));
+        const raw = JSON.stringify(local);
+        storage.setItem(key(userId), raw);
+        return raw;
     }
     function edit(local, operation) {
         const next = { ...local, pending: [...local.pending, operation] };
-        view(next); return next;
+        views.set(next, { ...BudgetModel.apply(view(local), operation), revision: local.base.revision });
+        return next;
     }
     function packet(local) {
         const flight = local.flight || { id: crypto.randomUUID(), count: Math.min(20, local.pending.length) };

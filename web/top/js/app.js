@@ -3,14 +3,12 @@ const form = document.getElementById('accountForm');
 const status = document.getElementById('accountStatus');
 const tools = document.getElementById('tools');
 const logout = document.getElementById('logoutButton');
-const retry = document.getElementById('retryButton');
 let accountBusy = false;
 
 function renderAccount(session, message) {
     form.hidden = !!session;
     tools.hidden = !session;
     logout.hidden = !session;
-    retry.hidden = true;
     status.textContent = message || (session ? session.userId + ' としてログイン中' : 'ログインしてください。');
 }
 
@@ -18,7 +16,6 @@ function setAccountBusy(value) {
     accountBusy = value;
     form.querySelectorAll('input, button').forEach(element => { element.disabled = value; });
     logout.disabled = value;
-    retry.disabled = value;
 }
 
 async function signIn(action) {
@@ -35,7 +32,7 @@ async function signIn(action) {
 
 async function checkAccount() {
     if (accountBusy) return;
-    const session = HubAuth.read();
+    const session = HubAuth.resume();
     if (!session) {
         const reason = new URLSearchParams(location.search).get('reason');
         renderAccount(null, reason === 'expired' ? 'セッションが切れました。ログインし直してください。' : undefined);
@@ -54,6 +51,5 @@ logout.addEventListener('click', async () => {
     catch (error) { renderAccount(null, 'この端末からログアウトしました。サーバーには接続できませんでした。'); }
     finally { setAccountBusy(false); }
 });
-retry.addEventListener('click', checkAccount);
 window.addEventListener('hub-auth-changed', event => renderAccount(event.detail));
 window.addEventListener('pageshow', checkAccount);

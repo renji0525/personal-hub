@@ -140,3 +140,15 @@ test('家計簿のローカル認証確認では通信せず、期限とログ�
     s.timers.at(-1).callback();
     assert.equal(s.api.read(), null);
 });
+
+test('ログアウトはサーバー応答を待たず端末を解除し、終了送信は短い待機時間を使う', async () => {
+    const s = auth();
+    s.storage.set('personal_hub_session', JSON.stringify(session()));
+    let finish, options;
+    s.context.fetch = async (_, args) => { options = args; await new Promise(resolve => { finish = resolve; }); return { ok: true, json: async () => ({ status: 'ok' }) }; };
+    const pending = s.api.signOut();
+    assert.equal(s.api.read(), null);
+    assert.equal(options.keepalive, true);
+    assert.ok(s.timers.some(timer => timer.delay === 8000));
+    finish(); await pending;
+});

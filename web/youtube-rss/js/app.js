@@ -2,6 +2,7 @@
  * アプリケーションの全体状態（ステート）
  * チャンネル、動画リスト、設定をまとめて管理し、LocalStorageに保存する対象となります。
  */
+const publishedFormatter = new Intl.DateTimeFormat();
 let appState = {
     channels: [],       // 登録されたチャンネル情報 {id, title}
     videos: [],         // 取得した動画の全リスト
@@ -155,11 +156,6 @@ function load() {
 }
 
 /**
- * 非同期の待機処理
- */
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
  * GAS（Google Apps Script）経由でYouTubeのフィードを取得する
  * @param {string} channelId - YouTubeのチャンネルID
  * @param {string} inChannelName - ログ表示用のチャンネル名
@@ -172,7 +168,6 @@ async function fetchFeed(channelId, inChannelName="None", addText="", quiet=fals
         return null;
     }
 
-    await sleep(500); // サーバー負荷軽減のための短い待機
     if(!quiet && addText !== '') showNotification(addText);
 
     try {
@@ -243,7 +238,13 @@ async function removeChannel(cid, event) {
     if (!confirm("チャンネルと動画データを削除しますか？")) return;
     if (typeof authSession !== 'undefined' && authSession) {
         busy = true;
-        try { await accountApi('removeChannel', { channelId: cid }); }
+        try {
+            await accountApi('removeChannel', { channelId: cid });
+            resetLibraryPager();
+            const pending = pendingWatched();
+            for (const id of Object.keys(pending)) if (pending[id].channelId === cid) delete pending[id];
+            localStorage.setItem('yt_rss_pending_watched:' + authSession.userId, JSON.stringify(pending));
+        }
         catch (error) { showNotification(error.message, 'error'); return; }
         finally { busy = false; }
     }
@@ -258,7 +259,7 @@ async function removeChannel(cid, event) {
     save();
     renderChannels();
     renderVideos();
-    if (typeof authSession !== 'undefined' && authSession) { resetLibraryPager(); await reloadLibrary(); }
+
 }
 
 /**
@@ -282,7 +283,7 @@ async function refreshAll() {
             const result = await fetchFeed(ch.id, ch.title, '', true, true);
             if (result) {
                 if (ch.title.startsWith('Channel(')) ch.title = result.name;
-                mergeVideos(result.items);
+                mergeVideos(result.items, false);
             } else failures.push(ch.title);
             bar.value = index + 1;
         }
@@ -304,7 +305,7 @@ async function refreshAll() {
 /**
  * 重複を避けて動画リストを統合する
  */
-function mergeVideos(newVideos) {
+function mergeVideos(newVideos, sort = true) {
     const ids = new Set(appState.videos.map(v => v.id));
     newVideos.forEach(nv => {
         // すでに存在するID（動画）は追加しない
@@ -313,7 +314,7 @@ function mergeVideos(newVideos) {
             ids.add(nv.id);
         }
     });
-    appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+    if (sort) appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
 }
 
 /**
@@ -345,13 +346,16 @@ function renderChannels() {
 /**
  * メインエリアの動画カードリストを描画する
  */
-function renderVideos() {
+function renderVideos(append = false) {
     const container = document.getElementById('video-container');
-    container.innerHTML = '';
+    const start = append ? container.querySelectorAll('.video-card').length : 0;
+    if (append) container.querySelector('.load-more')?.remove();
+    else container.replaceChildren();
     
     document.getElementById('unreadOnlyInput').checked = appState.unreadOnly;
-    const displayList = getDisplayVideos().slice(0, typeof libraryPager !== 'undefined' ? libraryPager.limit : 50);
-    if (displayList.length === 0) {
+    const all = getDisplayVideos();
+    const displayList = all.slice(start, typeof libraryPager !== 'undefined' ? libraryPager.limit : 50);
+    if (!start && displayList.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'empty-message';
         empty.textContent = appState.unreadOnly ? '未読の動画はありません。' : '表示する動画はありません。';
@@ -360,10 +364,11 @@ function renderVideos() {
 
     displayList.forEach(v => {
         const card = document.createElement('div');
+        card.dataset.videoId = v.id;
         card.className = `video-card ${v.watched ? 'watched' : ''}`; // 既読なら薄くするCSSを適用
         card.innerHTML = `
             <a target="_blank" rel="noopener noreferrer" class="thumb-wrapper">
-                <img loading="lazy" alt="">
+                <img loading="lazy" decoding="async" alt="">
             </a>
             <div class="video-info">
                 <div class="video-title"></div>
@@ -383,13 +388,13 @@ function renderVideos() {
         title.textContent = v.title;
         title.title = v.title;
         card.querySelector('.channel-name').textContent = v.channelName;
-        card.querySelector('.meta-row span').textContent = new Date(v.published).toLocaleDateString();
+        card.querySelector('.meta-row span').textContent = publishedFormatter.format(new Date(v.published));
         const checkbox = card.querySelector('input');
         checkbox.checked = v.watched;
         checkbox.addEventListener('change', () => setWatched(v.id, checkbox.checked));
         container.appendChild(card);
     });
-    if (typeof renderLibrarySentinel === 'function') renderLibrarySentinel(container);
+    if (typeof renderLibrarySentinel === 'function') renderLibrarySentinel(container, all.length);
 }
 
 /**
@@ -399,11 +404,19 @@ function setWatched(vid, watched) {
     const video = appState.videos.find(v => v.id === vid);
     if (video) {
         const previous = video.watched;
+        if (watched === previous) return;
         // 現在の状態を反転(トグル)させる
         video.watched = watched === undefined ? !video.watched : watched;
         if (typeof authSession !== 'undefined' && authSession) syncWatched(video, previous);
         save();
-        renderVideos();
+        if (appState.unreadOnly) renderVideos();
+        else {
+            const cards = document.getElementById('video-container').querySelectorAll?.('.video-card') || [];
+            for (const card of cards) if (card.dataset.videoId === vid) {
+                card.classList.toggle('watched', video.watched);
+                card.querySelector('input').checked = video.watched;
+            }
+        }
     }
 }
 
@@ -415,6 +428,7 @@ function getDisplayVideos() {
 }
 
 function setUnreadOnly(enabled) {
+    if (appState.unreadOnly === enabled) return;
     appState.unreadOnly = enabled;
     if (typeof resetLocalView === 'function') resetLocalView();
     save();
@@ -425,6 +439,7 @@ function setUnreadOnly(enabled) {
  * サイドバーで選択したチャンネルでフィルタをかける
  */
 function filterChan(id) {
+    if (appState.selectedChannel === id) return;
     appState.selectedChannel = id;
     if (typeof resetLocalView === 'function') resetLocalView();
     save();
@@ -445,11 +460,7 @@ function toggleTheme() {
  * バックアップ：現在のデータをJSONファイルとして保存する
  */
 async function exportJSON() {
-    let state = appState;
-    if (typeof authSession !== 'undefined' && authSession) {
-        try { state = await accountBackup(); }
-        catch (error) { showNotification('バックアップを取得できません。' + error.message, 'error'); return; }
-    }
+    const state = appState;
     const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -511,12 +522,13 @@ function resetAll() {
 /**
  * ページ読み込み完了時の処理
  */
-window.onload = async () => {
+async function startApp() {
     if (typeof initAccount === 'function' && !(await initAccount())) return;
     // 廃止した認証キーを、このブラウザから削除する
     try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
     load(); // ストレージからデータを読み込む
     document.documentElement.removeAttribute('data-auth-pending');
     if (typeof authSession !== 'undefined' && authSession) reloadLibrary();
-    //refreshAll();
-};
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp, { once: true });
+else startApp();

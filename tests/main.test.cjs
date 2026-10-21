@@ -9,9 +9,9 @@ function app() {
     const context = vm.createContext({
         URL, URLSearchParams, setTimeout, window: {},
         localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) },
-        document: { documentElement: { removeAttribute() {} }, getElementById: () => input, body: { setAttribute() {} } }
+        document: { readyState: 'loading', addEventListener() {}, documentElement: { removeAttribute() {} }, getElementById: () => input, body: { setAttribute() {} } }
     });
-    vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/main.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/app.js'), 'utf8'), context);
     vm.runInContext('renderVideos = () => { renders++; }; renderChannels = () => {}; showNotification = () => {};', context);
     context.renders = 0;
     return { context, run: code => vm.runInContext(code, context) };
@@ -117,7 +117,7 @@ test('旧バックアップの欠落したShorts IDを補完し既読状態を�
 
 test('旧キーを起動時に削除し、ログインなしのRSS取得は通信しない', async () => {
     const { context, run } = app();
-    await run("localStorage.setItem('yt_rss_api_key', 'old-key'); window.onload()");
+    await run("localStorage.setItem('yt_rss_api_key', 'old-key'); startApp()");
     assert.equal(run("localStorage.getItem('yt_rss_api_key')"), undefined);
     context.fetch = () => { throw new Error('未認証で通信してはいけません'); };
     assert.equal(await run("fetchFeed('channel')"), null);
@@ -139,4 +139,12 @@ test('更新は選択中のチャンネルに関係なく全件処理し、進�
     assert.match(elements.refreshProgressText.textContent, /チャンネル2/);
     assert.equal(elements.refreshButton.disabled, false);
     assert.equal(run('appState.selectedChannel'), 'one');
+});
+
+test('同じ既読値の再設定は保存も描画も行わない', () => {
+    const s = app();
+    let writes = 0;
+    s.context.localStorage.setItem = () => writes++;
+    s.run("appState.videos = [{ id: 'same', watched: true }]; setWatched('same', true)");
+    assert.equal(writes, 0); assert.equal(s.context.renders, 0);
 });
