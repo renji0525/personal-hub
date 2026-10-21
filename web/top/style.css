@@ -19,3 +19,5 @@ button:disabled { opacity: .6; cursor: wait; }
 input:focus-visible, button:focus-visible { outline: 2px solid #b0eddb; outline-offset: 3px; }
 .account-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 small { color: #a4b4c2; font-size: 12px; line-height: 1.7; }
+
+#tools { display: grid; gap: 12px; }

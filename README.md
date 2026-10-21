@@ -1,6 +1,6 @@
 # personal-hub
 
-日常のツールへ移動するトップページとYouTube RSSアプリです。
+日常のツールへ移動するトップページ、YouTube RSS、家計簿のアプリです。
 
 ## フォルダ構成
 
@@ -12,6 +12,7 @@ web/
     style.css                     トップ専用スタイル
     main.js                       共通ログイン画面の操作
   shared/js/auth.js               Personal Hub共通認証・GAS通信
+  budget/                         家計簿・カテゴリ管理・月別集計
   youtube-rss/
     YoutubeRssFedly.html           YouTube RSS画面
     css/                          RSS専用スタイル
@@ -46,3 +47,5 @@ node --test tests/*.test.cjs
 GASはユーザー情報（Users・Sessions）とYouTube RSS（Channels・Videos・UserChannels・Watched）を別スプレッドシートで管理する構成に対応しています。既存データの分離はGASエディタでsetupSplitDatabasesを実行します。詳細はgas/README.mdを参照してください。
 
 既読変更は一覧取得と同時に送信し、通常の同期をAPI1回にまとめます。連続したシート更新も一括処理します。現行のローカルブラウザ検証はtests/browser/README.md、旧仕様の検証はtests/browser/legacy/に分けています。GASの補助スクリプトはgas/scripts/、ライセンスはgas/licenses/です。
+
+家計簿はTopの「家計簿を開く」から利用できます。収入・支出の記録、自由なカテゴリ名と色、月別収支、カテゴリ別集計、JSON書き出しに対応。初回利用時に専用スプレッドシートを自動作成し、データをユーザー別に保存します。詳しい使い方はローカルのdocs/BUDGET.mdを参照してください。
