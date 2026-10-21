@@ -1,8 +1,9 @@
-// 家計簿は起動・保存時だけ通信し、月切替や絞り込みは取得済みデータで行う
+// 編集は端末へ保存し、起動時と明示的な同期時だけ通信する
 const byId = id => document.getElementById(id);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
 let budgetBusy = false, budgetLoaded = false;
+let localBudget = null;
 const yen = value => new Intl.NumberFormat('ja-JP').format(value) + '円';
 const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
 function node(tag, className, text) {
@@ -113,36 +114,58 @@ function editEntry(entry) {
 function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
 }
-async function fetchBudget() {
-    const result = await HubAuth.api('budgetLoad', {}, budgetSession);
-    if (!sameAccount()) return false;
-    budgetState = { revision: result.revision, categories: result.categories, entries: result.entries };
-    budgetLoaded = true; render(); return true;
+function localStatus() {
+    byId('status').textContent = localBudget.pending.length ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件' : '同期済み';
+}
+function saveLocal(value) {
+    if (localBudget && JSON.stringify(BudgetLocal.read(localStorage, budgetSession.userId)) !== JSON.stringify(localBudget)) {
+        throw new Error('別タブで変更されました。この画面を開き直してください。');
+    }
+    BudgetLocal.write(localStorage, budgetSession.userId, value);
+    localBudget = value; budgetState = BudgetLocal.view(value); budgetLoaded = true;
 }
 async function loadBudget() {
-    if (budgetBusy || !budgetSession) return;
-    setBusy(true); byId('status').textContent = '読み込み中…';
-    try { if (await fetchBudget()) byId('status').textContent = '保存先と同期しました。'; }
-    catch (error) { byId('status').textContent = '読み込めませんでした。再読み込みをお試しください。' + error.message; }
-    finally { setBusy(false); }
-}
-async function mutate(operation) {
-    if (budgetBusy || !budgetLoaded) return false;
-    try { BudgetModel.apply(budgetState, operation); }
-    catch (error) { byId('status').textContent = byId('categoryStatus').textContent = error.message; return false; }
-    setBusy(true); byId('status').textContent = '保存中…'; byId('categoryStatus').textContent = '';
+    if (budgetBusy || !budgetSession || !sameAccount()) return;
+    setBusy(true); byId('status').textContent = '同期中…';
     try {
-        const result = await HubAuth.api('budgetMutate', { revision: budgetState.revision, operation }, budgetSession);
-        if (!sameAccount()) return false;
-        budgetState = { revision: result.revision, categories: result.categories, entries: result.entries };
-        render(); byId('status').textContent = '保存しました。'; return true;
-    } catch (error) {
-        if (error.code === 'BUDGET_CONFLICT') {
-            try { await fetchBudget(); } catch (refreshError) { /* 入力内容は維持し、再読み込みを案内する */ }
+        if (localBudget?.pending.length) {
+            while (localBudget.pending.length) {
+                const packet = BudgetLocal.packet(localBudget);
+                // 送信IDを先に保存し、応答喪失時も同じ内容で再試行する
+                saveLocal(packet.local);
+                const result = await HubAuth.api('budgetSync', packet.request, budgetSession);
+                if (!sameAccount()) return;
+                saveLocal(BudgetLocal.ack(localBudget, result, packet.request.operations.length));
+            }
+        } else {
+            const result = await HubAuth.api('budgetLoad', {}, budgetSession);
+            if (!sameAccount()) return;
+            saveLocal(BudgetLocal.create(result));
         }
-        byId('status').textContent = byId('categoryStatus').textContent = error.message; return false;
+        byId('discardButton').hidden = true; render(); localStatus();
+    } catch (error) {
+        byId('status').textContent = '同期できませんでした。端末の変更は保持しています。' + error.message;
+        byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
     } finally { setBusy(false); }
 }
+async function mutate(operation) {
+    if (budgetBusy || !budgetLoaded || !sameAccount()) return false;
+    try {
+        saveLocal(BudgetLocal.edit(localBudget, operation));
+        render(); localStatus(); byId('categoryStatus').textContent = ''; return true;
+    } catch (error) {
+        byId('status').textContent = byId('categoryStatus').textContent = '端末に保存できませんでした。' + error.message;
+        return false;
+    }
+}
+byId('discardButton').addEventListener('click', async () => {
+    if (budgetBusy || !confirm('未同期の変更を破棄します。必要なら先にバックアップしてください。続けますか？')) return;
+    try { saveLocal(BudgetLocal.create(localBudget.base)); await loadBudget(); }
+    catch (error) { byId('status').textContent = error.message; }
+});
+window.addEventListener('storage', event => {
+    if (budgetSession && (event.key === BudgetLocal.key(budgetSession.userId) || event.key === null)) location.reload();
+});
 byId('entryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('entryId').value) byId('entryId').value = crypto.randomUUID();
@@ -189,5 +212,9 @@ window.addEventListener('hub-auth-changed', event => {
     if (!budgetSession) return;
     byId('currentUser').textContent = budgetSession.userId;
     document.documentElement.removeAttribute('data-auth-pending');
+    try {
+        localBudget = BudgetLocal.read(localStorage, budgetSession.userId);
+        if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
+    } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
     await loadBudget();
 })();

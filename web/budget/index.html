@@ -6,9 +6,10 @@
     <title>家計簿 | Personal Hub</title>
     <style>html[data-auth-pending] body { display: none !important; }</style>
     <script src="../shared/js/auth.js"></script>
-    <script>HubAuth.ready = HubAuth.protect();</script>
+    <script>HubAuth.ready = HubAuth.protect({ local: true });</script>
     <link rel="stylesheet" href="style.css">
     <script src="model.js" defer></script>
+    <script src="local.js" defer></script>
     <script src="app.js" defer></script>
 </head>
 <body>
@@ -18,7 +19,9 @@
     </header>
     <main>
         <div class="heading"><div><p class="eyebrow">MY HOUSEHOLD</p><h1>家計簿</h1><p class="subtitle">毎日の収支を、ひと目で。</p></div><button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button></div>
-        <div class="month-toolbar"><div class="month-picker"><button id="previousMonth" type="button" aria-label="前の月">‹</button><label for="monthInput" class="sr-only">表示する月</label><input id="monthInput" type="month" required><button id="nextMonth" type="button" aria-label="次の月">›</button></div><div class="toolbar-actions"><button id="refreshButton" type="button" class="quiet">再読み込み</button><button id="exportButton" type="button" class="quiet requires-data" disabled>バックアップ</button></div></div>
+        <div class="month-toolbar"><div class="month-picker"><button id="previousMonth" type="button" aria-label="前の月">‹</button><label for="monthInput" class="sr-only">表示する月</label><input id="monthInput" type="month" required><button id="nextMonth" type="button" aria-label="次の月">›</button></div><div class="toolbar-actions"><button id="refreshButton" type="button" class="quiet">同期する</button><button id="exportButton" type="button" class="quiet requires-data" disabled>バックアップ</button></div></div>
+        <p class="hint">編集はこの端末に保存されます。他の端末と共有するには「同期する」を押してください。</p>
+        <button id="discardButton" type="button" class="quiet" hidden>未同期の変更を破棄して再取得</button>
         <p id="status" role="status" aria-live="polite">読み込み中…</p>
         <section class="summary" aria-label="月の収支">
             <article><span>収入</span><strong id="incomeTotal">—</strong></article>

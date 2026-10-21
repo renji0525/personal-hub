@@ -135,13 +135,13 @@ window.HubAuth = (() => {
         location.replace('../top/index.html?reason=' + encodeURIComponent(reason));
     }
 
-    function protect() {
+    function protect(options = {}) {
         let protectedToken = null;
         const check = async () => {
             document.documentElement.setAttribute('data-auth-pending', '');
             if (!read()) { toTop(); return null; }
             try {
-                const session = await verify();
+                const session = options.local ? read() : await verify();
                 if (!session) { toTop(); return null; }
                 protectedToken = session.token;
                 notify(session);

@@ -41,16 +41,8 @@ async function checkAccount() {
         renderAccount(null, reason === 'expired' ? 'セッションが切れました。ログインし直してください。' : undefined);
         return;
     }
-    setAccountBusy(true);
-    tools.hidden = true;
-    status.textContent = 'ログイン情報を確認中…';
-    try {
-        const verified = await HubAuth.verify(session);
-        renderAccount(verified);
-    } catch (error) {
-        renderAccount(null, error.message);
-        retry.hidden = !HubAuth.read();
-    } finally { setAccountBusy(false); }
+    // 画面表示は端末内の期限を確認し、データAPIでサーバー認証する
+    renderAccount(session);
 }
 
 form.addEventListener('submit', event => { event.preventDefault(); signIn('login'); });

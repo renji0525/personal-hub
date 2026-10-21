@@ -125,3 +125,18 @@ test('同時の認証確認だけを1回へ集約し、完了後はサーバー�
     complete();
     await next;
 });
+
+test('家計簿のローカル認証確認では通信せず、期限とログアウトを監視する', async () => {
+    const s = auth(), value = session();
+    s.storage.set('personal_hub_session', JSON.stringify(value));
+    let calls = 0;
+    s.context.fetch = async () => { calls++; throw new Error('通信不要'); };
+    s.context.document = { documentElement: { setAttribute() {} } };
+    s.context.location = { replace() {} };
+    const verified = await s.api.protect({ local: true });
+    assert.equal(verified.userId, 'alice'); assert.equal(calls, 0);
+    assert.ok(s.timers.length > 0);
+    s.clock.now = value.expiresAt + 1;
+    s.timers.at(-1).callback();
+    assert.equal(s.api.read(), null);
+});
