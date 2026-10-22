@@ -1,36 +1,93 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Personal Hubのログインとツール一覧">
-    <title>Personal Hub</title>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="../shared/js/auth.js" defer></script>
-    <script src="js/app.js" defer></script>
-</head>
-<body>
-    <main>
-        <h1>Personal Hub</h1>
-        <section aria-label="共通アカウント">
-            <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
-            <form id="accountForm" hidden>
-                <label for="userIdInput">ユーザーID</label>
-                <input id="userIdInput" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" required>
-                <label for="passwordInput">パスワード</label>
-                <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
-                <div class="account-actions">
-                    <button type="submit">ログイン</button>
-                    <button type="button" id="registerButton">新規登録</button>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="動画と家計簿。毎日のツールをまとめるPersonal Hub。">
+        <title>Personal Hub</title>
+        <meta name="theme-color" content="#101a22">
+        <link rel="icon" href="../shared/icons/hub-32.png" type="image/png" sizes="32x32">
+        <link rel="icon" href="../shared/icons/hub.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="../shared/icons/hub-180.png">
+        <link rel="stylesheet" href="../shared/css/base.css">
+        <link rel="stylesheet" href="css/style.css">
+        <script src="../shared/js/auth.js" defer>
+        </script>
+        <script src="js/app.js" defer>
+        </script>
+    </head>
+    <body>
+        <a class="skip-link" href="#main">本文へ移動</a>
+        <header class="hub-header">
+            <a class="hub-brand" href="index.html">
+                <img class="app-icon" src="../shared/icons/hub.svg" alt="" width="40" height="40">
+                <span>Personal Hub</span>
+            </a>
+            <span class="header-note">自分のための、小さなホーム。</span>
+        </header>
+        <main id="main">
+            <div class="welcome">
+                <p class="eyebrow">YOUR EVERYDAY SPACE</p>
+                <h1>いつものことを、<br>ここから。</h1>
+                <p class="lead">動画のチェックも、お金の記録も。<br>毎日使うツールを、ひとつに。</p>
+            </div>
+            <section class="account-panel" aria-label="共通アカウント">
+                <div class="account-heading">
+                    <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
+                    <button id="logoutButton" class="quiet" type="button" hidden>
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/>
+                        </svg>
+                        <span>ログアウト</span>
+                    </button>
                 </div>
-                <small>このアカウントはPersonal Hub全体で使用します。</small>
-            </form>
-            <button id="logoutButton" type="button" hidden>ログアウト</button>
-        </section>
-        <nav id="tools" aria-label="ツール一覧" hidden>
-            <a class="tool-link" href="../youtube-rss/index.html">YouTube RSSを開く <span aria-hidden="true">→</span></a>
-            <a class="tool-link" href="../budget/index.html">家計簿を開く <span aria-hidden="true">→</span></a>
-        </nav>
-    </main>
-</body>
+                <form id="accountForm" hidden>
+                    <h2>おかえりなさい</h2>
+                    <p class="muted">アカウントにログインして、続きを始めましょう。</p>
+                    <label for="userIdInput">ユーザーID</label>
+                    <input id="userIdInput" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" placeholder="ユーザーIDを入力" required>
+                    <label for="passwordInput">パスワード</label>
+                    <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="8文字以上のパスワード" required>
+                    <div class="account-actions">
+                        <button type="submit">ログイン <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M5 12h14m-6-6 6 6-6 6"/>
+                            </svg>
+                        </button>
+                        <button type="button" id="registerButton" class="quiet">新規登録</button>
+                    </div>
+                    <small>ひとつのアカウントで、すべてのツールを使えます。</small>
+                </form>
+            </section>
+            <nav id="tools" aria-label="ツール一覧" hidden>
+                <a class="tool-link video-tool" href="../youtube-rss/index.html" aria-label="YouTube RSSを開く">
+                    <img class="tool-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">
+                    <span class="tool-copy">
+                        <span class="eyebrow">WATCH</span>
+                        <strong>YouTube RSS</strong>
+                        <span>お気に入りの動画を、見逃さずに。<br>チャンネルと既読をまとめて管理。</span>
+                    </span>
+                    <span class="tool-open">開く <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14m-6-6 6 6-6 6"/>
+                        </svg>
+                    </span>
+                </a>
+                <a class="tool-link budget-tool" href="../budget/index.html" aria-label="家計簿を開く">
+                    <img class="tool-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">
+                    <span class="tool-copy">
+                        <span class="eyebrow">TRACK</span>
+                        <strong>家計簿</strong>
+                        <span>日々の収支を、自分らしく。<br>自由なカテゴリで、すっきり記録。</span>
+                    </span>
+                    <span class="tool-open">開く <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12h14m-6-6 6 6-6 6"/>
+                        </svg>
+                    </span>
+                </a>
+            </nav>
+            <footer class="home-footer">
+                <span>PERSONAL HUB</span>
+                <span>日常を、少し軽やかに。</span>
+            </footer>
+        </main>
+    </body>
 </html>

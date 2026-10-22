@@ -67,7 +67,10 @@ async function reloadLibrary() {
 
 function setSyncStatus(message) {
     const status = document.getElementById('syncStatus');
-    if (status) status.textContent = message;
+    if (status) {
+        status.textContent = message;
+        if (status.dataset) status.dataset.state = message.includes('できません') ? 'error' : message === '同期中…' ? 'syncing' : message.includes('次回') ? 'pending' : 'ready';
+    }
 }
 
 function pendingWatched(session = authSession) {

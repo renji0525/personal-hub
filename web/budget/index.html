@@ -1,62 +1,196 @@
 <!DOCTYPE html>
 <html lang="ja" data-auth-pending>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家計簿 | Personal Hub</title>
-    <style>html[data-auth-pending] body { display: none !important; }</style>
-    <script src="../shared/js/auth.js"></script>
-    <script>HubAuth.ready = HubAuth.protect({ local: true });</script>
-    <link rel="stylesheet" href="css/style.css">
-    <script src="js/model.js" defer></script>
-    <script src="js/store.js" defer></script>
-    <script src="js/app.js" defer></script>
-</head>
-<body>
-    <header class="page-header">
-        <a href="../top/index.html" class="back-link">← Personal Hub</a>
-        <div class="account"><span id="currentUser"></span><button id="logoutButton" class="quiet" type="button">ログアウト</button></div>
-    </header>
-    <main>
-        <div class="heading"><div><p class="eyebrow">MY HOUSEHOLD</p><h1>家計簿</h1><p class="subtitle">毎日の収支を、ひと目で。</p></div><button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button></div>
-        <div class="month-toolbar"><div class="month-picker"><button id="previousMonth" type="button" aria-label="前の月">‹</button><label for="monthInput" class="sr-only">表示する月</label><input id="monthInput" type="month" required><button id="nextMonth" type="button" aria-label="次の月">›</button></div><div class="toolbar-actions"><button id="refreshButton" type="button" class="quiet">同期する</button><button id="exportButton" type="button" class="quiet requires-data" disabled>バックアップ</button></div></div>
-        <p class="hint">編集はこの端末に保存されます。他の端末と共有するには「同期する」を押してください。</p>
-        <button id="discardButton" type="button" class="quiet" hidden>未同期の変更を破棄して再取得</button>
-        <p id="status" role="status" aria-live="polite">読み込み中…</p>
-        <section class="summary" aria-label="月の収支">
-            <article><span>収入</span><strong id="incomeTotal">—</strong></article>
-            <article><span>支出</span><strong id="expenseTotal">—</strong></article>
-            <article class="balance"><span>差引</span><strong id="balanceTotal">—</strong></article>
-        </section>
-        <div class="workspace">
-            <aside class="panel entry-panel">
-                <h2 id="entryHeading">収支を記録</h2>
-                <form id="entryForm">
-                    <fieldset id="entryFields" disabled>
-                        <input id="entryId" type="hidden">
-                        <label for="entryType">種類</label><select id="entryType"><option value="expense">支出</option><option value="income">収入</option></select>
-                        <label for="entryDate">日付</label><input id="entryDate" type="date" required>
-                        <label for="entryAmount">金額（円）</label><input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
-                        <label for="entryCategory">カテゴリ</label><select id="entryCategory"></select>
-                        <label for="entryMemo">メモ <span class="optional">任意</span></label><input id="entryMemo" maxlength="200" placeholder="お店や用途など">
-                        <div class="form-actions"><button type="submit" id="saveEntry">記録する</button><button type="button" id="cancelEntry" class="quiet" hidden>キャンセル</button></div>
-                    </fieldset>
-                </form>
-            </aside>
-            <div class="details">
-                <section class="panel category-summary"><h2>カテゴリ別の支出</h2><div id="categorySummary" class="breakdown"><p class="empty">今月の支出はまだありません。</p></div></section>
-                <section class="panel records-panel">
-                    <div class="records-heading"><h2>記録一覧 <span id="entryCount" class="count">0件</span></h2><div class="filters"><label class="sr-only" for="typeFilter">種類で絞り込み</label><select id="typeFilter"><option value="all">収入・支出</option><option value="expense">支出のみ</option><option value="income">収入のみ</option></select><label class="sr-only" for="categoryFilter">カテゴリで絞り込み</label><select id="categoryFilter"></select></div></div>
-                    <div id="entries" class="records"><p class="empty">まだ記録がありません。</p></div>
-                </section>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="毎日の収支を、自由なカテゴリと色で記録。端末保存で軽快に使える家計簿。">
+        <title>家計簿 | Personal Hub</title>
+        <meta name="theme-color" content="#101a22">
+        <link rel="icon" href="../shared/icons/budget-32.png" type="image/png" sizes="32x32">
+        <link rel="icon" href="../shared/icons/budget.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="../shared/icons/budget-180.png">
+        <link rel="stylesheet" href="../shared/css/base.css">
+        <script src="../shared/js/auth.js">
+        </script>
+        <script>HubAuth.ready = HubAuth.protect({ local: true });</script>
+        <link rel="stylesheet" href="css/style.css">
+        <script src="js/model.js" defer>
+        </script>
+        <script src="js/store.js" defer>
+        </script>
+        <script src="js/app.js" defer>
+        </script>
+    </head>
+    <body>
+        <a class="skip-link" href="#main">本文へ移動</a>
+        <header class="hub-header">
+            <a href="../top/index.html" class="hub-brand back-link">
+                <img class="app-icon" src="../shared/icons/hub.svg" alt="" width="40" height="40">
+                <span>Personal Hub</span>
+            </a>
+            <nav class="hub-nav" aria-label="ページ移動">
+                <a href="../top/index.html" >
+                    <img class="app-icon" src="../shared/icons/hub.svg" alt="" width="40" height="40">
+                    <span>ホーム</span>
+                </a>
+                <a href="../youtube-rss/index.html" >
+                    <img class="app-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">
+                    <span>YouTube RSS</span>
+                </a>
+                <a href="../budget/index.html" aria-current="page">
+                    <img class="app-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">
+                    <span>家計簿</span>
+                </a>
+            </nav>
+            <div class="account">
+                <span id="currentUser">
+                </span>
+                <button id="logoutButton" class="quiet" type="button">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/>
+                    </svg>
+                    <span>ログアウト</span>
+                </button>
             </div>
-        </div>
-    </main>
-    <dialog id="categoryDialog" aria-labelledby="categoryHeading">
-        <div class="dialog-heading"><h2 id="categoryHeading">カテゴリを管理</h2><button id="closeCategories" class="quiet" aria-label="カテゴリ管理を閉じる">✕</button></div>
-        <p class="hint">名前と色は自由に変更できます。使用中のカテゴリは削除できません。</p>
-        <form id="categoryForm"><fieldset id="categoryFields" disabled><input id="categoryId" type="hidden"><div class="category-inputs"><div><label for="categoryName">カテゴリ名</label><input id="categoryName" maxlength="40" placeholder="例：カフェ" required></div><div><label for="categoryColor">色</label><input id="categoryColor" type="color" value="#83cdbb" required></div></div><div class="form-actions"><button id="saveCategory" type="submit">追加する</button><button id="cancelCategory" class="quiet" type="button" hidden>キャンセル</button></div></fieldset></form>
-        <p id="categoryStatus" role="status" aria-live="polite"></p><div id="categories" class="category-list"></div>
-    </dialog>
-</body>
+        </header>
+        <main id="main">
+            <div class="heading">
+                <div>
+                    <p class="eyebrow">YOUR MONEY, YOUR WAY</p>
+                    <h1>
+                        <img class="heading-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">家計簿</h1>
+                    <p class="subtitle">毎日の収支を、ひと目で。</p>
+                </div>
+                <button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button>
+            </div>
+            <div class="month-toolbar">
+                <div class="month-picker">
+                    <button id="previousMonth" type="button" aria-label="前の月">‹</button>
+                    <label for="monthInput" class="sr-only">表示する月</label>
+                    <input id="monthInput" type="month" required>
+                    <button id="nextMonth" type="button" aria-label="次の月">›</button>
+                </div>
+                <div class="toolbar-actions">
+                    <button id="refreshButton" type="button" class="quiet">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20 7v5h-5M4 17v-5h5"/>
+                            <path d="M6 7a7 7 0 0 1 11-1l3 3M4 15l3 3a7 7 0 0 0 11-1"/>
+                        </svg>
+                        <span>同期する</span>
+                    </button>
+                    <button id="exportButton" type="button" class="quiet requires-data" disabled>
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/>
+                        </svg>
+                        <span>バックアップ</span>
+                    </button>
+                </div>
+            </div>
+            <p class="save-note">記録はこの端末に保存。他の端末へは「同期する」で反映できます。</p>
+            <button id="discardButton" type="button" class="quiet" hidden>未同期の変更を破棄して再取得</button>
+            <p class="sync-status" id="status" role="status" aria-live="polite">読み込み中…</p>
+            <section class="summary" aria-label="月の収支">
+                <article>
+                    <span>↗ 今月の収入</span>
+                    <strong id="incomeTotal">—</strong>
+                </article>
+                <article>
+                    <span>↘ 今月の支出</span>
+                    <strong id="expenseTotal">—</strong>
+                </article>
+                <article class="balance">
+                    <span>今月の差引</span>
+                    <strong id="balanceTotal">—</strong>
+                </article>
+            </section>
+            <div class="workspace">
+                <aside class="panel entry-panel">
+                    <h2 id="entryHeading">収支を記録</h2>
+                    <form id="entryForm">
+                        <fieldset id="entryFields" disabled>
+                            <input id="entryId" type="hidden">
+                            <label for="entryType">種類</label>
+                            <select id="entryType">
+                                <option value="expense">支出</option>
+                                <option value="income">収入</option>
+                            </select>
+                            <label for="entryDate">日付</label>
+                            <input id="entryDate" type="date" required>
+                            <label for="entryAmount">金額（円）</label>
+                            <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
+                            <label for="entryCategory">カテゴリ</label>
+                            <select id="entryCategory">
+                            </select>
+                            <label for="entryMemo">メモ <span class="optional">任意</span>
+                            </label>
+                            <input id="entryMemo" maxlength="200" placeholder="お店や用途など">
+                            <div class="form-actions">
+                                <button type="submit" id="saveEntry">記録する</button>
+                                <button type="button" id="cancelEntry" class="quiet" hidden>キャンセル</button>
+                            </div>
+                        </fieldset>
+                    </form>
+                </aside>
+                <div class="details">
+                    <section class="panel category-summary">
+                        <h2>カテゴリ別の支出</h2>
+                        <div id="categorySummary" class="breakdown">
+                            <p class="empty">今月の支出はまだありません。</p>
+                        </div>
+                    </section>
+                    <section class="panel records-panel">
+                        <div class="records-heading">
+                            <h2>記録一覧 <span id="entryCount" class="count">0件</span>
+                            </h2>
+                            <div class="filters">
+                                <label class="sr-only" for="typeFilter">種類で絞り込み</label>
+                                <select id="typeFilter">
+                                    <option value="all">収入・支出</option>
+                                    <option value="expense">支出のみ</option>
+                                    <option value="income">収入のみ</option>
+                                </select>
+                                <label class="sr-only" for="categoryFilter">カテゴリで絞り込み</label>
+                                <select id="categoryFilter">
+                                </select>
+                            </div>
+                        </div>
+                        <div id="entries" class="records">
+                            <p class="empty">まだ記録がありません。</p>
+                        </div>
+                        <button id="moreEntries" class="quiet requires-data" type="button" hidden>次の50件を表示</button>
+                    </section>
+                </div>
+            </div>
+        </main>
+        <dialog id="categoryDialog" aria-labelledby="categoryHeading">
+            <div class="dialog-heading">
+                <h2 id="categoryHeading">カテゴリを管理</h2>
+                <button id="closeCategories" class="quiet" aria-label="カテゴリ管理を閉じる">✕</button>
+            </div>
+            <p class="hint">名前と色は自由に変更できます。使用中のカテゴリは削除できません。</p>
+            <form id="categoryForm">
+                <fieldset id="categoryFields" disabled>
+                    <input id="categoryId" type="hidden">
+                    <div class="category-inputs">
+                        <div>
+                            <label for="categoryName">カテゴリ名</label>
+                            <input id="categoryName" maxlength="40" placeholder="例：カフェ" required>
+                        </div>
+                        <div>
+                            <label for="categoryColor">色</label>
+                            <input id="categoryColor" type="color" value="#83cdbb" required>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button id="saveCategory" type="submit">追加する</button>
+                        <button id="cancelCategory" class="quiet" type="button" hidden>キャンセル</button>
+                    </div>
+                </fieldset>
+            </form>
+            <p id="categoryStatus" role="status" aria-live="polite">
+            </p>
+            <div id="categories" class="category-list">
+            </div>
+        </dialog>
+    </body>
 </html>

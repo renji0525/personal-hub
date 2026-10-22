@@ -20,13 +20,21 @@ var BudgetLocal = (() => {
         return raw;
     }
     function edit(local, operation) {
-        const next = { ...local, pending: [...local.pending, operation] };
+        const pending = [...local.pending];
+        const previous = pending.at(-1);
+        // 送信済み部分は固定し、隣接する同じ記録の保存だけを最終値へまとめる
+        const editable = pending.length > (local.flight?.count || 0);
+        if (editable && previous?.type === operation.type && operation.type.endsWith('Save') && previous.value.id === operation.value.id) pending[pending.length - 1] = operation;
+        else pending.push(operation);
+        const next = { ...local, pending };
         views.set(next, { ...BudgetModel.apply(view(local), operation), revision: local.base.revision });
         return next;
     }
     function packet(local) {
         const flight = local.flight || { id: crypto.randomUUID(), count: Math.min(20, local.pending.length) };
-        return { local: { ...local, flight }, request: { revision: local.base.revision, syncId: flight.id, operations: local.pending.slice(0, flight.count) } };
+        const next = { ...local, flight };
+        views.set(next, view(local));
+        return { local: next, request: { revision: local.base.revision, syncId: flight.id, operations: local.pending.slice(0, flight.count) } };
     }
     function ack(local, result, count) {
         return { ...create(result), pending: local.pending.slice(count) };

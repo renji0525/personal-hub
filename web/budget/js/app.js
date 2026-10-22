@@ -2,7 +2,8 @@
 const byId = id => document.getElementById(id);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
-let budgetBusy = false, budgetLoaded = false;
+let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
+let recordLimit = 50, recordFilter = null, summaryMonth = null;
 let localBudget = null, savedRaw = null;
 let categoryIndex = new Map(), indexedState = null, months = new Map();
 const yenFormatter = new Intl.NumberFormat('ja-JP');
@@ -16,11 +17,13 @@ function node(tag, className, text) {
 }
 function setBusy(value) {
     budgetBusy = value;
-    byId('entryFields').disabled = value || !budgetLoaded;
-    byId('categoryFields').disabled = value || !budgetLoaded;
-    document.querySelectorAll('.requires-data').forEach(el => { el.disabled = value || !budgetLoaded; });
+    const locked = value && budgetSyncMode !== 'read';
+    byId('entryFields').disabled = locked || !budgetLoaded;
+    byId('categoryFields').disabled = locked || !budgetLoaded;
+    document.querySelectorAll('.requires-data').forEach(el => { el.disabled = locked || !budgetLoaded; });
     byId('refreshButton').disabled = value;
-    byId('logoutButton').disabled = value;
+    byId('logoutButton').disabled = locked;
+    byId('refreshButton').setAttribute('aria-busy', String(value));
 }
 function sameAccount() { return HubAuth.read()?.token === budgetSession?.token; }
 function categoryInfo(id) { return categoryIndex.get(id) || { name: '未分類', color: '#9eacb9' }; }
@@ -37,7 +40,8 @@ function fillCategories(select, filter = false) {
     budgetState.categories.forEach(c => select.append(new Option(c.name, c.id)));
     if ([...select.options].some(o => o.value === selected)) select.value = selected;
 }
-function render() {
+function render(append = false) {
+    append = append === true;
     if (!budgetLoaded) return;
     const dataChanged = indexedState !== budgetState;
     if (dataChanged) {
@@ -55,26 +59,33 @@ function render() {
     }
     const month = byId('monthInput').value;
     const entries = months.get(month) || [];
-    const summary = BudgetModel.summarize(entries);
-    byId('incomeTotal').textContent = yen(summary.income);
-    byId('expenseTotal').textContent = yen(summary.expense);
-    byId('balanceTotal').textContent = yen(summary.balance);
-    const bars = byId('categorySummary'); bars.replaceChildren();
-    const groups = [...summary.categories].sort((a, b) => b[1] - a[1]);
-    if (!groups.length) bars.append(node('p', 'empty', '今月の支出はまだありません。'));
-    groups.forEach(([id, amount]) => {
-        const row = node('div', 'bar-row'), heading = node('div', 'bar-heading');
-        heading.append(categoryLabel(id), node('span', '', yen(amount)));
-        const track = node('div', 'bar-track'), fill = node('div', 'bar-fill');
-        fill.style.width = (amount / summary.expense * 100) + '%'; fill.style.backgroundColor = categoryInfo(id).color;
-        track.append(fill); row.append(heading, track); bars.append(row);
-    });
+    if (dataChanged || summaryMonth !== month) {
+        const summary = BudgetModel.summarize(entries);
+        byId('incomeTotal').textContent = yen(summary.income);
+        byId('expenseTotal').textContent = yen(summary.expense);
+        byId('balanceTotal').textContent = yen(summary.balance);
+        const bars = byId('categorySummary'); bars.replaceChildren();
+        const groups = [...summary.categories].sort((a, b) => b[1] - a[1]);
+        if (!groups.length) bars.append(node('p', 'empty', '今月の支出はまだありません。'));
+        groups.forEach(([id, amount]) => {
+            const row = node('div', 'bar-row'), heading = node('div', 'bar-heading');
+            heading.append(categoryLabel(id), node('span', '', yen(amount)));
+            const track = node('div', 'bar-track'), fill = node('div', 'bar-fill');
+            fill.style.width = (amount / summary.expense * 100) + '%'; fill.style.backgroundColor = categoryInfo(id).color;
+            track.append(fill); row.append(heading, track); bars.append(row);
+        });
+        summaryMonth = month;
+    }
     const filtered = entries.filter(e => (byId('typeFilter').value === 'all' || e.type === byId('typeFilter').value) &&
         (byId('categoryFilter').value === 'all' || e.categoryId === byId('categoryFilter').value));
+    const filter = [month, byId('typeFilter').value, byId('categoryFilter').value].join(':');
+    if (dataChanged || recordFilter !== filter) { recordLimit = 50; append = false; recordFilter = filter; }
     byId('entryCount').textContent = filtered.length + '件';
-    const list = byId('entries'); list.replaceChildren();
+    const list = byId('entries'), start = append ? list.childElementCount : 0;
+    if (!append) list.replaceChildren();
+    byId('moreEntries').hidden = filtered.length <= recordLimit;
     if (!filtered.length) list.append(node('p', 'empty', entries.length ? '条件に合う記録がありません。' : 'この月の記録はまだありません。入力フォームから記録しましょう。'));
-    filtered.forEach(entry => {
+    filtered.slice(start, recordLimit).forEach(entry => {
         const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
         meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
         left.append(meta, node('p', 'record-memo', entry.memo || (entry.type === 'income' ? '収入' : '支出')));
@@ -129,6 +140,7 @@ function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
 }
 function localStatus() {
+    byId('status').dataset.state = localBudget.pending.length ? 'pending' : 'ready';
     byId('status').textContent = localBudget.pending.length ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件' : '同期済み';
 }
 function saveLocal(value) {
@@ -140,7 +152,8 @@ function saveLocal(value) {
 }
 async function loadBudget() {
     if (budgetBusy || !budgetSession || !sameAccount()) return;
-    setBusy(true); byId('status').textContent = '同期中…';
+    budgetSyncMode = localBudget?.pending.length ? 'write' : 'read';
+    setBusy(true); byId('status').dataset.state = 'syncing'; byId('status').textContent = '同期中…';
     try {
         if (localBudget?.pending.length) {
             while (localBudget.pending.length) {
@@ -152,21 +165,30 @@ async function loadBudget() {
                 saveLocal(BudgetLocal.ack(localBudget, result, packet.request.operations.length));
             }
         } else {
-            const result = await HubAuth.api('budgetLoad', localBudget ? { knownRevision: localBudget.base.revision } : {}, budgetSession);
+            const before = localBudget;
+            const result = await HubAuth.api('budgetLoad', before ? { knownRevision: before.base.revision } : {}, budgetSession);
             if (!sameAccount()) return;
-            if (!result.unchanged) saveLocal(BudgetLocal.create(result));
+            // 読込中の端末編集を応答で上書きしない
+            if (localBudget !== before && localBudget?.pending.length) {
+                if (result.revision !== localBudget.base.revision) {
+                    const error = new Error('別の端末でも変更されています。端末の編集をバックアップして確認してください。');
+                    error.code = 'BUDGET_CONFLICT'; throw error;
+                }
+            } else if (!result.unchanged) saveLocal(BudgetLocal.create(result));
         }
         byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) {
+        byId('status').dataset.state = 'error';
         byId('status').textContent = '同期できませんでした。端末の変更は保持しています。' + error.message;
         byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
-    } finally { setBusy(false); }
+    } finally { budgetSyncMode = null; setBusy(false); }
 }
-async function mutate(operation) {
-    if (budgetBusy || !budgetLoaded || !sameAccount()) return false;
+async function mutate(operation, refresh = true) {
+    if (budgetBusy && budgetSyncMode !== 'read' || !budgetLoaded || !sameAccount()) return false;
     try {
         saveLocal(BudgetLocal.edit(localBudget, operation));
-        render(); localStatus(); byId('categoryStatus').textContent = ''; return true;
+        if (refresh) render();
+        localStatus(); byId('categoryStatus').textContent = ''; return true;
     } catch (error) {
         byId('status').textContent = byId('categoryStatus').textContent = '端末に保存できませんでした。' + error.message;
         return false;
@@ -186,7 +208,7 @@ byId('entryForm').addEventListener('submit', async event => {
     byId('cancelEntry').hidden = false;
     const value = { id: byId('entryId').value, type: byId('entryType').value, date: byId('entryDate').value,
         amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value };
-    if (await mutate({ type: 'entrySave', value })) {
+    if (await mutate({ type: 'entrySave', value }, false)) {
         byId('monthInput').value = value.date.slice(0, 7); byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all'; resetEntry(); render();
     }
 });
@@ -208,7 +230,8 @@ function moveMonth(offset) {
 }
 byId('previousMonth').addEventListener('click', () => moveMonth(-1)); byId('nextMonth').addEventListener('click', () => moveMonth(1));
 byId('refreshButton').addEventListener('click', loadBudget);
-byId('logoutButton').addEventListener('click', async () => { if (!budgetBusy) { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } } });
+byId('moreEntries').addEventListener('click', () => { recordLimit += 50; render(true); });
+byId('logoutButton').addEventListener('click', async () => { if (!budgetBusy || budgetSyncMode === 'read') { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } } });
 byId('exportButton').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: budgetState.categories, entries: budgetState.entries }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), link = node('a'); link.href = url; link.download = 'personal-hub-budget-' + today() + '.json';

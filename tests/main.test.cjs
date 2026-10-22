@@ -148,3 +148,19 @@ test('同じ既読値の再設定は保存も描画も行わない', () => {
     s.run("appState.videos = [{ id: 'same', watched: true }]; setWatched('same', true)");
     assert.equal(writes, 0); assert.equal(s.context.renders, 0);
 });
+
+test('表示設定の変更は動画全件を保存せず、再読込と全件保存でも設定を維持する', () => {
+    const {context,run}=app();
+    run("appState.videos = []; save()");
+    const original=context.localStorage.getItem('yt_v5_final');
+    run('setUnreadOnly(true)');
+    assert.equal(context.localStorage.getItem('yt_v5_final'),original);
+    const pref=JSON.parse(context.localStorage.getItem('yt_v5_final:preferences'));
+    assert.equal(pref.unreadOnly,true);
+    assert.equal(Object.hasOwn(pref,'videos'),false);
+    run('appState.unreadOnly=false; load()');
+    assert.equal(run('appState.unreadOnly'),true);
+    run('save()');
+    assert.equal(context.localStorage.getItem('yt_v5_final:preferences'),undefined);
+    assert.equal(JSON.parse(context.localStorage.getItem('yt_v5_final')).unreadOnly,true);
+});

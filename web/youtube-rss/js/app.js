@@ -78,9 +78,17 @@ function repositionNotifications() {
  * データの永続化（保存）
  * 現在の appState を JSON文字列にして LocalStorage に書き込みます。
  */
+function preferenceKey() { return (typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final') + ':preferences'; }
+function savePreferences() {
+    try {
+        const { darkMode, selectedChannel, unreadOnly } = appState;
+        localStorage.setItem(preferenceKey(), JSON.stringify({ darkMode, selectedChannel, unreadOnly }));
+    } catch (error) { showNotification('表示設定を保存できませんでした。', 'error'); }
+}
 function save() {
     try {
         localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(appState));
+        localStorage.removeItem(preferenceKey());
         return true;
     } catch (error) {
         showNotification('データを保存できません。JSONでバックアップしてください。', 'error');
@@ -147,6 +155,12 @@ function load() {
     try {
         const data = localStorage.getItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
         if (data) appState = validateState(JSON.parse(data));
+        const preferences = JSON.parse(localStorage.getItem(preferenceKey()) || 'null');
+        if (preferences) {
+            if (typeof preferences.darkMode === 'boolean') appState.darkMode = preferences.darkMode;
+            if (typeof preferences.unreadOnly === 'boolean') appState.unreadOnly = preferences.unreadOnly;
+            if (preferences.selectedChannel === 'all' || appState.channels.some(c => c.id === preferences.selectedChannel)) appState.selectedChannel = preferences.selectedChannel;
+        }
     } catch (error) {
         showNotification('保存データを読み込めません。バックアップから復元してください。', 'error');
     }
@@ -335,6 +349,7 @@ function renderChannels() {
             const remove = document.createElement('button');
             remove.className = 'btn-delete-ch';
             remove.title = '削除';
+            remove.setAttribute('aria-label', ch.title + 'を削除');
             remove.textContent = '✕';
             remove.addEventListener('click', event => removeChannel(ch.id, event));
             item.appendChild(remove);
@@ -354,6 +369,8 @@ function renderVideos(append = false) {
     
     document.getElementById('unreadOnlyInput').checked = appState.unreadOnly;
     const all = getDisplayVideos();
+    const count = document.getElementById('videoCount');
+    if (count) count.textContent = all.length + '本';
     const displayList = all.slice(start, typeof libraryPager !== 'undefined' ? libraryPager.limit : 50);
     if (!start && displayList.length === 0) {
         const empty = document.createElement('p');
@@ -431,7 +448,7 @@ function setUnreadOnly(enabled) {
     if (appState.unreadOnly === enabled) return;
     appState.unreadOnly = enabled;
     if (typeof resetLocalView === 'function') resetLocalView();
-    save();
+    savePreferences();
     renderVideos();
 }
 
@@ -442,7 +459,7 @@ function filterChan(id) {
     if (appState.selectedChannel === id) return;
     appState.selectedChannel = id;
     if (typeof resetLocalView === 'function') resetLocalView();
-    save();
+    savePreferences();
     renderChannels();
     renderVideos();
 }
@@ -453,7 +470,7 @@ function filterChan(id) {
 function toggleTheme() {
     appState.darkMode = !appState.darkMode;
     document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
-    save();
+    savePreferences();
 }
 
 /**
@@ -490,12 +507,14 @@ async function importJSON(e) {
             uploading = true;
             await restoreAccount(restored, report);
             appState = { ...restored, videos: [] };
+            savePreferences();
             document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
             const loaded = await reloadLibrary();
             report(loaded ? 'スプレッドシートへの復元が完了しました。' : 'シートへの保存は完了しました。一覧の読み込みを再試行してください。');
         } else {
             localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(restored));
             appState = restored;
+            savePreferences();
             document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
             renderChannels(); renderVideos();
             report('このブラウザに復元しました。シートへの保存にはトップページでログインして復元してください。');
@@ -514,6 +533,7 @@ function resetAll() {
         try {
             localStorage.removeItem('yt_rss_api_key');
             localStorage.removeItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
+            localStorage.removeItem(preferenceKey());
             location.reload();
         } catch (error) { showNotification('保存データを削除できません。', 'error'); }
     }

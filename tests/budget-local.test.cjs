@@ -24,7 +24,7 @@ test('応答喪失後も送信IDと内容を維持し、送信後の編集を残
 });
 test('大量の変更は20件ずつ同期し、不正入力・端末保存失敗を黙って成功扱いしない', () => {
     let state = initial();
-    for (let i=0;i<25;i++) state=local.edit(state, op(i+1));
+    for (let i=0;i<25;i++) { const value = op(i+1); value.value.id = 'entry_' + String(i).padStart(5, '0'); state=local.edit(state, value); }
     assert.equal(local.packet(state).request.operations.length, 20);
     assert.throws(() => local.edit(state, op(-1)));
     assert.throws(() => local.write({setItem(){ throw new Error('容量不足'); }}, 'alice', state), /容量不足/);
@@ -42,4 +42,23 @@ test('家計簿の表示モデルは再利用し、追加編集で全未同期�
         assert.equal(value.entries[0].amount, 100);
         assert.equal(calls, 100);
     } finally { BudgetModel.apply = original; }
+});
+
+test('同じ記録の連続編集をまとめ、再読込でも最終値を維持する', () => {
+    let state = initial();
+    for (let i=1; i<=100; i++) state=local.edit(state, op(i));
+    assert.equal(state.pending.length, 1);
+    assert.equal(local.view(JSON.parse(JSON.stringify(state))).entries[0].amount, 100);
+    const packet=local.packet(state);
+    state=local.edit(local.edit(packet.local, op(101)), op(102));
+    assert.equal(state.pending.length, 2);
+    assert.deepEqual(local.packet(state).request, packet.request);
+    assert.equal(local.view(JSON.parse(JSON.stringify(state))).entries[0].amount, 102);
+});
+test('種類の異なる操作を挟んだ編集は順序を保つ', () => {
+    let state=local.edit(initial(), op(1));
+    state=local.edit(state, {type:'categorySave',value:{id:'cat_custom',name:'自由',color:'#123456'}});
+    state=local.edit(state, op(2));
+    assert.equal(state.pending.length,3);
+    assert.equal(local.view(JSON.parse(JSON.stringify(state))).entries[0].amount,2);
 });
