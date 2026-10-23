@@ -149,6 +149,7 @@ function saveLocal(value) {
     }
     savedRaw = BudgetLocal.write(localStorage, budgetSession.userId, value);
     localBudget = value; budgetState = BudgetLocal.view(value); budgetLoaded = true;
+    window.dispatchEvent(new Event('budget-local-changed'));
 }
 async function loadBudget() {
     if (budgetBusy || !budgetSession || !sameAccount()) return;
@@ -166,7 +167,7 @@ async function loadBudget() {
             }
         } else {
             const before = localBudget;
-            const result = await HubAuth.api('budgetLoad', before ? { knownRevision: before.base.revision } : {}, budgetSession);
+            const result = await HubAuth.api('budgetLoad', Array.isArray(before?.base.products) ? { knownRevision: before.base.revision } : {}, budgetSession);
             if (!sameAccount()) return;
             // 読込中の端末編集を応答で上書きしない
             if (localBudget !== before && localBudget?.pending.length) {
@@ -233,7 +234,7 @@ byId('refreshButton').addEventListener('click', loadBudget);
 byId('moreEntries').addEventListener('click', () => { recordLimit += 50; render(true); });
 byId('logoutButton').addEventListener('click', async () => { if (!budgetBusy || budgetSyncMode === 'read') { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } } });
 byId('exportButton').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: budgetState.categories, entries: budgetState.entries }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: budgetState.categories, entries: budgetState.entries, products: budgetState.products || [] }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), link = node('a'); link.href = url; link.download = 'personal-hub-budget-' + today() + '.json';
     document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 });

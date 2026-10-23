@@ -285,3 +285,6 @@ dialog::backdrop  {
         scroll-behavior:auto !important;
     }
 }
+
+.inventory-reminder { display:block; padding:16px 20px; margin-bottom:24px; border:1px solid #b8b0e8; border-radius:12px; background:var(--surface); color:var(--text); overflow-wrap:anywhere; }
+.hub-nav { flex-wrap:wrap; }

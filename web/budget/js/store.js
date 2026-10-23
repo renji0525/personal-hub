@@ -2,7 +2,7 @@
 var BudgetLocal = (() => {
     const views = new WeakMap();
     const key = userId => 'personal_hub_budget_v1:' + userId;
-    const create = state => ({ version: 1, base: { revision: state.revision, categories: state.categories, entries: state.entries }, pending: [], flight: null });
+    const create = state => ({ version: 1, base: { revision: state.revision, categories: state.categories, entries: state.entries, products: state.products || [] }, pending: [], flight: null });
     function view(local) {
         if (!views.has(local)) views.set(local, { ...local.pending.reduce((state, op) => BudgetModel.apply(state, op), local.base), revision: local.base.revision });
         return views.get(local);

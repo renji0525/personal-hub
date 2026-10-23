@@ -15,7 +15,8 @@
         </script>
         <script src="js/app.js" defer>
         </script>
-    </head>
+    <script src="../budget/js/model.js" defer></script><script src="../budget/js/store.js" defer></script><script src="../shared/js/inventory-reminders.js" defer></script>
+</head>
     <body>
         <a class="skip-link" href="#main">本文へ移動</a>
         <header class="hub-header">
@@ -26,6 +27,7 @@
             <span class="header-note">自分のための、小さなホーム。</span>
         </header>
         <main id="main">
+<a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
             <div class="welcome">
                 <p class="eyebrow">YOUR EVERYDAY SPACE</p>
                 <h1>いつものことを、<br>ここから。</h1>
@@ -83,7 +85,8 @@
                         </svg>
                     </span>
                 </a>
-            </nav>
+            <a class="tool-link" href="../inventory/index.html" aria-label="在庫管理を開く"><img class="tool-icon" src="../shared/icons/inventory.svg" width="40" height="40" alt=""><span class="tool-copy"><span class="eyebrow">REFILL</span><strong>在庫管理</strong><span>購入日から、次の買いどきを。<br>家計簿とつながる補充メモ。</span></span><span class="tool-open">開く →</span></a>
+</nav>
             <footer class="home-footer">
                 <span>PERSONAL HUB</span>
                 <span>日常を、少し軽やかに。</span>

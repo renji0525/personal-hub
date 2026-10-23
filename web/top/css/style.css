@@ -182,3 +182,9 @@ small  {
         margin-top:36px;
     }
 }
+
+@media(min-width:1000px) {
+    #tools { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .tool-link { grid-template-columns:1fr; gap:16px; padding:24px; }
+    .tool-open { grid-column:1; }
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja" data-auth-pending>
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在庫管理 | Personal Hub</title><meta name="theme-color" content="#101a22">
+    <link rel="icon" href="../shared/icons/inventory-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="../shared/icons/inventory-180.png">
+    <link rel="icon" href="../shared/icons/inventory.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../shared/css/base.css"><link rel="stylesheet" href="css/style.css">
+    <script src="../shared/js/auth.js"></script><script>HubAuth.ready = HubAuth.protect({ local: true });</script>
+    <script src="../budget/js/model.js" defer></script><script src="../budget/js/store.js" defer></script>
+    <script src="js/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">本文へ移動</a>
+<header class="hub-header"><a class="hub-brand" href="../top/index.html"><img class="app-icon" src="../shared/icons/hub.svg" width="40" height="40" alt="">Personal Hub</a><nav class="hub-nav" aria-label="ページ移動"><a href="../top/index.html">ホーム</a><a href="../youtube-rss/index.html">YouTube RSS</a><a href="../budget/index.html">家計簿</a><a href="index.html" aria-current="page">在庫管理</a></nav><button id="logoutButton" class="quiet">ログアウト</button></header>
+<main id="main">
+    <div class="heading"><div><p class="eyebrow">STOCK & REFILL</p><h1><img src="../shared/icons/inventory.svg" width="44" height="44" alt="">在庫管理</h1><p class="subtitle">買った日から、次の買いどきを。</p></div><button id="addProduct" disabled>商品を登録</button></div>
+    <div class="toolbar"><span id="currentUser"></span><button id="syncButton" disabled>同期する</button><a class="text-link" href="../budget/index.html">家計簿へ →</a><button id="exportButton" class="quiet" disabled>バックアップ</button></div>
+    <p class="muted">端末に保存し、初回と「同期する」で家計簿とまとめて同期します。お知らせは保存済みデータを使ってページを開いている時に表示します。他の端末の変更は同期後に反映されます。</p>
+    <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p>
+    <button id="discardButton" class="quiet" hidden>未同期の変更を破棄して再取得</button>
+    <section class="notice" aria-labelledby="noticeTitle"><h2 id="noticeTitle">補充のお知らせ</h2><p id="reminder" role="status" aria-live="polite">商品を登録すると、補充目安をお知らせします。</p><small>購入日＋補充間隔が次の目安日です。実際の残量に合わせて確認してください。</small></section>
+    <div class="filters"><label>商品を検索<input id="search" type="search" placeholder="商品名"></label><label>表示<select id="filter"><option value="all">すべての商品</option><option value="due">補充時期の商品</option></select></label><span id="count"></span></div>
+    <div id="products" class="products"></div><button id="moreButton" class="quiet" hidden>次の50件を表示</button>
+</main>
+<dialog id="productDialog" aria-labelledby="productTitle"><form id="productForm"><h2 id="productTitle">商品を登録</h2><input id="productId" type="hidden">
+    <label>商品名<input id="productName" maxlength="80" required placeholder="洗剤、コーヒー豆など"></label>
+    <label>前回購入日<input id="purchasedAt" type="date" required></label>
+    <div class="pair"><label>補充までの日数<input id="intervalDays" type="number" min="1" max="3650" value="30" required></label><label>何日前から知らせるか<input id="leadDays" type="number" min="0" max="3650" value="3" required></label></div>
+    <label>家計簿のカテゴリ<select id="productCategory"></select></label>
+    <p class="muted">商品登録だけでは家計簿に支出を追加しません。</p><p id="productError" class="error" role="alert"></p>
+    <div class="actions"><button id="saveProduct">保存する</button><button type="button" class="quiet" data-close="productDialog">キャンセル</button></div>
+</form></dialog>
+<dialog id="purchaseDialog" aria-labelledby="purchaseTitle"><form id="purchaseForm"><h2 id="purchaseTitle">購入を記録</h2><input id="purchaseId" type="hidden">
+    <label>購入日<input id="purchaseDate" type="date" required></label>
+    <label>購入金額（円・任意）<input id="purchaseAmount" type="number" min="1" max="999999999999" step="1" placeholder="空欄なら在庫の購入日だけ更新"></label>
+    <label>家計簿のカテゴリ<select id="purchaseCategory"></select></label>
+    <p class="muted">金額を入力すると家計簿に支出を1件追加します。家計簿に入力済みなら金額を空欄にしてください。補充日は在庫側で管理します。</p>
+    <p id="purchaseError" class="error" role="alert"></p><div class="actions"><button id="savePurchase">購入を保存</button><button type="button" class="quiet" data-close="purchaseDialog">キャンセル</button></div>
+</form></dialog>
+</body></html>
