@@ -21,6 +21,34 @@ function auth(storage = new Map()) {
 }
 const session = (userId = 'alice', token = 'a'.repeat(64)) => ({ userId, token, expiresAt: Date.now() + 60000 });
 
+test('自動同期は日本時間の時間帯・日付・ユーザー・保存対象で判定する', () => {
+    const s = auth(), sync = s.context.window.HubSync;
+    const at = value => Date.parse('2026-10-' + value + '+09:00');
+    for (const [time, expected] of [['24T00:00:00', '2026-10-24:0'], ['24T12:59:59', '2026-10-24:0'], ['24T13:00:00', '2026-10-24:1'], ['24T18:59:59', '2026-10-24:1'], ['24T19:00:00', '2026-10-24:2'], ['24T23:59:59', '2026-10-24:2'], ['25T00:00:00', '2026-10-25:0']]) assert.equal(sync.slot(at(time)), expected);
+    s.clock.now = at('24T12:00:00');
+    assert.equal(sync.needed('alice', 'budget', true), true);
+    sync.mark('alice', 'budget', s.clock.now);
+    assert.equal(sync.needed('alice', 'budget', true), false);
+    assert.equal(sync.needed('alice', 'budget', false), true);
+    assert.equal(sync.needed('bob', 'budget', true), true);
+    assert.equal(sync.needed('alice', 'rss', true), true);
+    s.clock.now = at('24T13:00:00');
+    assert.equal(sync.needed('alice', 'budget', true), true);
+    sync.mark('alice', 'budget', at('24T12:59:59'));
+    assert.equal(sync.needed('alice', 'budget', true), true);
+    sync.mark('alice', 'budget', s.clock.now);
+    assert.equal(sync.needed('alice', 'budget', true), false);
+    s.clock.now = at('25T13:00:00');
+    assert.equal(sync.needed('alice', 'budget', true), true);
+});
+
+test('同期履歴の保存失敗でも次回の自動同期を許可する', () => {
+    const s = auth(), sync = s.context.window.HubSync;
+    s.context.localStorage.setItem = () => { throw new Error('容量不足'); };
+    assert.doesNotThrow(() => sync.mark('alice', 'budget', Date.now()));
+    assert.equal(sync.needed('alice', 'budget', true), true);
+});
+
 test('旧RSSセッションを共通キーへ移行し、期限切れ・破損した値を認証しない', () => {
     const s = auth(), value = session();
     s.legacy.set('yt_rss_session', JSON.stringify(value));

@@ -61,6 +61,7 @@ function mutate(operation) {
 function remove(p) { if(confirm('「'+p.name+'」を在庫管理から削除しますか？ 家計簿の支出は残ります。'))try{mutate({type:'productDelete',id:p.id});}catch(e){message(e.message,'error');} }
 async function sync() {
     if(mode||stale||!sameAccount())return;
+    const syncStartedAt=Date.now();
     mode=local?.pending.length?'write':'read';controls();message('同期中…','syncing');
     try {
         if(local?.pending.length)while(local.pending.length){
@@ -74,6 +75,7 @@ async function sync() {
                 if(result.revision!==local.base.revision){const e=new Error('別端末でも変更されています。バックアップして内容を確認してください。');e.code='BUDGET_CONFLICT';throw e;}
             } else if(!result.unchanged)write(BudgetLocal.create(result));
         }
+        window.HubSync?.mark(session.userId,'budget',syncStartedAt);
         $('discardButton').hidden=true;render();localStatus();
     } catch(e){message('同期できませんでした。端末の変更は保持しています。'+e.message,'error');$('discardButton').hidden=e.code!=='BUDGET_CONFLICT';}
     finally{mode=null;controls();}
@@ -113,5 +115,5 @@ window.addEventListener('focus',render);document.addEventListener('visibilitycha
     document.documentElement.removeAttribute('data-auth-pending');
     try{local=BudgetLocal.read(localStorage,session.userId);raw=localStorage.getItem(BudgetLocal.key(session.userId));if(local){render();localStatus();}}
     catch(e){stale=true;message(e.message,'error');controls();return;}
-    controls();await sync();
+    controls();if(!window.HubSync||HubSync.needed(session.userId,'budget',!!local))await sync();
 })();

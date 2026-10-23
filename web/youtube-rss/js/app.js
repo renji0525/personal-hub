@@ -548,7 +548,11 @@ async function startApp() {
     try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
     load(); // ストレージからデータを読み込む
     document.documentElement.removeAttribute('data-auth-pending');
-    if (typeof authSession !== 'undefined' && authSession) reloadLibrary();
+    if (typeof authSession !== 'undefined' && authSession &&
+        (!window.HubSync || HubSync.needed(authSession.userId, 'rss', !!localStorage.getItem(accountStorageKey())))) reloadLibrary();
+    else if (typeof authSession !== 'undefined' && authSession) {
+        setSyncStatus(Object.keys(pendingWatched()).length ? 'ローカルに保存済み・次回同期時に送信' : '同期済み');
+    }
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp, { once: true });
 else startApp();

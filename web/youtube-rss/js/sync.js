@@ -25,7 +25,7 @@ async function manualSync() {
 async function reloadLibrary() {
     if (!authSession) return;
     if (librarySync && librarySync.session === authSession && librarySync.generation === libraryPager.generation) return librarySync.promise;
-    const session = authSession, generation = libraryPager.generation;
+    const session = authSession, generation = libraryPager.generation, syncStartedAt = Date.now();
     const sync = { session, generation };
     sync.promise = (async () => {
         libraryPager.loading = true;
@@ -46,6 +46,7 @@ async function reloadLibrary() {
             libraryPager.limit = 50;
             save(); renderChannels(); renderVideos();
             setSyncStatus(Object.keys(pending).length ? 'ローカルに保存済み・次回同期時に送信' : '同期済み');
+            window.HubSync?.mark(session.userId, 'rss', syncStartedAt);
             return true;
         } catch (error) {
             if (session === authSession && generation === libraryPager.generation) {

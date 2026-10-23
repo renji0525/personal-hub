@@ -174,3 +174,22 @@ window.HubAuth = (() => {
     }
     return { read, resume, api, verify, signIn, signOut, protect };
 })();
+
+// 日本時間の日付・時間帯ごとに、ユーザー別の同期成功を端末に記録する
+window.HubSync = (() => {
+    function slot(now = Date.now()) {
+        const date = new Date(now + 9 * 60 * 60 * 1000);
+        const hour = date.getUTCHours();
+        return date.toISOString().slice(0, 10) + ':' + (hour < 13 ? 0 : hour < 19 ? 1 : 2);
+    }
+    function key(userId, resource) { return 'personal_hub_sync_slot:' + resource + ':' + userId; }
+    function needed(userId, resource, hasCache) {
+        try { return !hasCache || localStorage.getItem(key(userId, resource)) !== slot(); }
+        catch (error) { return true; }
+    }
+    function mark(userId, resource, startedAt) {
+        try { localStorage.setItem(key(userId, resource), slot(startedAt)); }
+        catch (error) { /* 保存できない場合は次回も同期する */ }
+    }
+    return { slot, needed, mark };
+})();

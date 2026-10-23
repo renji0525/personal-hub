@@ -1,4 +1,4 @@
-// 編集は端末へ保存し、起動時と明示的な同期時だけ通信する
+// 編集は端末へ保存し、時間帯の初回表示と明示的な同期時だけ通信する
 const byId = id => document.getElementById(id);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
@@ -153,6 +153,7 @@ function saveLocal(value) {
 }
 async function loadBudget() {
     if (budgetBusy || !budgetSession || !sameAccount()) return;
+    const syncStartedAt = Date.now();
     budgetSyncMode = localBudget?.pending.length ? 'write' : 'read';
     setBusy(true); byId('status').dataset.state = 'syncing'; byId('status').textContent = '同期中…';
     try {
@@ -177,6 +178,7 @@ async function loadBudget() {
                 }
             } else if (!result.unchanged) saveLocal(BudgetLocal.create(result));
         }
+        window.HubSync?.mark(budgetSession.userId, 'budget', syncStartedAt);
         byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) {
         byId('status').dataset.state = 'error';
@@ -255,5 +257,6 @@ window.addEventListener('hub-auth-changed', event => {
         savedRaw = localStorage.getItem(BudgetLocal.key(budgetSession.userId));
         if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
     } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
-    await loadBudget();
+    if (!window.HubSync || HubSync.needed(budgetSession.userId, 'budget', !!localBudget)) await loadBudget();
+    else setBusy(false);
 })();
