@@ -1,0 +1,25 @@
+/* 全ページの移動位置・寸法・アイコンをここで揃える */
+.hub-header {
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:20px;
+    width:100%; max-width:none; margin:0; padding:16px 32px;
+    border-bottom:1px solid var(--line); background:var(--bg); font-size:14px;
+}
+.hub-header .hub-brand { justify-self:start; gap:11px; padding:0; font-size:16px; }
+.hub-header .hub-brand img { width:32px; height:32px; }
+.hub-header .hub-nav { display:flex; flex-wrap:nowrap; justify-content:center; gap:6px; width:auto; margin:0; order:0; }
+.hub-header .hub-nav a { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:9px 13px; font-size:12px; }
+.hub-header .hub-nav img { display:block; width:22px; height:22px; flex-shrink:0; }
+.hub-account { display:flex; align-items:center; justify-self:end; gap:12px; min-width:0; }
+.hub-account [data-hub-user] { max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:12px; }
+.hub-account button { min-height:44px; padding:10px 12px; font-size:12px; }
+.hub-account .icon { display:block; width:19px; height:19px; }
+@media(max-width:1100px) {
+    .hub-header { grid-template-columns:1fr auto; gap:12px; padding:16px; }
+    .hub-header .hub-nav { grid-row:2; grid-column:1/-1; justify-self:center; }
+}
+@media(max-width:620px) {
+    .hub-header .hub-brand { font-size:14px; gap:9px; }
+    .hub-account [data-hub-user] { display:none; }
+    .hub-header .hub-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:100%; gap:4px; }
+    .hub-header .hub-nav a { flex-direction:column; gap:5px; padding:8px 2px; font-size:11px; min-height:64px; }
+}

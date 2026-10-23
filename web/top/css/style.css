@@ -1,7 +1,4 @@
-.header-note  {
-    color:var(--muted);
-    font-size:11px;
-}
+
 main  {
     width:min(940px,calc(100% - 48px));
     margin:64px auto 32px;
@@ -163,9 +160,7 @@ small  {
         width:calc(100% - 32px);
         margin-top:36px;
     }
-    .header-note  {
-        display:none;
-    }
+
     #tools  {
         grid-template-columns:1fr;
         gap:14px;

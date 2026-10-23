@@ -16,16 +16,22 @@
         <script src="js/app.js" defer>
         </script>
     <script src="../budget/js/model.js" defer></script><script src="../budget/js/store.js" defer></script><script src="../shared/js/inventory-reminders.js" defer></script>
+    <link rel="stylesheet" href="../shared/css/navigation.css">
+    <script src="../shared/js/navigation.js" defer></script>
 </head>
     <body>
         <a class="skip-link" href="#main">本文へ移動</a>
-        <header class="hub-header">
-            <a class="hub-brand" href="index.html">
-                <img class="app-icon" src="../shared/icons/hub.svg" alt="" width="40" height="40">
-                <span>Personal Hub</span>
-            </a>
-            <span class="header-note">自分のための、小さなホーム。</span>
-        </header>
+    <header class="hub-header">
+        <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"><img src="../shared/icons/hub.svg" width="32" height="32" alt=""><span>Personal Hub</span></a>
+        <nav class="hub-nav" aria-label="ページ移動">
+            <a href="../top/index.html" aria-current="page"><img src="../shared/icons/hub.svg" width="22" height="22" alt=""><span>ホーム</span></a>
+            <a href="../youtube-rss/index.html"><img src="../shared/icons/youtube.svg" width="22" height="22" alt=""><span>YouTube RSS</span></a>
+            <a href="../budget/index.html"><img src="../shared/icons/budget.svg" width="22" height="22" alt=""><span>家計簿</span></a>
+            <a href="../inventory/index.html"><img src="../shared/icons/inventory.svg" width="22" height="22" alt=""><span>在庫管理</span></a>
+        </nav>
+        <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
+    </header>
+
         <main id="main">
 <a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
             <div class="welcome">
@@ -36,12 +42,7 @@
             <section class="account-panel" aria-label="共通アカウント">
                 <div class="account-heading">
                     <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
-                    <button id="logoutButton" class="quiet" type="button" hidden>
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/>
-                        </svg>
-                        <span>ログアウト</span>
-                    </button>
+
                 </div>
                 <form id="accountForm" hidden>
                     <h2>おかえりなさい</h2>

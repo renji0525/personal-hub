@@ -1,20 +1,5 @@
 /* 家計簿固有のレイアウト。共通の操作部品はbase.cssへ集約する */
-.account  {
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
-.account button  {
-    font-size:11px;
-    min-height:38px;
-    padding:7px 10px;
-}
-#currentUser  {
-    max-width:140px;
-    overflow-wrap:anywhere;
-    font-size:12px;
-    color:var(--muted);
-}
+
 main  {
     width:min(1160px,calc(100% - 64px));
     margin:auto;
@@ -356,13 +341,7 @@ input[type=color]  {
     flex-shrink:0;
 }
 @media(max-width:1000px)  {
-    .hub-header .hub-nav  {
-        order:3;
-        width:100%;
-        justify-content:center;
-        border-top:1px solid var(--line);
-        padding-top:10px;
-    }
+
     .workspace  {
         grid-template-columns:260px minmax(0,1fr);
         gap:16px;
@@ -425,34 +404,10 @@ input[type=color]  {
     .details  {
         gap:16px;
     }
-    .account  {
-        gap:7px;
-    }
-    .account button  {
-        padding:6px;
-    }
-    .account button .icon  {
-        display:none;
-    }
-    #currentUser  {
-        max-width:90px;
-    }
+
 }
 @media(max-width:380px)  {
-    .hub-brand  {
-        font-size:14px;
-    }
-    .hub-brand img  {
-        width:28px;
-        height:28px;
-    }
-    .hub-nav a  {
-        padding:8px;
-        font-size:11px;
-    }
-    #currentUser  {
-        max-width:70px;
-    }
+
     .summary article span  {
         font-size:9px;
     }

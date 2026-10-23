@@ -1,10 +1,13 @@
 /* RSS固有の配置。基本部品と配色は共通CSSを使用する */
 body  {
-    display:flex;
+    display:grid;
+    grid-template-columns:238px minmax(0,1fr);
+    grid-template-rows:auto minmax(0,1fr);
     height:100dvh;
     overflow:hidden;
     font-size:14px;
 }
+.hub-header { grid-column:1/-1; }
 .sidebar  {
     display:flex;
     flex-direction:column;
@@ -15,26 +18,11 @@ body  {
     background:var(--surface);
     border-right:1px solid var(--line);
 }
-.sidebar .hub-brand  {
-    padding:0 8px 28px;
-}
-.sidebar .hub-nav  {
-    display:grid;
-    gap:4px;
-    margin-bottom:28px;
-}
-.sidebar .hub-nav a  {
-    font-size:13px;
-}
-.sidebar .hub-nav a:hover  {
-    background:var(--surface-raised);
-}
 .sidebar-top  {
     flex:1;
     min-height:0;
     overflow-y:auto;
-    border-top:1px solid var(--line);
-    padding-top:22px;
+    padding-top:0;
 }
 .section-title  {
     padding:0 12px 13px;
@@ -326,11 +314,7 @@ main  {
     color:var(--muted);
     font-size:12px;
 }
-.account-settings  {
-    margin-top:24px;
-    padding-top:18px;
-    border-top:1px solid var(--line);
-}
+
 .btn-danger  {
     background:transparent;
     border:1px solid var(--line);
@@ -355,24 +339,8 @@ main  {
         border-bottom:1px solid var(--line);
         gap:14px;
     }
-    .sidebar .hub-brand  {
-        padding:0;
-        font-size:15px;
-    }
-    .sidebar .hub-nav  {
-        grid-row:2;
-        grid-column:1/-1;
-        display:flex;
-        margin:0;
-    }
-    .sidebar .hub-nav a  {
-        flex:1;
-        justify-content:center;
-        font-size:11px;
-        padding:8px;
-    }
     .sidebar-top  {
-        grid-column:1/-1;
+        grid-column:1;
         padding:0;
         border:0;
         overflow:hidden;
@@ -440,15 +408,6 @@ main  {
     }
 }
 @media(max-width:380px)  {
-    .sidebar .hub-nav a  {
-        gap:6px;
-        font-size:10px;
-        padding:6px;
-    }
-    .sidebar .hub-nav img  {
-        width:18px;
-        height:18px;
-    }
     .page-heading,.library-toolbar,.activity-area  {
         margin-inline:0;
         padding-inline:16px;
