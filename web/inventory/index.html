@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="../shared/css/base.css"><link rel="stylesheet" href="css/style.css">
     <script src="../shared/js/auth.js"></script><script>HubAuth.ready = HubAuth.protect({ local: true });</script>
     <script src="../budget/js/model.js" defer></script><script src="../budget/js/store.js" defer></script>
-    <script src="js/app.js" defer></script>
+    <link rel="stylesheet" href="../shared/css/budget-spaces.css"><script src="../shared/js/budget-spaces.js" defer></script>
+<script src="js/app.js" defer></script>
     <link rel="stylesheet" href="../shared/css/navigation.css">
     <script src="../shared/js/navigation.js" defer></script>
 </head>
@@ -26,9 +27,13 @@
     </header>
 
 <main id="main">
+<div id="budgetSpaceBar" class="budget-space-bar" aria-label="家計簿と在庫の共有先">
+    <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
+    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+</div>
     <div class="heading"><div><p class="eyebrow">STOCK & REFILL</p><h1><img src="../shared/icons/inventory.svg" width="44" height="44" alt="">在庫管理</h1><p class="subtitle">買った日から、次の買いどきを。</p></div><button id="addProduct" disabled>商品を登録</button></div>
     <div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button></div>
-    <p class="muted">端末に保存し、初回と「同期する」で家計簿とまとめて同期します。お知らせは保存済みデータを使ってページを開いている時に表示します。他の端末の変更は同期後に反映されます。</p>
+    <p class="muted">端末に保存し、日本時間の各時間帯の初回表示と「同期する」で家計簿とまとめて同期します。お知らせは保存済みデータを使ってページを開いている時に表示します。他の端末の変更は同期後に反映されます。</p>
     <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p>
     <button id="discardButton" class="quiet" hidden>未同期の変更を破棄して再取得</button>
     <section class="notice" aria-labelledby="noticeTitle"><h2 id="noticeTitle">補充のお知らせ</h2><p id="reminder" role="status" aria-live="polite">商品を登録すると、補充目安をお知らせします。</p><small>購入日＋補充間隔が次の目安日です。実際の残量に合わせて確認してください。</small></section>
@@ -50,4 +55,13 @@
     <p class="muted">金額を入力すると家計簿に支出を1件追加します。家計簿に入力済みなら金額を空欄にしてください。補充日は在庫側で管理します。</p>
     <p id="purchaseError" class="error" role="alert"></p><div class="actions"><button id="savePurchase">購入を保存</button><button type="button" class="quiet" data-close="purchaseDialog">キャンセル</button></div>
 </form></dialog>
+
+<dialog id="budgetSpaceDialog" class="budget-space-dialog" aria-labelledby="budgetSpaceTitle">
+    <h2 id="budgetSpaceTitle">家計簿と在庫の共有</h2>
+    <p>参加者全員が家計簿・在庫・カテゴリの閲覧、追加、編集、削除を行えます。招待と参加者の解除は所有者が行います。</p>
+    <p>相手が「共有の設定」で参加を承認すると共同利用できます。他の人の変更は同期後に反映されます。</p>
+    <form id="budgetSpaceCreate"><label>新しいスペース名<input id="budgetSpaceNewName" maxlength="40" required placeholder="家族の家計簿"></label><button type="submit">スペースを作成</button></form>
+    <p id="budgetSpaceMessage" role="status" aria-live="polite"></p><button id="budgetSpaceReload" type="button" class="quiet">一覧を更新</button>
+    <div id="budgetSpaceList"></div><button id="budgetSpaceClose" type="button" class="quiet">閉じる</button>
+</dialog>
 </body></html>

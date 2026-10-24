@@ -1,5 +1,7 @@
 // 編集は端末へ保存し、時間帯の初回表示と明示的な同期時だけ通信する
 const byId = id => document.getElementById(id);
+const budgetStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(budgetSession.userId) : budgetSession.userId;
+const budgetApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, budgetSession) : HubAuth.api(action, params, budgetSession);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
 let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
@@ -25,7 +27,7 @@ function setBusy(value) {
     byId('logoutButton').disabled = locked;
     byId('refreshButton').setAttribute('aria-busy', String(value));
 }
-function sameAccount() { return HubAuth.read()?.token === budgetSession?.token; }
+function sameAccount() { return HubAuth.read()?.token === budgetSession?.token && (!window.BudgetSpaces || BudgetSpaces.allowed()); }
 function categoryInfo(id) { return categoryIndex.get(id) || { name: '未分類', color: '#9eacb9' }; }
 function categoryLabel(id) {
     const c = categoryInfo(id), label = node('span', 'category-name');
@@ -144,10 +146,10 @@ function localStatus() {
     byId('status').textContent = localBudget.pending.length ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件' : '同期済み';
 }
 function saveLocal(value) {
-    if (localStorage.getItem(BudgetLocal.key(budgetSession.userId)) !== savedRaw) {
+    if (localStorage.getItem(BudgetLocal.key(budgetStorageUser())) !== savedRaw) {
         throw new Error('別タブで変更されました。この画面を開き直してください。');
     }
-    savedRaw = BudgetLocal.write(localStorage, budgetSession.userId, value);
+    savedRaw = BudgetLocal.write(localStorage, budgetStorageUser(), value);
     localBudget = value; budgetState = BudgetLocal.view(value); budgetLoaded = true;
     window.dispatchEvent(new Event('budget-local-changed'));
 }
@@ -162,13 +164,13 @@ async function loadBudget() {
                 const packet = BudgetLocal.packet(localBudget);
                 // 送信IDを先に保存し、応答喪失時も同じ内容で再試行する
                 saveLocal(packet.local);
-                const result = await HubAuth.api('budgetSync', packet.request, budgetSession);
+                const result = await budgetApi('budgetSync', packet.request);
                 if (!sameAccount()) return;
                 saveLocal(BudgetLocal.ack(localBudget, result, packet.request.operations.length));
             }
         } else {
             const before = localBudget;
-            const result = await HubAuth.api('budgetLoad', Array.isArray(before?.base.products) ? { knownRevision: before.base.revision } : {}, budgetSession);
+            const result = await budgetApi('budgetLoad', Array.isArray(before?.base.products) ? { knownRevision: before.base.revision } : {});
             if (!sameAccount()) return;
             // 読込中の端末編集を応答で上書きしない
             if (localBudget !== before && localBudget?.pending.length) {
@@ -178,9 +180,10 @@ async function loadBudget() {
                 }
             } else if (!result.unchanged) saveLocal(BudgetLocal.create(result));
         }
-        window.HubSync?.mark(budgetSession.userId, 'budget', syncStartedAt);
+        window.HubSync?.mark(budgetStorageUser(), 'budget', syncStartedAt);
         byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) {
+        window.BudgetSpaces?.handleError(error);
         byId('status').dataset.state = 'error';
         byId('status').textContent = '同期できませんでした。端末の変更は保持しています。' + error.message;
         byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
@@ -203,7 +206,7 @@ byId('discardButton').addEventListener('click', async () => {
     catch (error) { byId('status').textContent = error.message; }
 });
 window.addEventListener('storage', event => {
-    if (budgetSession && (event.key === BudgetLocal.key(budgetSession.userId) || event.key === null)) location.reload();
+    if (budgetSession && (event.key === BudgetLocal.key(budgetStorageUser()) || event.key === null)) location.reload();
 });
 byId('entryForm').addEventListener('submit', async event => {
     event.preventDefault();
@@ -250,13 +253,15 @@ window.addEventListener('hub-auth-changed', event => {
     byId('monthInput').value = today().slice(0, 7); resetEntry();
     budgetSession = await HubAuth.ready;
     if (!budgetSession) return;
+    if (window.BudgetSpaces) { BudgetSpaces.bind(budgetSession); BudgetSpaces.mount(budgetSession); }
     byId('currentUser').textContent = budgetSession.userId;
     document.documentElement.removeAttribute('data-auth-pending');
+    if (window.BudgetSpaces && !BudgetSpaces.allowed()) { setBusy(false); return; }
     try {
-        localBudget = BudgetLocal.read(localStorage, budgetSession.userId);
-        savedRaw = localStorage.getItem(BudgetLocal.key(budgetSession.userId));
+        localBudget = BudgetLocal.read(localStorage, budgetStorageUser());
+        savedRaw = localStorage.getItem(BudgetLocal.key(budgetStorageUser()));
         if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
     } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
-    if (!window.HubSync || HubSync.needed(budgetSession.userId, 'budget', !!localBudget)) await loadBudget();
+    if (!window.HubSync || HubSync.needed(budgetStorageUser(), 'budget', !!localBudget)) await loadBudget();
     else setBusy(false);
 })();

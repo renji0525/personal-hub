@@ -1,9 +1,11 @@
 // 家計簿と同じ端末データ・更新番号・再送IDで在庫も同期する
 const $ = id => document.getElementById(id);
+const inventoryStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(session.userId) : session.userId;
+const inventoryApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, session) : HubAuth.api(action, params, session);
 let session, local, raw = null, mode = null, stale = false, limit = 50, renderedDay;
 const today = () => { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); };
 const state = () => BudgetLocal.view(local);
-const sameAccount = () => session && HubAuth.read()?.token === session.token;
+const sameAccount = () => session && HubAuth.read()?.token === session.token && (!window.BudgetSpaces || BudgetSpaces.allowed());
 function message(text, type='ready') { $('status').textContent=text; $('status').dataset.state=type; }
 function controls() {
     const locked=!local || mode==='write' || stale;
@@ -16,8 +18,8 @@ function controls() {
 }
 function write(value) {
     if (!sameAccount()) throw new Error('トップからログインし直してください。');
-    if (localStorage.getItem(BudgetLocal.key(session.userId))!==raw) throw new Error('別タブで変更されました。この画面を開き直してください。');
-    raw=BudgetLocal.write(localStorage,session.userId,value);local=value;
+    if (localStorage.getItem(BudgetLocal.key(inventoryStorageUser()))!==raw) throw new Error('別タブで変更されました。この画面を開き直してください。');
+    raw=BudgetLocal.write(localStorage,inventoryStorageUser(),value);local=value;
     window.dispatchEvent(new Event('budget-local-changed'));
 }
 function localStatus() { message(local.pending.length ? '端末に保存済み・未同期 '+local.pending.length+'件' : '同期済み',local.pending.length?'pending':'ready'); }
@@ -66,18 +68,18 @@ async function sync() {
     try {
         if(local?.pending.length)while(local.pending.length){
             const packet=BudgetLocal.packet(local);write(packet.local);
-            const result=await HubAuth.api('budgetSync',packet.request,session);
+            const result=await inventoryApi('budgetSync',packet.request);
             if(!sameAccount())return;write(BudgetLocal.ack(local,result,packet.request.operations.length));
         } else {
-            const before=local,result=await HubAuth.api('budgetLoad',Array.isArray(before?.base.products)?{knownRevision:before.base.revision}:{},session);
+            const before=local,result=await inventoryApi('budgetLoad',Array.isArray(before?.base.products)?{knownRevision:before.base.revision}:{});
             if(!sameAccount())return;
             if(local!==before&&local?.pending.length) {
                 if(result.revision!==local.base.revision){const e=new Error('別端末でも変更されています。バックアップして内容を確認してください。');e.code='BUDGET_CONFLICT';throw e;}
             } else if(!result.unchanged)write(BudgetLocal.create(result));
         }
-        window.HubSync?.mark(session.userId,'budget',syncStartedAt);
+        window.HubSync?.mark(inventoryStorageUser(),'budget',syncStartedAt);
         $('discardButton').hidden=true;render();localStatus();
-    } catch(e){message('同期できませんでした。端末の変更は保持しています。'+e.message,'error');$('discardButton').hidden=e.code!=='BUDGET_CONFLICT';}
+    } catch(e){window.BudgetSpaces?.handleError(e);message('同期できませんでした。端末の変更は保持しています。'+e.message,'error');$('discardButton').hidden=e.code!=='BUDGET_CONFLICT';}
     finally{mode=null;controls();}
 }
 $('productForm').addEventListener('submit',e=>{
@@ -107,13 +109,15 @@ $('logoutButton').addEventListener('click',async()=>{
     try { await HubAuth.signOut(session); }
     catch (error) { /* 共通認証で端末のログアウトは完了している */ }
 });
-window.addEventListener('storage',e=>{if(session&&(e.key===BudgetLocal.key(session.userId)||e.key===null)){stale=true;controls();message('別タブで変更されました。この画面を開き直してください。','error');}});
+window.addEventListener('storage',e=>{if(session&&(e.key===BudgetLocal.key(inventoryStorageUser())||e.key===null)){stale=true;controls();message('別タブで変更されました。この画面を開き直してください。','error');}});
 window.addEventListener('hub-auth-changed',()=>{if(session&&!sameAccount())document.documentElement.setAttribute('data-auth-pending','');});
 window.addEventListener('focus',render);document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});setInterval(()=>{if(!document.hidden&&renderedDay!==today())render();},60000);
 (async()=>{
-    session=await HubAuth.ready;if(!session)return;$('currentUser').textContent=session.userId;
+    session=await HubAuth.ready;if(!session)return;
+    if(window.BudgetSpaces){BudgetSpaces.bind(session);BudgetSpaces.mount(session);}$('currentUser').textContent=session.userId;
     document.documentElement.removeAttribute('data-auth-pending');
-    try{local=BudgetLocal.read(localStorage,session.userId);raw=localStorage.getItem(BudgetLocal.key(session.userId));if(local){render();localStatus();}}
+    if(window.BudgetSpaces&&!BudgetSpaces.allowed()){controls();return;}
+    try{local=BudgetLocal.read(localStorage,inventoryStorageUser());raw=localStorage.getItem(BudgetLocal.key(inventoryStorageUser()));if(local){render();localStatus();}}
     catch(e){stale=true;message(e.message,'error');controls();return;}
-    controls();if(!window.HubSync||HubSync.needed(session.userId,'budget',!!local))await sync();
+    controls();if(!window.HubSync||HubSync.needed(inventoryStorageUser(),'budget',!!local))await sync();
 })();

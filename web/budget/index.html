@@ -18,7 +18,8 @@
         </script>
         <script src="js/store.js" defer>
         </script>
-        <script src="js/app.js" defer>
+        <link rel="stylesheet" href="../shared/css/budget-spaces.css"><script src="../shared/js/budget-spaces.js" defer></script>
+<script src="js/app.js" defer>
         </script>
     <script src="../shared/js/inventory-reminders.js" defer></script>
     <link rel="stylesheet" href="../shared/css/navigation.css">
@@ -38,6 +39,10 @@
     </header>
 
         <main id="main">
+<div id="budgetSpaceBar" class="budget-space-bar" aria-label="家計簿と在庫の共有先">
+    <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
+    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+</div>
 <a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
             <div class="heading">
                 <div>
@@ -177,5 +182,14 @@
             <div id="categories" class="category-list">
             </div>
         </dialog>
-    </body>
+
+<dialog id="budgetSpaceDialog" class="budget-space-dialog" aria-labelledby="budgetSpaceTitle">
+    <h2 id="budgetSpaceTitle">家計簿と在庫の共有</h2>
+    <p>参加者全員が家計簿・在庫・カテゴリの閲覧、追加、編集、削除を行えます。招待と参加者の解除は所有者が行います。</p>
+    <p>相手が「共有の設定」で参加を承認すると共同利用できます。他の人の変更は同期後に反映されます。</p>
+    <form id="budgetSpaceCreate"><label>新しいスペース名<input id="budgetSpaceNewName" maxlength="40" required placeholder="家族の家計簿"></label><button type="submit">スペースを作成</button></form>
+    <p id="budgetSpaceMessage" role="status" aria-live="polite"></p><button id="budgetSpaceReload" type="button" class="quiet">一覧を更新</button>
+    <div id="budgetSpaceList"></div><button id="budgetSpaceClose" type="button" class="quiet">閉じる</button>
+</dialog>
+</body>
 </html>

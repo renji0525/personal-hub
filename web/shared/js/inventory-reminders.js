@@ -8,10 +8,12 @@
         box.hidden = true;
         const session = HubAuth.read();
         if (!session) return;
+        if (window.BudgetSpaces?.selected(session.userId)?.denied) return;
         try {
-            const key = BudgetLocal.key(session.userId), raw = localStorage.getItem(key);
+            const storageUser = window.BudgetSpaces ? BudgetSpaces.storageUser(session.userId) : session.userId;
+            const key = BudgetLocal.key(storageUser), raw = localStorage.getItem(key);
             if (key !== cachedKey || raw !== cachedRaw) {
-                const local = BudgetLocal.read(localStorage, session.userId);
+                const local = BudgetLocal.read(localStorage, storageUser);
                 cachedProducts = local ? BudgetLocal.view(local).products || [] : [];
                 cachedKey = key; cachedRaw = raw;
             }
