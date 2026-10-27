@@ -32,7 +32,7 @@ window.BudgetSpaces = (() => {
         document.getElementById('budgetSpaceNotice').textContent = error.message + ' 未同期内容は端末に保持しています。';
     }
     function pageBusy() {
-        return (typeof budgetBusy !== 'undefined' && budgetBusy) || (typeof mode !== 'undefined' && !!mode);
+        return (typeof budgetBusy !== 'undefined' && budgetBusy) || (typeof mode !== 'undefined' && !!mode) || (typeof listsBusy !== 'undefined' && listsBusy);
     }
     function choose(session, space) {
         if (!sameSession(session)) throw new Error('ログインし直してください。');

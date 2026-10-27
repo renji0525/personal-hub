@@ -1,0 +1,19 @@
+main { max-width:1160px; margin:auto; padding:36px 24px 64px; }
+h1 { display:flex; align-items:center; gap:14px; margin:8px 0; font-size:32px; }
+.heading { margin:28px 0; }.heading p { margin:8px 0; }
+.toolbar,.filters,.actions,.panel-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.toolbar { margin-bottom:12px; }.filters { align-items:end; margin:28px 0 20px; }.filters label { flex:1; max-width:360px; }
+label { display:grid; gap:7px; font-size:13px; }
+.lists-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
+.list-panel { min-width:0; padding:24px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
+.panel-heading { justify-content:space-between; margin-bottom:18px; }.panel-heading h2 { font-size:20px; margin:0; }.panel-heading small { display:block; color:var(--muted); margin-top:4px; }
+.list-item { padding:18px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.item-heading { display:flex; align-items:flex-start; gap:12px; }.item-heading input { margin:5px 0 0; width:20px; height:20px; flex-shrink:0; }.item-heading h3 { margin:0; font-size:16px; white-space:pre-wrap; }
+.list-item.is-done h3 { color:var(--muted); text-decoration:line-through; }.list-item p { font-size:13px; margin:10px 0; }.item-note { white-space:pre-wrap; color:var(--muted); }
+.item-link { display:inline-block; color:var(--accent); font-size:13px; padding:8px 0; }.overdue,.error { color:var(--danger); }
+.list-item .actions { margin-top:8px; }.list-item button { font-size:12px; padding:7px 12px; }
+.empty { padding:28px 0; color:var(--muted); font-size:14px; }.shown { font-size:12px; color:var(--muted); }
+#itemDialog { width:min(540px,calc(100% - 2rem)); max-height:90vh; overflow:auto; }#itemDialog h2 { margin-top:0; }#itemDialog label { margin:16px 0; }
+textarea { width:100%; min-height:96px; resize:vertical; border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--bg); color:var(--text); font:inherit; }
+.done-field { display:flex; align-items:center; gap:10px; }.done-field input { width:20px; height:20px; }
+@media(max-width:760px) { main { padding:24px 16px 48px; }.lists-grid { grid-template-columns:1fr; }h1 { font-size:26px; }.list-panel { padding:20px; } }
