@@ -31,14 +31,17 @@ function categories(select,selected='') {
 function render() {
     if (!local) return;
     const products=state().products || [], now=today(); renderedDay=now;
-    const due=products.filter(p=>BudgetModel.due(p,now).soon);
+    // 同じ商品の目安日計算を絞込・並べ替え・描画で共有する
+    const dates=new Map(products.map(p=>[p.id,BudgetModel.due(p,now)]));
+    const due=products.filter(p=>dates.get(p.id).soon);
     $('reminder').textContent=due.length ? '補充の目安が近い商品が'+due.length+'件あります。残量を確認しましょう。' : products.length ? '今のところ、補充の目安が近い商品はありません。' : '商品を登録すると、補充目安をお知らせします。';
     const query=$('search').value.trim().toLocaleLowerCase();
-    const filtered=products.filter(p=>p.name.toLocaleLowerCase().includes(query)&&($('filter').value==='all'||BudgetModel.due(p,now).soon)).sort((a,b)=>BudgetModel.due(a,now).date.localeCompare(BudgetModel.due(b,now).date)||a.name.localeCompare(b.name));
+    const filter=$('filter').value;
+    const filtered=products.filter(p=>p.name.toLocaleLowerCase().includes(query)&&(filter==='all'||dates.get(p.id).soon)).sort((a,b)=>dates.get(a.id).date.localeCompare(dates.get(b.id).date)||a.name.localeCompare(b.name));
     $('count').textContent=filtered.length+'商品';$('products').replaceChildren();$('moreButton').hidden=filtered.length<=limit;
     if(!filtered.length)$('products').append(element('p','empty',products.length?'条件に合う商品がありません。':'洗剤や食品など、繰り返し買う商品を登録しましょう。'));
     filtered.slice(0,limit).forEach(p=>{
-        const d=BudgetModel.due(p,now),card=element('article','product'+(d.soon?' due':''));card.dataset.id=p.id;
+        const d=dates.get(p.id),card=element('article','product'+(d.soon?' due':''));card.dataset.id=p.id;
         const label=d.remaining<0 ? '目安日から'+(-d.remaining)+'日経過' : d.remaining===0?'今日が補充の目安':d.soon?'あと'+d.remaining+'日で補充の目安':'次の目安まで'+d.remaining+'日';
         card.append(element('span','badge',label),element('h2','',p.name),element('strong','',d.date+' ごろ'),element('p','','前回購入 '+p.purchasedAt+' ／ '+p.intervalDays+'日ごと'),element('p','',p.leadDays+'日前からお知らせ'));
         const actions=element('div','actions');

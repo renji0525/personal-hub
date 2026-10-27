@@ -46,7 +46,7 @@ a  {
     color:inherit;
     text-decoration:none;
 }
-button,input,select  {
+button,input,select,textarea  {
     font:inherit;
 }
 button  {
@@ -71,7 +71,7 @@ button:disabled  {
     opacity:.48;
     cursor:wait;
 }
-input,select  {
+input,select,textarea  {
     min-height:44px;
     width:100%;
     min-width:0;
@@ -92,7 +92,7 @@ input[type=checkbox]  {
     accent-color:var(--accent);
     margin:0;
 }
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible  {
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible  {
     outline:2px solid var(--accent);
     outline-offset:4px;
 }
@@ -255,6 +255,16 @@ dialog  {
     border:1px solid var(--line);
     border-radius:20px;
     box-shadow:0 32px 100px #0006;
+    overscroll-behavior:contain;
+    overflow-wrap:anywhere;
+}
+textarea { min-height:96px; resize:vertical; }
+dialog form,dialog label { min-width:0; }
+dialog .actions,dialog .dialog-heading { flex-wrap:wrap; }
+@media(max-width:480px) {
+    dialog { padding:18px; border-radius:16px; }
+    dialog input,dialog select,dialog textarea { font-size:16px; }
+    dialog .pair { grid-template-columns:minmax(0,1fr); }
 }
 dialog::backdrop  {
     background:#061019c9;

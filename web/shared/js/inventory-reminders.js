@@ -18,7 +18,8 @@
                 cachedKey = key; cachedRaw = raw;
             }
             const products = cachedProducts;
-            const due = products.filter(p => BudgetModel.due(p,today()).soon);
+            const date = today();
+            const due = products.filter(p => BudgetModel.due(p,date).soon);
             if (!due.length) return;
             box.textContent = '補充の目安が近い商品が' + due.length + '件あります：' + due.slice(0,3).map(p=>p.name).join('、') + (due.length>3 ? ' ほか' : '') + '。在庫を確認 →';
             box.hidden = false;

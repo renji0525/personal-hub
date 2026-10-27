@@ -13,8 +13,7 @@ label { display:grid; gap:7px; font-size:13px; }
 .item-link { display:inline-block; color:var(--accent); font-size:13px; padding:8px 0; }.overdue,.error { color:var(--danger); }
 .list-item .actions { margin-top:8px; }.list-item button { font-size:12px; padding:7px 12px; }
 .empty { padding:28px 0; color:var(--muted); font-size:14px; }.shown { font-size:12px; color:var(--muted); }
-#itemDialog { width:min(540px,calc(100% - 2rem)); max-height:90vh; overflow:auto; }#itemDialog h2 { margin-top:0; }#itemDialog label { margin:16px 0; }
-textarea { width:100%; min-height:96px; resize:vertical; border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--bg); color:var(--text); font:inherit; }
+#itemDialog { width:min(540px,calc(100% - 2rem)); }#itemDialog h2 { margin-top:0; }#itemDialog label { margin:16px 0; }
 .done-field { display:flex; align-items:center; gap:10px; }.done-field input { width:20px; height:20px; }
 .item-assignee { color:var(--accent); }.undo-notice { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; margin:12px 0; border:1px solid var(--accent); border-radius:12px; background:var(--accent-soft); overflow-wrap:anywhere; }
 #assigneeStatus { display:block; margin-top:8px; }
