@@ -1,6 +1,7 @@
 // リストは端末へ保存し、各時間帯の初回と手動操作で共有先と同期する
 const byId = id => document.getElementById(id);
 let listsSession, listsLocal, listsBusy = false, listsSyncMode = null, savedRaw = null, stale = false;
+let lastCompletion = null, membersLoading = false;
 const limits = { todo: 50, wish: 50 };
 const scope = () => BudgetSpaces.storageUser(listsSession.userId);
 const sameAccount = () => listsSession && HubAuth.read()?.token === listsSession.token && BudgetSpaces.allowed() && !stale;
@@ -14,6 +15,7 @@ function controls() {
     byId('discardButton').disabled = listsBusy || !sameAccount();
     byId('exportButton').disabled = !listsLocal;
     byId('logoutButton').disabled = listsSyncMode === 'write';
+    byId('assigneeRefresh').disabled = membersLoading || listsBusy || !sameAccount();
 }
 function localStatus() { message(listsLocal.pending.length ? '端末に保存済み・未同期 ' + listsLocal.pending.length + '件' : '同期済み', listsLocal.pending.length ? 'pending' : 'ready'); }
 function save(value) {
@@ -26,6 +28,36 @@ function mutate(operation) {
     if (!listsLocal || listsSyncMode === 'write' || !sameAccount()) throw new Error('同期が完了してから操作してください。');
     save(ListsLocal.edit(listsLocal, operation)); render(); localStatus();
 }
+function completionNotice() {
+    const value = lastCompletion && ListsLocal.view(listsLocal).items.find(item => item.id === lastCompletion.id);
+    if (!value?.done) lastCompletion = null;
+    byId('undoNotice').hidden = !lastCompletion;
+    if (lastCompletion) byId('undoText').textContent = '「' + value.title + '」を' + (value.kind === 'todo' ? '完了' : '購入済み') + 'にしました。';
+}
+function setDone(value, done) {
+    mutate({ type: 'itemDone', id: value.id, done });
+    if (done && !value.done) lastCompletion = { id: value.id };
+    completionNotice();
+    (document.querySelector('[data-id="' + value.id + '"] input') || byId(value.kind + 'Add')).focus({ preventScroll: true });
+}
+function fillAssignees(current = '') {
+    const select = byId('itemAssignee'), users = [...new Set([...(listsLocal.base.assignees || []), listsSession.userId])];
+    select.replaceChildren(new Option('未指定', ''));
+    for (const user of users) select.add(new Option(user === listsSession.userId ? user + '（自分）' : user, user));
+    if (current && !users.includes(current)) select.add(new Option(current + '（保存済みの担当者）', current));
+    select.value = current;
+}
+async function refreshAssignees() {
+    if (membersLoading || listsBusy || !sameAccount()) return;
+    membersLoading = true; controls(); byId('assigneeStatus').textContent = '担当者一覧を確認中…';
+    try {
+        const result = await BudgetSpaces.api('listsMembers', {}, listsSession);
+        if (!sameAccount() || listsSyncMode === 'write') return;
+        save(ListsLocal.withAssignees(listsLocal, result.assignees));
+        fillAssignees(byId('itemAssignee').value); byId('assigneeStatus').textContent = '参加中のユーザーを表示しています。';
+    } catch (error) { BudgetSpaces.handleError(error); byId('assigneeStatus').textContent = '担当者一覧を更新できませんでした。保存済みの候補を使用します。' + error.message; }
+    finally { membersLoading = false; controls(); }
+}
 function render() {
     if (!listsLocal) return;
     const items = ListsLocal.view(listsLocal).items, query = byId('search').value.trim().toLocaleLowerCase(), filter = byId('filter').value;
@@ -37,16 +69,21 @@ function render() {
         for (const value of visible.slice(0, limits[kind])) {
             const card = element('article', undefined, 'list-item' + (value.done ? ' is-done' : '')); card.dataset.id = value.id;
             const heading = element('div', undefined, 'item-heading'), check = element('input'); check.type = 'checkbox'; check.checked = value.done;
-            check.setAttribute('aria-label', value.title + (kind === 'todo' ? 'を完了にする' : 'を購入済みにする'));
+            check.setAttribute('aria-label', value.title + (value.done ? kind === 'todo' ? 'を未完了に戻す' : 'を未購入に戻す' : kind === 'todo' ? 'を完了にする' : 'を購入済みにする'));
             check.addEventListener('change', () => {
-                try { mutate({ type: 'itemDone', id: value.id, done: check.checked }); (document.querySelector('[data-id="' + value.id + '"] input') || byId(kind + 'Add')).focus({ preventScroll: true }); }
+                try { setDone(value, check.checked); }
                 catch (error) { render(); message(error.message, 'error'); }
             });
             heading.append(check, element('h3', value.title)); card.append(heading);
+            card.append(element('p', '担当：' + (value.assignee || '未指定'), 'item-assignee'));
             if (value.dueDate) card.append(element('p', '期限 ' + value.dueDate + (!value.done && value.dueDate < today() ? '・期限を過ぎています' : ''), !value.done && value.dueDate < today() ? 'overdue' : 'muted'));
             if (value.note) card.append(element('p', value.note, 'item-note'));
             if (value.url) { const link = element('a', '商品リンクを開く ↗', 'item-link'); link.href = value.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link); }
             const actions = element('div', undefined, 'actions');
+            if (value.done) {
+                const restore = element('button', kind === 'todo' ? '未完了に戻す' : '未購入に戻す', 'quiet'); restore.type = 'button';
+                restore.addEventListener('click', () => { try { setDone(value, false); } catch (error) { message(error.message, 'error'); } }); actions.append(restore);
+            }
             for (const [label, action] of [['編集', () => edit(value.kind, value)], ['削除', () => { if (confirm('「' + value.title + '」を削除しますか？')) mutate({ type: 'itemDelete', id: value.id }); }]]) {
                 const button = element('button', label, 'quiet'); button.type = 'button'; button.addEventListener('click', () => { try { action(); } catch (error) { message(error.message, 'error'); } }); actions.append(button);
             }
@@ -56,7 +93,7 @@ function render() {
         byId(kind + 'More').hidden = visible.length <= limits[kind];
         byId(kind + 'Shown').textContent = visible.length ? Math.min(visible.length, limits[kind]) + ' / ' + visible.length + '件を表示' : '';
     }
-    controls();
+    completionNotice(); controls();
 }
 function kindFields() {
     const todo = byId('itemKind').value === 'todo'; byId('dueField').hidden = !todo; byId('urlField').hidden = todo;
@@ -66,8 +103,10 @@ function edit(kind, value) {
     byId('itemForm').reset(); byId('itemError').textContent = ''; byId('itemId').value = value?.id || crypto.randomUUID();
     byId('itemKind').value = kind; byId('itemTitle').value = value?.title || ''; byId('itemNote').value = value?.note || '';
     byId('itemDue').value = value?.dueDate || ''; byId('itemUrl').value = value?.url || ''; byId('itemDone').checked = value?.done || false;
+    fillAssignees(value?.assignee || ''); byId('assigneeStatus').textContent = '共有スペースに参加中のユーザーから選べます。';
     byId('itemDialogTitle').textContent = value ? '項目を編集' : kind === 'todo' ? 'やる事を追加' : '買いたいものを追加';
     kindFields(); byId('itemDialog').showModal(); byId('itemTitle').focus();
+    if (!Array.isArray(listsLocal.base.assignees)) refreshAssignees();
 }
 async function sync() {
     if (listsBusy || !sameAccount()) return;
@@ -86,6 +125,7 @@ async function sync() {
             if (listsLocal !== before && listsLocal?.pending.length) {
                 if (result.revision !== listsLocal.base.revision) { const error = new Error('取得中に別の人が更新しました。端末の編集は保持しています。'); error.code = 'LISTS_CONFLICT'; throw error; }
             } else if (!result.unchanged) save(ListsLocal.create(result));
+            if (Array.isArray(result.assignees)) save(ListsLocal.withAssignees(listsLocal, result.assignees));
         }
         HubSync.mark(scope(), 'lists', startedAt); byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) { BudgetSpaces.handleError(error); message('同期できませんでした。端末の変更は保持しています。' + error.message, 'error'); byId('discardButton').hidden = error.code !== 'LISTS_CONFLICT'; }
@@ -94,13 +134,23 @@ async function sync() {
 byId('itemKind').addEventListener('change', kindFields);
 byId('itemForm').addEventListener('submit', event => {
     event.preventDefault();
-    try { mutate({ type: 'itemSave', value: { id: byId('itemId').value, kind: byId('itemKind').value, title: byId('itemTitle').value, note: byId('itemNote').value, done: byId('itemDone').checked, dueDate: byId('itemDue').value, url: byId('itemUrl').value.trim() } }); byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true }); }
+    try {
+        const previous = ListsLocal.view(listsLocal).items.find(item => item.id === byId('itemId').value);
+        mutate({ type: 'itemSave', value: { id: byId('itemId').value, kind: byId('itemKind').value, title: byId('itemTitle').value, note: byId('itemNote').value, done: byId('itemDone').checked, dueDate: byId('itemDue').value, url: byId('itemUrl').value.trim(), assignee: byId('itemAssignee').value } });
+        if (byId('itemDone').checked && !previous?.done) { lastCompletion = { id: byId('itemId').value }; completionNotice(); }
+        byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true });
+    }
     catch (error) { byId('itemError').textContent = error.message; }
 });
 byId('itemCancel').addEventListener('click', () => { byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true }); });
 for (const kind of ['todo', 'wish']) { byId(kind + 'Add').addEventListener('click', () => edit(kind)); byId(kind + 'More').addEventListener('click', () => { limits[kind] += 50; render(); }); }
 for (const id of ['search', 'filter']) byId(id).addEventListener(id === 'search' ? 'input' : 'change', () => { limits.todo = limits.wish = 50; render(); });
 byId('syncButton').addEventListener('click', sync);
+byId('assigneeRefresh').addEventListener('click', refreshAssignees);
+byId('undoButton').addEventListener('click', () => {
+    const value = lastCompletion && ListsLocal.view(listsLocal).items.find(item => item.id === lastCompletion.id);
+    if (value?.done) { try { setDone(value, false); } catch (error) { message(error.message, 'error'); } }
+});
 byId('reloadButton').addEventListener('click', () => location.reload());
 byId('discardButton').addEventListener('click', async () => {
     if (!listsBusy && confirm('このリストの未同期変更を破棄して再取得します。必要なら先にバックアップしてください。続けますか？')) {

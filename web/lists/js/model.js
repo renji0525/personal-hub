@@ -9,13 +9,17 @@ var ListsModel = (() => {
             typeof value.note !== 'string' || value.note.length > 500 || typeof value.done !== 'boolean') throw new Error('タイトルは1〜120文字、メモは500文字以内で入力してください。');
         if (typeof value.dueDate !== 'string' || value.dueDate && (!/^\d{4}-\d{2}-\d{2}$/.test(value.dueDate) || !Number.isFinite(Date.parse(value.dueDate + 'T00:00:00Z')) || new Date(value.dueDate + 'T00:00:00Z').toISOString().slice(0, 10) !== value.dueDate)) throw new Error('期限の日付を確認してください。');
         if (typeof value.url !== 'string' || value.url.length > 1000 || value.url && !/^https?:\/\/[^\s<>"\\]+$/i.test(value.url)) throw new Error('リンクはhttpまたはhttpsのURLを1000文字以内で入力してください。');
-        return { id: id(value.id), kind: value.kind, title: value.title.trim(), note: value.note.trim(), done: value.done, dueDate: value.kind === 'todo' ? value.dueDate : '', url: value.kind === 'wish' ? value.url : '' };
+        const assignee = value.assignee === undefined ? '' : value.assignee;
+        if (typeof assignee !== 'string' || assignee !== '' && !/^[a-z0-9_-]{3,32}$/.test(assignee)) throw new Error('担当ユーザーを選び直してください。');
+        return { id: id(value.id), kind: value.kind, title: value.title.trim(), note: value.note.trim(), done: value.done, dueDate: value.kind === 'todo' ? value.dueDate : '', url: value.kind === 'wish' ? value.url : '', assignee };
     }
     function apply(state, operation) {
         const items = state.items.map(value => ({ ...value }));
         if (!operation || typeof operation !== 'object') throw new Error('操作が正しくありません。');
         if (operation.type === 'itemSave') {
-            const value = item(operation.value), index = items.findIndex(old => old.id === value.id);
+            const index = items.findIndex(old => old.id === id(operation.value?.id));
+            // 旧画面からの編集でも、すでに設定された担当者を消さない
+            const value = item({ ...operation.value, assignee: operation.value.assignee === undefined && index >= 0 ? items[index].assignee : operation.value.assignee });
             if (index < 0) { if (items.length >= 1000) throw new Error('リストの合計は1000件までです。不要な項目を削除してください。'); items.push(value); }
             else items[index] = value;
         } else if (operation.type === 'itemDelete') {

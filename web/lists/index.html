@@ -28,6 +28,8 @@
 <div class="heading"><p class="eyebrow">MAKE ROOM FOR WHAT MATTERS</p><h1><img src="../shared/icons/lists.svg" width="42" height="42" alt="">リスト</h1><p class="muted">やる事も、欲しいものも。ひとつずつ、ここから。</p></div>
 <div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>未同期の変更を破棄して再取得</button>
+<div id="undoNotice" class="undo-notice" role="status" hidden><span id="undoText"></span><button id="undoButton" type="button" class="quiet" data-edit>元に戻す</button></div>
+<p class="muted">間違えた完了・購入済みは「元に戻す」で取り消せます。後からは表示を「完了・購入済み」に切り替えて戻せます。</p>
 <p class="muted">変更は端末に保存。各時間帯の初回表示と「同期する」で共有先に反映します。購入済みにしても家計簿の支出や在庫には自動追加しません。</p>
 <div class="filters"><label>リストを検索<input id="search" type="search" placeholder="タイトルやメモ"></label><label>表示する項目<select id="filter"><option value="open">未完了・未購入</option><option value="all">すべて</option><option value="done">完了・購入済み</option></select></label></div>
 <div class="lists-grid">
@@ -37,6 +39,7 @@
 </main>
 <dialog id="itemDialog" aria-labelledby="itemDialogTitle"><form id="itemForm"><h2 id="itemDialogTitle">項目を追加</h2><input id="itemId" type="hidden">
 <label>リストの種類<select id="itemKind"><option value="todo">やる事</option><option value="wish">買いたいもの</option></select></label>
+<label>担当ユーザー<select id="itemAssignee"><option value="">未指定</option></select></label><button id="assigneeRefresh" class="quiet" type="button">担当者一覧を更新</button><small id="assigneeStatus" class="muted" role="status"></small>
 <label>タイトル<input id="itemTitle" maxlength="120" required></label><label id="dueField">期限（任意）<input id="itemDue" type="date"></label><label id="urlField" hidden>商品リンク（任意）<input id="itemUrl" type="url" maxlength="1000" placeholder="https://"></label>
 <label>メモ（任意）<textarea id="itemNote" maxlength="500" rows="3"></textarea></label><label class="done-field"><input id="itemDone" type="checkbox">完了・購入済み</label>
 <p id="itemError" class="error" role="alert"></p><div class="actions"><button id="itemSave" data-edit>保存する</button><button id="itemCancel" type="button" class="quiet">キャンセル</button></div>

@@ -4,7 +4,7 @@ var ListsLocal = (() => {
     const key = scope => 'personal_hub_lists_v1:' + scope;
     function create(state) {
         if (!Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.items)) throw new Error('リストの保存内容を確認してください。');
-        return { version: 1, base: { revision: state.revision, items: state.items.map(ListsModel.item) }, pending: [], flight: null };
+        return { version: 1, base: { revision: state.revision, items: state.items.map(ListsModel.item), ...(Array.isArray(state.assignees) ? { assignees: state.assignees.filter(user => typeof user === 'string' && /^[a-z0-9_-]{3,32}$/.test(user)) } : {}) }, pending: [], flight: null };
     }
     function view(local) {
         if (!views.has(local)) views.set(local, local.pending.reduce((state, operation) => ListsModel.apply(state, operation), local.base));
@@ -39,6 +39,10 @@ var ListsLocal = (() => {
         return { local: next, request: { revision: local.base.revision, syncId: flight.id, operations: local.pending.slice(0, flight.count) } };
     }
     function ack(local, result, count) { return { ...create(result), pending: local.pending.slice(count) }; }
-    return { key, create, view, read, write, edit, packet, ack };
+    function withAssignees(local, assignees) {
+        const next = { ...local, base: create({ ...local.base, assignees }).base };
+        views.set(next, view(local)); return next;
+    }
+    return { key, create, view, read, write, edit, packet, ack, withAssignees };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = ListsLocal;

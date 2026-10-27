@@ -4,6 +4,32 @@ global.ListsModel = require('../web/lists/js/model.js');
 const local = require('../web/lists/js/store.js');
 const item = (id = 'todo_item1', kind = 'todo') => ({ id, kind, title: '予定を確認', note: '', done: false, dueDate: '', url: '' });
 const initial = () => local.create({ revision: 0, items: [] });
+
+test('既存項目は担当未指定で読み込み、担当者付き項目を旧形式で編集しても担当を保持する', () => {
+    assert.equal(ListsModel.item(item()).assignee, '');
+    const assigned = ListsModel.apply({ items: [] }, { type: 'itemSave', value: { ...item(), assignee: 'bob' } });
+    const edited = ListsModel.apply(assigned, { type: 'itemSave', value: { ...item(), note: '旧画面で編集' } });
+    assert.equal(edited.items[0].assignee, 'bob');
+    assert.equal(ListsModel.apply(edited, { type: 'itemSave', value: { ...item(), assignee: '' } }).items[0].assignee, '');
+    for (const assignee of [null, 123, 'ab', 'bob<script>', 'A'.repeat(33)]) assert.throws(() => ListsModel.item({ ...item(), assignee }));
+});
+
+test('担当候補の更新が未同期操作・再送ID・入力内容を変更しない', () => {
+    const state = local.edit(initial(), { type: 'itemSave', value: { ...item(), assignee: 'bob' } }), packet = local.packet(state);
+    const updated = local.withAssignees(packet.local, ['alice', 'bob']);
+    assert.deepEqual(local.packet(updated).request, packet.request);
+    assert.equal(local.view(updated).items[0].assignee, 'bob');
+    assert.deepEqual(updated.base.assignees, ['alice', 'bob']);
+});
+
+test('同期済みの完了を戻しても担当者・メモ・期限を保持し、再読込後も戻した状態を維持する', () => {
+    const state = local.create({ revision: 1, items: [{ ...item(), assignee: 'bob', note: 'メモを保持', dueDate: '2026-10-30', done: true }] });
+    const restored = local.edit(state, { type: 'itemDone', id: 'todo_item1', done: false });
+    const data = new Map(), storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+    local.write(storage, 'alice', restored);
+    const value = local.view(local.read(storage, 'alice')).items[0];
+    assert.equal(value.done, false); assert.equal(value.assignee, 'bob'); assert.equal(value.note, 'メモを保持'); assert.equal(value.dueDate, '2026-10-30');
+});
 test('TODOと買いたいものを独立して追加・編集・完了・削除し元の状態を保持する', () => {
     const base = { items: [] }, todo = ListsModel.apply(base, { type: 'itemSave', value: item() });
     const both = ListsModel.apply(todo, { type: 'itemSave', value: item('wish_item1', 'wish') });
