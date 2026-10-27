@@ -169,7 +169,7 @@ test('家計簿のローカル認証確認では通信せず、期限とログ�
     assert.equal(s.api.read(), null);
 });
 
-test('ログアウトはサーバー応答を待たず端末を解除し、終了送信は短い待機時間を使う', async () => {
+test('ログアウトはサーバー応答を待たず端末を解除し、通信は6分上限を使う', async () => {
     const s = auth();
     s.storage.set('personal_hub_session', JSON.stringify(session()));
     let finish, options;
@@ -177,6 +177,39 @@ test('ログアウトはサーバー応答を待たず端末を解除し、終�
     const pending = s.api.signOut();
     assert.equal(s.api.read(), null);
     assert.equal(options.keepalive, true);
-    assert.ok(s.timers.some(timer => timer.delay === 8000));
+    assert.ok(s.timers.some(timer => timer.delay === 360000));
     finish(); await pending;
+});
+
+test('同期は6分で中断し、送信した問い合わせIDをタイムアウト表示へ引き継ぐ', async () => {
+    const s = auth(); let request;
+    s.context.fetch = (_, options) => {
+        request = JSON.parse(options.body);
+        return new Promise((resolve, reject) => options.signal.addEventListener('abort', () => {
+            const error = new Error('中断'); error.name = 'AbortError'; reject(error);
+        }));
+    };
+    const pending = s.api.api('listsSync', {}, session());
+    assert.equal(s.timers.at(-1).delay, 360000);
+    s.timers.at(-1).callback();
+    await assert.rejects(pending, error => error.code === 'REQUEST_TIMEOUT' && error.requestId === request.requestId && error.message.includes(request.requestId));
+});
+
+test('通信切断とサーバー競合でも問い合わせIDを返し、競合では認証を消さない', async () => {
+    const s = auth(); const user = session(); s.storage.set('personal_hub_session', JSON.stringify(user));
+    s.context.fetch = async () => { throw new TypeError('Failed to fetch'); };
+    await assert.rejects(s.api.api('budgetLoad', {}, user), error => !!error.requestId && error.message.includes(error.requestId));
+    s.context.fetch = async () => ({ ok: true, json: async () => ({ status: 'error', code: 'BUDGET_CONFLICT', message: '同時編集' }) });
+    await assert.rejects(s.api.api('budgetSync', {}, user), error => error.code === 'BUDGET_CONFLICT' && !!error.requestId);
+    assert.equal(s.api.read().userId, user.userId);
+});
+
+test('ロック待ちだけ同じ本文で最大2回再試行し、通信切断は自動再送しない', async () => {
+    const s = auth(), user = session(), calls = []; s.storage.set('personal_hub_session', JSON.stringify(user));
+    s.context.fetch = async (_, options) => { calls.push(options.body); return { ok: true, json: async () => ({ status: 'error', code: 'LOCK_TIMEOUT', message: '混雑' }) }; };
+    await assert.rejects(s.api.api('listsSync', { syncId: 'sync_repeat1' }, user), { code: 'LOCK_TIMEOUT' });
+    assert.equal(calls.length, 3); assert.equal(new Set(calls).size, 1); assert.equal(s.timers.filter(timer => timer.delay === 360000).length, 1);
+    calls.length = 0;
+    s.context.fetch = async (_, options) => { calls.push(options.body); throw new TypeError('Failed to fetch'); };
+    await assert.rejects(s.api.api('listsSync', {}, user)); assert.equal(calls.length, 1);
 });

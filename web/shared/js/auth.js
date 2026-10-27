@@ -73,29 +73,42 @@ window.HubAuth = (() => {
 
     async function api(action, params = {}, session = read()) {
         const controller = new AbortController();
-        const wait = action === 'logout' ? 8000 : ['feed', 'restoreBatch'].includes(action) ? 90000 : 30000;
+        // GASの1実行の上限（6分）に合わせる
+        const wait = 360000;
+        const requestId = crypto.randomUUID();
         const timeout = setTimeout(() => controller.abort(), wait);
         try {
-            // GASへのプリフライトを避け、認証情報をURLに含めない
-            const response = await fetch(API_URL, {
-                method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ ...params, action, token: session ? session.token : undefined }),
-                keepalive: action === 'logout', credentials: 'omit', redirect: 'follow', signal: controller.signal
-            });
-            if (!response.ok) throw new Error('サーバーに接続できませんでした。');
-            const result = await response.json();
-            if (result.status !== 'ok') {
-                if (result.code === 'AUTH_EXPIRED' && session) clear(session);
-                const error = new Error(result.message || '処理に失敗しました。');
-                error.code = result.code;
-                throw error;
+            // ロック未取得は保存処理が始まっていないため、同じ本文で最大2回だけ再試行する
+            const retryable = ['budgetLoad', 'budgetSync', 'listsLoad', 'listsSync', 'listsMembers'].includes(action);
+            for (let attempt = 0; ; attempt++) {
+                // GASへのプリフライトを避け、認証情報をURLに含めない
+                const response = await fetch(API_URL, {
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ ...params, action, requestId, token: session ? session.token : undefined }),
+                    keepalive: action === 'logout', credentials: 'omit', redirect: 'follow', signal: controller.signal
+                });
+                if (!response.ok) throw new Error('サーバーに接続できませんでした。');
+                const result = await response.json();
+                if (result.status !== 'ok') {
+                    if (result.code === 'LOCK_TIMEOUT' && retryable && attempt < 2 && !controller.signal.aborted && (!session || read()?.token === session.token)) continue;
+                    if (result.code === 'AUTH_EXPIRED' && session) clear(session);
+                    const error = new Error((result.message || '処理に失敗しました。') + '（問い合わせID: ' + requestId + '）');
+                    error.requestId = requestId;
+                    error.code = result.code;
+                    throw error;
+                }
+                return result;
             }
-            return result;
         } catch (error) {
             if (error.name === 'AbortError') {
-                const timeoutError = new Error('通信が時間内に完了しませんでした。接続を確認して再試行してください。');
+                const timeoutError = new Error('6分以内に応答を受信できませんでした。サーバーでは保存済みの場合があります。未同期内容を消さずに同期を再実行してください。（問い合わせID: ' + requestId + '）');
                 timeoutError.code = 'REQUEST_TIMEOUT';
+                timeoutError.requestId = requestId;
                 throw timeoutError;
+            }
+            if (!error.requestId) {
+                error.requestId = requestId;
+                error.message += '（問い合わせID: ' + requestId + '）';
             }
             throw error;
         } finally { clearTimeout(timeout); }
