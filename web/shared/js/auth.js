@@ -1,6 +1,6 @@
 // Personal Hub全体で認証セッションとGAS通信を共有する
 window.HubAuth = (() => {
-    const API_URL = 'https://script.google.com/macros/s/AKfycbyXRNKLdzWdJAc5iJEfp1hAEbScOERyGboIJZD8hZFprfPo7g57Ip3BjddtiHRdWwyB/exec';
+	const API_URL = 'https://script.google.com/macros/s/AKfycbx33oLMfb7HEsyi4uCHIm4N3Y53l2sBEasBnKpagNU8lAMwzSUiyg0sfes9niiLuSOC/exec';
     const KEY = 'personal_hub_session';
     let expiryTimer;
     const verifications = new Map();
