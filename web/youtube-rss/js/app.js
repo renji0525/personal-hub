@@ -391,7 +391,7 @@ function renderVideos(append = false) {
                 <div class="video-title"></div>
                 <div class="channel-name"></div>
                 <div class="meta-row">
-                    <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <label class="watched-toggle">
                         <input type="checkbox"> 既読
                     </label>
                     <span></span>
