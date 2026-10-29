@@ -1,6 +1,12 @@
 .budget-space-bar { display:flex; flex-wrap:wrap; align-items:center; gap:.7rem; margin:0 0 1.2rem; padding:1rem; border:1px solid var(--border, #344653); border-radius:12px; }
 .budget-space-bar strong { overflow-wrap:anywhere; margin-right:auto; }
 .budget-space-bar p { width:100%; margin:0; }
+.budget-space-tabs { display:flex; flex-wrap:wrap; gap:6px; width:100%; min-width:0; border-bottom:1px solid var(--line); padding-bottom:8px; }
+.budget-space-tab { background:transparent; color:var(--muted); border:1px solid transparent; border-radius:8px; padding:10px 12px; font-size:14px; min-height:44px; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+.budget-space-tab[aria-selected=true] { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+#budgetSpaceTabsStatus:empty { display:none; }
+#budgetSpaceTabsRefresh { font-size:12px; padding:8px 12px; }
+#budgetSpacePanel { min-width:0; }
 .budget-space-dialog { width:min(620px, calc(100% - 2rem)); }
 .budget-space-dialog h2 { margin-top:0; }
 .budget-space-dialog p, .budget-space-dialog h3 { overflow-wrap:anywhere; }

@@ -2,6 +2,14 @@
 window.BudgetSpaces = (() => {
     let boundUser, boundSpace = null, denied = false, busy = false, createId = null;
     const selectionKey = userId => 'personal_hub_budget_space:' + userId;
+    const tabsKey = userId => 'personal_hub_space_tabs:' + userId;
+    function tabsCache(userId) {
+        try {
+            const value = JSON.parse(localStorage.getItem(tabsKey(userId)) || 'null');
+            if (!value || !Array.isArray(value.spaces)) return null;
+            return { slot: value.slot, spaces: value.spaces.filter(space => space && typeof space.id === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(space.id) && typeof space.name === 'string' && ['active', 'invited'].includes(space.status)) };
+        } catch (error) { return null; }
+    }
     function selected(userId) {
         try {
             const value = JSON.parse(localStorage.getItem(selectionKey(userId)) || 'null');
@@ -28,6 +36,11 @@ window.BudgetSpaces = (() => {
         } catch (storageError) { /* 保存できなくてもこのページでは表示を閉じる */ }
         const bar = document.getElementById('budgetSpaceBar');
         if (!bar) return;
+        const currentTab = document.getElementById('budgetSpaceTab-' + boundSpace.id);
+        if (currentTab) {
+            currentTab.disabled = true; currentTab.tabIndex = -1;
+            const personalTab = document.getElementById('budgetSpaceTab-personal'); if (personalTab) personalTab.tabIndex = 0;
+        }
         for (const child of document.getElementById('main').children) if (child !== bar) child.hidden = true;
         document.getElementById('budgetSpaceNotice').textContent = error.message + ' 未同期内容は端末に保持しています。';
     }
@@ -46,6 +59,60 @@ window.BudgetSpaces = (() => {
         const bar = document.getElementById('budgetSpaceBar');
         if (!bar) return;
         document.getElementById('budgetSpaceName').textContent = boundSpace ? '共有：' + boundSpace.name : '個人用';
+        document.getElementById('budgetSpacePersonal').hidden = true;
+        const tabs = el('div'); tabs.id = 'budgetSpaceTabs'; tabs.className = 'budget-space-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '個人用・共有スペース');
+        const tabsStatus = el('p'); tabsStatus.id = 'budgetSpaceTabsStatus'; tabsStatus.className = 'muted'; tabsStatus.setAttribute('role', 'status');
+        const refresh = el('button', 'タブを更新'); refresh.type = 'button'; refresh.id = 'budgetSpaceTabsRefresh'; refresh.className = 'quiet';
+        bar.insertBefore(tabs, document.getElementById('budgetSpaceNotice')); bar.append(refresh, tabsStatus);
+        const panel = el('div'); panel.id = 'budgetSpacePanel'; panel.setAttribute('role', 'tabpanel');
+        const main = document.getElementById('main');
+        for (const child of [...main.children]) if (child !== bar) panel.append(child);
+        main.append(panel);
+        let request = null;
+        function fetchSpaces() {
+            if (!request) request = HubAuth.api('budgetSpaces', {}, session).finally(() => { request = null; });
+            return request;
+        }
+        function renderTabs(spaces) {
+            const active = spaces.filter(space => space.status === 'active' && !(denied && space.id === boundSpace?.id)), choices = [null, ...active];
+            if (boundSpace && !denied && !active.some(space => space.id === boundSpace.id)) choices.push(boundSpace);
+            tabs.replaceChildren();
+            for (const space of choices) {
+                const tab = el('button', space ? space.name : '個人用'); tab.type = 'button'; tab.className = 'budget-space-tab'; tab.dataset.spaceId = space?.id || '';
+                tab.id = 'budgetSpaceTab-' + (space?.id || 'personal'); tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', panel.id);
+                const current = (space?.id || '') === (boundSpace?.id || ''); tab.setAttribute('aria-selected', String(current)); tab.tabIndex = current ? 0 : -1;
+                if (current) panel.setAttribute('aria-labelledby', tab.id);
+                tab.addEventListener('click', () => {
+                    if (denied && space?.id === boundSpace?.id) { tabsStatus.textContent = '共有の設定で参加状態を確認してから選び直してください。'; return; }
+                    if (current && !denied) return;
+                    try { choose(session, space); } catch (error) { tabsStatus.textContent = error.message; }
+                });
+                tabs.append(tab);
+            }
+            if (!tabs.querySelector('[aria-selected="true"]')) tabs.firstElementChild.tabIndex = 0;
+        }
+        tabs.addEventListener('keydown', event => {
+            const buttons = [...tabs.querySelectorAll('[role="tab"]')].filter(button => !button.disabled), index = buttons.indexOf(document.activeElement);
+            if (index < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const target = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+            buttons.forEach((button, i) => { button.tabIndex = i === target ? 0 : -1; }); buttons[target].focus();
+        });
+        function updateTabs(spaces) {
+            if (!Array.isArray(spaces)) throw new Error('共有スペースの一覧を取得できませんでした。');
+            try { localStorage.setItem(tabsKey(session.userId), JSON.stringify({ slot: HubSync.slot(), spaces: spaces.map(space => ({ id: space.id, name: space.name, status: space.status })) })); }
+            catch (error) { /* 保存できなくても取得した共有タブは表示する */ }
+            if (boundSpace && !spaces.some(space => space.id === boundSpace.id && space.status === 'active')) handleError({ code: 'SPACE_FORBIDDEN', message: '現在の共有スペースに参加していません。' });
+            renderTabs(spaces); tabsStatus.textContent = '';
+        }
+        async function refreshTabs() {
+            refresh.disabled = true; tabsStatus.textContent = '共有タブを確認中…';
+            try { const result = await fetchSpaces(); if (sameSession(session)) updateTabs(result.spaces); }
+            catch (error) { if (sameSession(session)) tabsStatus.textContent = '共有タブを更新できませんでした。保存済みのタブを表示しています。' + error.message; }
+            finally { refresh.disabled = false; }
+        }
+        const cachedTabs = tabsCache(session.userId); renderTabs(cachedTabs?.spaces || []);
+        refresh.addEventListener('click', refreshTabs);
         const dialog = document.getElementById('budgetSpaceDialog'), list = document.getElementById('budgetSpaceList');
         const notice = document.getElementById('budgetSpaceMessage');
         async function run(action, params = {}) {
@@ -54,9 +121,9 @@ window.BudgetSpaces = (() => {
             busy = true; notice.textContent = '確認中…';
             dialog.querySelectorAll('button').forEach(button => button.disabled = true);
             try {
-                const result = await HubAuth.api(action, params, session);
+                const result = action === 'budgetSpaces' ? await fetchSpaces() : await HubAuth.api(action, params, session);
                 if (!sameSession(session)) return;
-                render(result.spaces); notice.textContent = '';
+                updateTabs(result.spaces); render(result.spaces); notice.textContent = '';
                 if (action === 'budgetSpaceCreate') { createId = null; document.getElementById('budgetSpaceCreate').reset(); }
                 if (boundSpace && !result.spaces.some(space => space.id === boundSpace.id && space.status === 'active')) handleError({ code: 'SPACE_FORBIDDEN', message: '現在の共有スペースに参加していません。' });
                 return result;
@@ -108,6 +175,7 @@ window.BudgetSpaces = (() => {
         });
         window.addEventListener('storage', event => { if (event.key === selectionKey(session.userId) || event.key === null) location.reload(); });
         if (denied) handleError({ code: 'SPACE_FORBIDDEN', message: 'この共有スペースの参加権限がありません。共有の設定で確認してください。' });
+        if (!cachedTabs || cachedTabs.slot !== HubSync.slot()) refreshTabs();
     }
     return { bind, storageUser, api, allowed, handleError, mount, selected };
 })();
