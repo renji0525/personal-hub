@@ -253,7 +253,7 @@ window.addEventListener('hub-auth-changed', event => {
     byId('monthInput').value = today().slice(0, 7); resetEntry();
     budgetSession = await HubAuth.ready;
     if (!budgetSession) return;
-    if (window.BudgetSpaces) { BudgetSpaces.bind(budgetSession); BudgetSpaces.mount(budgetSession); }
+    if (window.BudgetSpaces) { BudgetSpaces.bind(budgetSession, 'budget'); BudgetSpaces.mount(budgetSession); }
     byId('currentUser').textContent = budgetSession.userId;
     document.documentElement.removeAttribute('data-auth-pending');
     if (window.BudgetSpaces && !BudgetSpaces.allowed()) { setBusy(false); return; }

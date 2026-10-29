@@ -117,7 +117,7 @@ window.addEventListener('hub-auth-changed',()=>{if(session&&!sameAccount())docum
 window.addEventListener('focus',render);document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});setInterval(()=>{if(!document.hidden&&renderedDay!==today())render();},60000);
 (async()=>{
     session=await HubAuth.ready;if(!session)return;
-    if(window.BudgetSpaces){BudgetSpaces.bind(session);BudgetSpaces.mount(session);}$('currentUser').textContent=session.userId;
+    if(window.BudgetSpaces){BudgetSpaces.bind(session, 'inventory');BudgetSpaces.mount(session);}$('currentUser').textContent=session.userId;
     document.documentElement.removeAttribute('data-auth-pending');
     if(window.BudgetSpaces&&!BudgetSpaces.allowed()){controls();return;}
     try{local=BudgetLocal.read(localStorage,inventoryStorageUser());raw=localStorage.getItem(BudgetLocal.key(inventoryStorageUser()));if(local){render();localStatus();}}

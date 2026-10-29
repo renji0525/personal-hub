@@ -8,9 +8,9 @@
         box.hidden = true;
         const session = HubAuth.read();
         if (!session) return;
-        if (window.BudgetSpaces?.selected(session.userId)?.denied) return;
+        if (window.BudgetSpaces?.selected(session.userId, 'inventory')?.denied) return;
         try {
-            const storageUser = window.BudgetSpaces ? BudgetSpaces.storageUser(session.userId) : session.userId;
+            const storageUser = window.BudgetSpaces ? BudgetSpaces.storageUser(session.userId, 'inventory') : session.userId;
             const key = BudgetLocal.key(storageUser), raw = localStorage.getItem(key);
             if (key !== cachedKey || raw !== cachedRaw) {
                 const local = BudgetLocal.read(localStorage, storageUser);

@@ -168,7 +168,7 @@ window.addEventListener('hub-auth-changed', event => { if (listsSession && event
 window.addEventListener('focus', render);
 (async () => {
     listsSession = await HubAuth.ready; if (!listsSession) return;
-    BudgetSpaces.bind(listsSession); BudgetSpaces.mount(listsSession); document.documentElement.removeAttribute('data-auth-pending');
+    BudgetSpaces.bind(listsSession, 'lists'); BudgetSpaces.mount(listsSession); document.documentElement.removeAttribute('data-auth-pending');
     if (!BudgetSpaces.allowed()) { controls(); return; }
     try { listsLocal = ListsLocal.read(localStorage, scope()); savedRaw = localStorage.getItem(ListsLocal.key(scope())); if (listsLocal) { render(); localStatus(); } }
     catch (error) { stale = true; message(error.message, 'error'); controls(); return; }

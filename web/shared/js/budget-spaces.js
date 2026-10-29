@@ -1,7 +1,9 @@
 // 共有先はページ表示時に固定し、通信・端末保存・同期履歴へ同じ識別情報を使う
 window.BudgetSpaces = (() => {
-    let boundUser, boundSpace = null, denied = false, busy = false, createId = null;
-    const selectionKey = userId => 'personal_hub_budget_space:' + userId;
+    let boundUser, boundSpace = null, boundPage = 'budget', denied = false, busy = false, createId = null;
+    const pages = ['budget', 'inventory', 'lists', 'notes'];
+    const legacyKey = userId => 'personal_hub_budget_space:' + userId;
+    const selectionKey = (userId, page = boundPage) => legacyKey(userId) + ':' + (pages.includes(page) ? page : 'budget');
     const tabsKey = userId => 'personal_hub_space_tabs:' + userId;
     function tabsCache(userId) {
         try {
@@ -10,15 +12,22 @@ window.BudgetSpaces = (() => {
             return { slot: value.slot, spaces: value.spaces.filter(space => space && typeof space.id === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(space.id) && typeof space.name === 'string' && ['active', 'invited'].includes(space.status)) };
         } catch (error) { return null; }
     }
-    function selected(userId) {
+    function selected(userId, page = boundPage) {
         try {
-            const value = JSON.parse(localStorage.getItem(selectionKey(userId)) || 'null');
+            const key = selectionKey(userId, page);
+            let raw = localStorage.getItem(key);
+            // 各ページの初回だけ以前の共通選択を引き継ぎ、以降は独立して保持する
+            if (raw === null) {
+                raw = localStorage.getItem(legacyKey(userId)) || 'null';
+                try { localStorage.setItem(key, raw); } catch (error) { /* 保存できない場合も以前の選択を読み込む */ }
+            }
+            const value = JSON.parse(raw);
             return value && typeof value.id === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(value.id) && typeof value.name === 'string' ? value : null;
         } catch (error) { return null; }
     }
-    function bind(session) { boundUser = session.userId; boundSpace = selected(boundUser); denied = boundSpace?.denied === true; }
-    function storageUser(userId) {
-        const space = boundUser === userId ? boundSpace : selected(userId);
+    function bind(session, page = 'budget') { boundUser = session.userId; boundPage = pages.includes(page) ? page : 'budget'; boundSpace = selected(boundUser, boundPage); denied = boundSpace?.denied === true; }
+    function storageUser(userId, page = boundPage) {
+        const space = boundUser === userId && page === boundPage ? boundSpace : selected(userId, page);
         return userId + (space ? ':space:' + space.id : '');
     }
     function sameSession(session) { return HubAuth.read()?.token === session.token; }
@@ -32,7 +41,11 @@ window.BudgetSpaces = (() => {
         denied = true;
         // 一度解除を検出した共有先は、再参加を確認して選び直すまでキャッシュを表示しない
         try {
-            if (selected(boundUser)?.id === boundSpace.id) localStorage.setItem(selectionKey(boundUser), JSON.stringify({ ...boundSpace, denied: true }));
+            for (const key of [legacyKey(boundUser), ...pages.map(page => selectionKey(boundUser, page))]) {
+                let value;
+                try { value = JSON.parse(localStorage.getItem(key) || 'null'); } catch (error) { continue; }
+                if (value?.id === boundSpace.id) localStorage.setItem(key, JSON.stringify({ ...value, denied: true }));
+            }
         } catch (storageError) { /* 保存できなくてもこのページでは表示を閉じる */ }
         const bar = document.getElementById('budgetSpaceBar');
         if (!bar) return;
@@ -51,7 +64,7 @@ window.BudgetSpaces = (() => {
         if (!sameSession(session)) throw new Error('ログインし直してください。');
         if (pageBusy()) throw new Error('同期が終わってから切り替えてください。');
         if (space) localStorage.setItem(selectionKey(session.userId), JSON.stringify({ id: space.id, name: space.name }));
-        else localStorage.removeItem(selectionKey(session.userId));
+        else localStorage.setItem(selectionKey(session.userId), 'null');
         location.reload();
     }
     function el(tag, text) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; }
