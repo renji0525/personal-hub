@@ -42,9 +42,30 @@ var YouTubeChannelInput = (() => {
         }
         return null;
     }
+    // GAS向けページでは初期データがJavaScript文字列になるため、実行せずに復号する
+    function escapedMetadata(html) {
+        const assignment = /\bytInitialData\s*=\s*(['"])/.exec(html);
+        if (!assignment) return null;
+        const start = assignment.index + assignment[0].length, quote = assignment[1];
+        let end = start;
+        for (; end < html.length; end++) {
+            if (html[end] === '\\') end++;
+            else if (html[end] === quote) break;
+        }
+        if (end >= html.length) return null;
+        try {
+            const escapes = { n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', v: '\v', '0': '\0', '\\': '\\', '/': '/', "'": "'", '"': '"', '\n': '', '\r': '' };
+            const decoded = html.slice(start, end).replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[\s\S])/g, (all, code) => {
+                if ((code[0] === 'x' || code[0] === 'u') && code.length > 1) return String.fromCharCode(parseInt(code.slice(1), 16));
+                if (!Object.prototype.hasOwnProperty.call(escapes, code)) throw new Error('初期データのエスケープ形式が不正です。');
+                return escapes[code];
+            });
+            return metadata(decoded);
+        } catch (error) { return null; }
+    }
     function extract(html) {
         if (typeof html !== 'string' || html.length > 3000000) return null;
-        const id = metadata(html); if (id) return id;
+        const id = metadata(html) || escapedMetadata(html); if (id) return id;
         const head = html.split(/<\/head\s*>/i)[0];
         for (const tag of head.match(/<link\b[^>]*>/gi) || []) {
             const attributes = {};

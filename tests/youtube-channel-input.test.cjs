@@ -19,3 +19,21 @@ test('おすすめ動画のIDを採用せず、チャンネルのメタデータ
     assert.equal(channel.extract('<head></head><body><a href="https://www.youtube.com/channel/' + other + '">おすすめ</a><script>{"channelId":"' + other + '"}</script>'), null);
     assert.equal(channel.extract('<head><link rel="canonical" href="https://evil.example/channel/' + id + '"></head>'), null);
 });
+
+test('GAS向けの文字列形式初期データを実行せず復号して対象チャンネルを取得する', () => {
+    const data = JSON.stringify({ contents: { channelId: other }, metadata: { channelMetadataRenderer: { title: '引用符 " と } とバックスラッシュ \\ と改行\n', externalId: id } } });
+    // 日本語はそのまま、記号だけをYouTubeと同じ16進エスケープにする
+    const youtube = data.replace(/[\\"'{}\[\]<>=&]/g, char => '\\x' + char.charCodeAt(0).toString(16).padStart(2, '0'));
+    assert.equal(channel.extract('<script>var ytInitialData = \'' + youtube + '\';</script>'), id);
+    const ascii = JSON.stringify({ metadata: { channelMetadataRenderer: { externalId: id } } });
+    const unicode = ascii.replace(/"/g, '\\u0022');
+    assert.equal(channel.extract('<script>ytInitialData = \'' + unicode + '\';</script>'), id);
+    assert.equal(channel.extract('<script>ytInitialData = ' + JSON.stringify(ascii) + ';</script>'), id);
+    assert.equal(channel.extract('<script>ytInitialData = \'\\x7b\\x22channelId\\x22: \\x22' + other + '\\x22\\x7d\';</script>'), null);
+    assert.equal(channel.extract('<script>ytInitialData = \'\\xZZ\';</script>'), null);
+    assert.equal(channel.extract('<script>ytInitialData = \'unterminated'), null);
+    globalThis.channelInputExecuted = false;
+    assert.equal(channel.extract('<script>ytInitialData = (globalThis.channelInputExecuted = true);</script>'), null);
+    assert.equal(globalThis.channelInputExecuted, false);
+    delete globalThis.channelInputExecuted;
+});
