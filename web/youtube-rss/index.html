@@ -84,8 +84,8 @@
             </div>
             <header class="library-toolbar">
                 <form class="channel-add" onsubmit="event.preventDefault(); addNewChannel()">
-                    <label class="sr-only" for="channelIdInput">追加するチャンネルID</label>
-                    <input id="channelIdInput" class="input-bar" placeholder="チャンネルURL または ID" autocomplete="off">
+                    <label class="sr-only" for="channelIdInput">追加するチャンネルURL・ハンドル・ID</label>
+                    <input id="channelIdInput" class="input-bar" placeholder="URL / @ハンドル / UC…" maxlength="1000" autocomplete="off">
                     <button class="btn-add" type="submit">追加</button>
                 </form>
                 <div class="video-actions">
@@ -112,6 +112,7 @@
             <div id="video-container">
             </div>
         </main>
+        <script src="js/channel-input.js"></script>
         <script src="js/app.js">
         </script>
         <script src="js/sync.js">

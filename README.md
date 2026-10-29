@@ -21,6 +21,8 @@
 
 旧RSS URL `web/youtube-rss/YoutubeRssFedly.html` は新しい `index.html` へ転送します。
 
+YouTube RSSの追加欄は、UCから始まるチャンネルID、youtube.com/channel/UC…、youtube.com/@ハンドル、@ハンドル単体、旧/user/・/c/形式などのチャンネルURLに対応します。ID形式はそのまま使用し、それ以外はGASでYouTubeの公開チャンネル情報からIDへ変換します。検索結果は1時間キャッシュ。同じIDは重複登録せず、解決失敗時は入力を保持します。追加APIキーや外部検索ツールの登録は不要です。
+
 ## 起動と検証
 
 `web/index.html` をブラウザで開きます。ビルド不要です。クラウド同期にはGASと共通ログインを使用します。

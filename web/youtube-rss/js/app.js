@@ -204,7 +204,7 @@ async function fetchFeed(channelId, inChannelName="None", addText="", quiet=fals
             };
             validateState({ channels: [{ id: channelId, title: result.name }], videos: result.items,
                 darkMode: true, selectedChannel: 'all' });
-            if (!quiet) showNotification(`成功 [${inChannelName}]`, 'success');
+            if (!quiet) showNotification('チャンネルを取得しました：' + result.name, 'success');
             return result;
         } else {
             throw new Error(data.message || "取得失敗");
@@ -220,13 +220,19 @@ async function fetchFeed(channelId, inChannelName="None", addText="", quiet=fals
  */
 async function addNewChannel() {
     return withBusy(async () => {
-    let input = document.getElementById('channelIdInput').value.trim();
-    // 入力がURLの場合でもID部分(UC...)だけを抜き出す正規表現
-    const idMatch = input.match(/(UC[a-zA-Z0-9_-]{22})/);
-    const cid = idMatch ? idMatch[1] : input;
+    const input = document.getElementById('channelIdInput').value.trim();
+    if (!input) return;
+    const parsed = YouTubeChannelInput.parse(input);
+    let cid = parsed.channelId;
+    if (!cid) {
+        showNotification('チャンネルURLからIDを確認しています…');
+        const resolved = await accountApi('resolveChannel', { input });
+        if (!YouTubeChannelInput.validId(resolved.channelId)) throw new Error('チャンネルIDを取得できませんでした。');
+        cid = resolved.channelId;
+    }
 
     // 空チェックおよび重複チェック
-    if (!cid || appState.channels.some(c => c.id === cid)) return;
+    if (appState.channels.some(c => c.id === cid)) { showNotification('このチャンネルは登録済みです。'); return; }
 
     const result = await fetchFeed(cid);
     // 取得失敗しても、とりあえずIDだけは登録する（あとでリトライ可能にするため）

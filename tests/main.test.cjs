@@ -5,12 +5,13 @@ const fs = require('node:fs');
 
 function app() {
     const store = new Map();
-    const input = { value: 'UCtest' };
+    const input = { value: 'UC'+'a'.repeat(22) };
     const context = vm.createContext({
         URL, URLSearchParams, setTimeout, window: {},
         localStorage: { getItem: k => store.get(k), setItem: (k, v) => store.set(k, v), removeItem: k => store.delete(k) },
         document: { readyState: 'loading', addEventListener() {}, documentElement: { removeAttribute() {} }, getElementById: () => input, body: { setAttribute() {} } }
     });
+    vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/channel-input.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(require('node:path').join(__dirname, '../web/youtube-rss/js/app.js'), 'utf8'), context);
     vm.runInContext('renderVideos = () => { renders++; }; renderChannels = () => {}; showNotification = () => {};', context);
     context.renders = 0;
@@ -65,6 +66,24 @@ test('concurrent additions register once and immediately render videos', async (
     assert.equal(run('appState.channels.length'), 1);
     assert.equal(context.renders, 1);
     assert.equal(run('busy'), false);
+});
+
+test('ハンドルURLを解決してIDで追加し、表記違いの同一チャンネルを重複登録しない', async () => {
+    const { context, run } = app(), id = 'UC' + 'b'.repeat(22);
+    context.document.getElementById().value = 'https://www.youtube.com/@example/videos';
+    context.resolvedId = id;
+    run("feedCalls = 0; accountApi = async () => ({channelId:resolvedId}); fetchFeed = async () => {feedCalls++;return {name:'チャンネル',items:[]};}");
+    await run('addNewChannel()'); assert.equal(run('appState.channels[0].id'), id); assert.equal(context.document.getElementById().value, '');
+    context.document.getElementById().value = '@example'; await run('addNewChannel()'); assert.equal(run('appState.channels.length'), 1); assert.equal(run('feedCalls'), 1);
+});
+
+test('URL解決失敗や外部URLでは入力を残し、未解決の文字列を登録しない', async () => {
+    const { context, run } = app();
+    run("accountApi = async () => {throw new Error('見つかりません');}; fetchFeed = async () => {throw new Error('呼ばない');}");
+    for (const value of ['@missing', 'https://evil.example/channel/UC' + 'a'.repeat(22)]) {
+        context.document.getElementById().value = value; await run('addNewChannel()');
+        assert.equal(run('appState.channels.length'), 0); assert.equal(context.document.getElementById().value, value); assert.equal(run('busy'), false);
+    }
 });
 
 test('corrupt storage does not interrupt initial rendering', () => {
