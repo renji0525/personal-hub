@@ -36,7 +36,7 @@ h1  {
 #logoutButton  {
     font-size:12px;
 }
-#accountForm  {
+#accountForm, #resetPasswordForm  {
     width:min(440px,100%);
     padding:28px;
     margin-top:20px;
@@ -142,16 +142,16 @@ small  {
     letter-spacing:.08em;
 }
 @media(min-width:900px)  {
-    main:has(#accountForm:not([hidden]))  {
+    main:has(:is(#accountForm, #resetPasswordForm):not([hidden]))  {
         display:grid;
         grid-template-columns:1fr 440px;
         column-gap:48px;
         align-items:center;
     }
-    main:has(#accountForm:not([hidden])) .welcome  {
+    main:has(:is(#accountForm, #resetPasswordForm):not([hidden])) .welcome  {
         margin:0;
     }
-    main:has(#accountForm:not([hidden])) .home-footer  {
+    main:has(:is(#accountForm, #resetPasswordForm):not([hidden])) .home-footer  {
         grid-column:1/-1;
     }
 }
@@ -170,7 +170,7 @@ small  {
         min-height:210px;
         gap:18px;
     }
-    #accountForm  {
+    #accountForm, #resetPasswordForm  {
         padding:22px;
     }
     .home-footer  {
@@ -183,3 +183,5 @@ small  {
     .tool-link { grid-template-columns:1fr; gap:16px; padding:24px; }
     .tool-open { grid-column:1; }
 }
+
+#forgotPasswordButton, #backToLoginButton, #cancelResetButton { margin-bottom:16px; }

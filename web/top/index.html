@@ -47,20 +47,33 @@
 
                 </div>
                 <form id="accountForm" hidden>
-                    <h2>おかえりなさい</h2>
-                    <p class="muted">アカウントにログインして、続きを始めましょう。</p>
+                    <h2 id="accountTitle">おかえりなさい</h2>
+                    <p class="muted" id="accountHelp">アカウントにログインして、続きを始めましょう。</p>
                     <label for="userIdInput">ユーザーID</label>
                     <input id="userIdInput" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" placeholder="ユーザーIDを入力" required>
-                    <label for="passwordInput">パスワード</label>
+                    <label for="passwordInput" id="passwordLabel">パスワード</label>
                     <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="8文字以上のパスワード" required>
                     <div class="account-actions">
-                        <button type="submit">ログイン <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <button type="submit"><span id="submitLabel">ログイン</span> <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M5 12h14m-6-6 6 6-6 6"/>
                             </svg>
                         </button>
                         <button type="button" id="registerButton" class="quiet">新規登録</button>
                     </div>
+                    <button type="button" id="forgotPasswordButton" class="quiet">パスワードを忘れた方</button>
+                    <button type="button" id="backToLoginButton" class="quiet" hidden>ログイン画面に戻る</button>
                     <small>ひとつのアカウントで、すべてのツールを使えます。</small>
+                </form>
+                <form id="resetPasswordForm" hidden>
+                    <h2>新しいパスワードを設定</h2>
+                    <p class="muted"><span id="resetUser"></span> のパスワードを再設定します。一時パスワードとは異なる8〜128文字で入力してください。</p>
+                    <label for="newPasswordInput">新しいパスワード</label>
+                    <input id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                    <label for="confirmPasswordInput">新しいパスワード（確認）</label>
+                    <input id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                    <div class="account-actions"><button type="submit">パスワードを再設定</button></div>
+                    <button type="button" id="cancelResetButton" class="quiet">ログイン画面に戻る</button>
+                    <small>一時ログインは15分間有効です。再設定後、新しいパスワードでログインしてください。</small>
                 </form>
             </section>
             <nav id="tools" aria-label="ツール一覧" hidden>

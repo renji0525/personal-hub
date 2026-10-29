@@ -146,6 +146,20 @@ window.HubAuth = (() => {
         return session;
     }
 
+    async function temporarySignIn(userId, password) {
+        const token = randomToken();
+        const result = await api('temporaryLogin', { userId, password, newToken: token }, null);
+        if (result.resetRequired !== true) throw new Error('再設定用のログイン情報が正しくありません。');
+        const session = { userId: result.userId, token, expiresAt: result.expiresAt };
+        if (!valid(session)) throw new Error('再設定用のログイン情報が正しくありません。');
+        // 再設定専用トークンは端末へ永続保存せず、通常ログインとして通知しない
+        return session;
+    }
+
+    async function resetPassword(session, password) {
+        return api('resetPassword', { password, salt: randomToken().slice(0, 32) }, session);
+    }
+
     async function signOut(session = read()) {
         // 端末を先に解除し、ページ遷移後もサーバー無効化の送信を継続する
         const pending = session ? api('logout', {}, session) : Promise.resolve();
@@ -185,7 +199,7 @@ window.HubAuth = (() => {
         scheduleExpiry(session);
         return session;
     }
-    return { read, resume, api, verify, signIn, signOut, protect };
+    return { read, resume, api, verify, signIn, temporarySignIn, resetPassword, signOut, protect };
 })();
 
 // 日本時間の日付・時間帯ごとに、ユーザー別の同期成功を端末に記録する

@@ -79,6 +79,20 @@ test('共通ログインはパスワードを保存せず、検証時はsession 
     assert.equal(calls[1].password, undefined);
 });
 
+test('一時ログインは通常セッションとして保存や通知をせず、再設定だけにトークンを渡す', async () => {
+    const s = auth(), calls = [];
+    s.context.fetch = async (_, options) => {
+        const body = JSON.parse(options.body); calls.push(body);
+        return { ok: true, json: async () => ({ status: 'ok', userId: 'alice', expiresAt: Date.now() + 900000, resetRequired: true }) };
+    };
+    const temporary = await s.api.temporarySignIn('alice', 'temporary-secret');
+    assert.equal(s.api.read(), null); assert.equal(s.events.length, 0); assert.equal(s.storage.size, 0);
+    await s.api.resetPassword(temporary, 'new-secret-123');
+    assert.equal(calls[0].action, 'temporaryLogin'); assert.equal(calls[1].action, 'resetPassword');
+    assert.equal(calls[1].token, temporary.token); assert.equal(calls[1].salt.length, 32);
+    assert.equal(s.storage.size, 0);
+});
+
 test('期限切れ応答は共通セッションを消し、古い応答で新しいログインを消さない', async () => {
     const s = auth(), old = session();
     s.storage.set('personal_hub_session', JSON.stringify(old));
