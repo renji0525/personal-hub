@@ -79,7 +79,7 @@ window.HubAuth = (() => {
         const timeout = setTimeout(() => controller.abort(), wait);
         try {
             // ロック未取得は保存処理が始まっていないため、同じ本文で最大2回だけ再試行する
-            const retryable = ['budgetLoad', 'budgetSync', 'listsLoad', 'listsSync', 'listsMembers'].includes(action);
+            const retryable = ['budgetLoad', 'budgetSync', 'listsLoad', 'listsSync', 'notesLoad', 'notesSync', 'listsMembers'].includes(action);
             for (let attempt = 0; ; attempt++) {
                 // GASへのプリフライトを避け、認証情報をURLに含めない
                 const response = await fetch(API_URL, {

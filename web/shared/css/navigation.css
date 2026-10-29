@@ -20,6 +20,6 @@
 @media(max-width:620px) {
     .hub-header .hub-brand { font-size:14px; gap:9px; }
     .hub-account [data-hub-user] { display:none; }
-    .hub-header .hub-nav { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); width:100%; gap:4px; }
+    .hub-header .hub-nav { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); width:100%; gap:4px; }
     .hub-header .hub-nav a { flex-direction:column; gap:5px; padding:8px 2px; font-size:11px; min-height:64px; }
 }

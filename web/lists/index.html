@@ -18,6 +18,7 @@
             <a href="../budget/index.html"><img src="../shared/icons/budget.svg" width="22" height="22" alt=""><span>家計簿</span></a>
             <a href="../inventory/index.html"><img src="../shared/icons/inventory.svg" width="22" height="22" alt=""><span>在庫管理</span></a>
             <a href="../lists/index.html" aria-current="page"><img src="../shared/icons/lists.svg" width="22" height="22" alt=""><span>リスト</span></a>
+            <a href="../notes/index.html"><img src="../shared/icons/notes.svg" width="22" height="22" alt=""><span>メモ</span></a>
         </nav>
         <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
     </header>
@@ -47,7 +48,7 @@
 </form></dialog>
 <dialog id="budgetSpaceDialog" class="budget-space-dialog" aria-labelledby="budgetSpaceTitle">
     <h2 id="budgetSpaceTitle">共有スペースの設定</h2>
-    <p>参加者全員が家計簿・在庫・カテゴリ・リストの閲覧、追加、編集、削除を行えます。招待と参加者の解除は所有者が行います。</p>
+    <p>参加者全員が家計簿・在庫・カテゴリ・リスト・メモの閲覧、追加、編集、削除を行えます。招待と参加者の解除は所有者が行います。</p>
     <p>相手が「共有の設定」で参加を承認すると共同利用できます。他の人の変更は同期後に反映されます。</p>
     <form id="budgetSpaceCreate"><label>新しいスペース名<input id="budgetSpaceNewName" maxlength="40" required placeholder="家族のスペース"></label><button type="submit">スペースを作成</button></form>
     <p id="budgetSpaceMessage" role="status" aria-live="polite"></p><button id="budgetSpaceReload" type="button" class="quiet">一覧を更新</button>

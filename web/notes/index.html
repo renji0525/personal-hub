@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja" data-auth-pending><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>メモ | Personal Hub</title><meta name="theme-color" content="#101a22"><meta name="description" content="思いついたことを気軽に残せるメモ。個人用でも共有スペースでも。">
+<link rel="icon" href="../shared/icons/notes.svg" type="image/svg+xml"><link rel="stylesheet" href="../shared/css/base.css"><link rel="stylesheet" href="css/style.css"><link rel="stylesheet" href="../shared/css/navigation.css"><link rel="stylesheet" href="../shared/css/budget-spaces.css">
+<script src="../shared/js/auth.js"></script><script>HubAuth.ready=HubAuth.protect({local:true});</script>
+<script src="../shared/js/sync-merge.js" defer></script><script src="../lists/js/model.js" defer></script><script src="../lists/js/store.js" defer></script><script src="../shared/js/budget-spaces.js" defer></script><script src="js/app.js" defer></script><script src="../shared/js/navigation.js" defer></script>
+</head><body><a class="skip-link" href="#main">本文へ移動</a>
+<header class="hub-header">
+        <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"><img src="../shared/icons/hub.svg" width="32" height="32" alt=""><span>Personal Hub</span></a>
+        <nav class="hub-nav" aria-label="ページ移動">
+            <a href="../top/index.html"><img src="../shared/icons/hub.svg" width="22" height="22" alt=""><span>ホーム</span></a>
+            <a href="../youtube-rss/index.html"><img src="../shared/icons/youtube.svg" width="22" height="22" alt=""><span>YouTube RSS</span></a>
+            <a href="../budget/index.html"><img src="../shared/icons/budget.svg" width="22" height="22" alt=""><span>家計簿</span></a>
+            <a href="../inventory/index.html"><img src="../shared/icons/inventory.svg" width="22" height="22" alt=""><span>在庫管理</span></a>
+            <a href="../lists/index.html"><img src="../shared/icons/lists.svg" width="22" height="22" alt=""><span>リスト</span></a>
+            <a href="../notes/index.html" aria-current="page"><img src="../shared/icons/notes.svg" width="22" height="22" alt=""><span>メモ</span></a>
+        </nav>
+        <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
+    </header>
+<main id="main"><div id="budgetSpaceBar" class="budget-space-bar" aria-label="共有スペースの選択">
+    <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
+    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+</div>
+<div class="heading"><div><p class="eyebrow">A LITTLE SPACE FOR YOUR THOUGHTS</p><h1><img src="../shared/icons/notes.svg" width="42" height="42" alt="">メモ</h1><p class="muted">思いついたことを、忘れないうちに。</p></div><button id="addNote" data-edit disabled>メモを書く</button></div>
+<div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
+<p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>メモの未同期変更を破棄して再取得</button>
+<p class="muted">保存したメモは端末に残ります。各時間帯の初回表示や「同期する」で同期します。共有スペースでは参加者と共同編集できます。</p>
+<label class="search-field">メモを検索<input id="search" type="search" placeholder="タイトルや本文"></label><p id="noteCount" class="muted" role="status"></p><div id="notes" class="notes-grid"></div><button id="moreButton" class="quiet" hidden>次の50件を表示</button>
+</main>
+<dialog id="noteDialog" aria-labelledby="noteDialogTitle"><form id="noteForm"><h2 id="noteDialogTitle">メモを書く</h2><input id="noteId" type="hidden"><label>タイトル（任意）<input id="noteTitle" maxlength="120" placeholder="空欄なら本文の先頭を使います"></label><label>本文<textarea id="noteBody" maxlength="5000" rows="10" placeholder="ここにメモを入力…"></textarea></label><p id="noteError" class="error" role="alert"></p><div class="actions"><button id="noteSave" data-edit>保存する</button><button id="noteCancel" type="button" class="quiet">キャンセル</button></div></form></dialog>
+<dialog id="budgetSpaceDialog" class="budget-space-dialog" aria-labelledby="budgetSpaceTitle">
+    <h2 id="budgetSpaceTitle">共有スペースの設定</h2>
+    <p>参加者全員が家計簿・在庫・カテゴリ・リスト・メモの閲覧、追加、編集、削除を行えます。招待と参加者の解除は所有者が行います。</p>
+    <p>相手が「共有の設定」で参加を承認すると共同利用できます。他の人の変更は同期後に反映されます。</p>
+    <form id="budgetSpaceCreate"><label>新しいスペース名<input id="budgetSpaceNewName" maxlength="40" required placeholder="家族のスペース"></label><button type="submit">スペースを作成</button></form>
+    <p id="budgetSpaceMessage" role="status" aria-live="polite"></p><button id="budgetSpaceReload" type="button" class="quiet">一覧を更新</button>
+    <div id="budgetSpaceList"></div><button id="budgetSpaceClose" type="button" class="quiet">閉じる</button>
+</dialog>
+</body></html>

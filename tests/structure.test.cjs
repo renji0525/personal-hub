@@ -14,6 +14,6 @@ test('全ページのローカルJS・CSS・画像・移動先の参照が存在
     }
 });
 test('各ページは共通配置で起動し、旧RSS URLには転送を維持する', () => {
-    for (const page of ['top','budget','youtube-rss','inventory','lists']) for (const file of ['index.html','js/app.js','css/style.css']) assert.ok(fs.existsSync(path.join(root,page,file)));
+    for (const page of ['top','budget','youtube-rss','inventory','lists','notes']) for (const file of ['index.html','js/app.js','css/style.css']) assert.ok(fs.existsSync(path.join(root,page,file)));
     assert.match(fs.readFileSync(path.join(root,'youtube-rss/YoutubeRssFedly.html'),'utf8'), /location\.replace\('index.html'/);
 });
