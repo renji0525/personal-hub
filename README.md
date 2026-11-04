@@ -17,7 +17,9 @@
 - `web/shared/css/base.css`：全ページの配色・操作部品。`web/shared/icons/`：ページ別SVG、PNGファビコン、ホーム画面用アイコン。
 - `tests/`：Node.js自動テスト。
 - `gas/`：GASソース・同期環境（Git対象外）。
-- `docs/`、`savedata/`、`tests/browser/`：作業記録・個人バックアップ・このPCのEdge検証（Git対象外）。
+- `docs/README.md`：文書の移行先案内（Git対象外）。
+- `savedata/`、`tests/browser/`：個人バックアップ・このPCのEdge検証（Git対象外）。
+- `D:\ObsidianLocation\CodexProject\personal-hub_wiki`：プロジェクト文書・作業履歴・過去記録・検証画像。ここを直接更新します。
 
 旧RSS URL `web/youtube-rss/YoutubeRssFedly.html` は新しい `index.html` へ転送します。
 
@@ -66,7 +68,7 @@ RSSはユーザー別の全件キャッシュを先に表示し、起動時に�
 
 共有の参加権限はデータAPIごとに確認します。解除の検出は次回通信時です。オフラインや同時間帯の再表示では、取得済みの端末キャッシュを利用できます。共有管理には通信が必要です。スペース自体の削除・所有者変更・個人データのコピー機能はありません。
 
-GASはユーザー情報、RSS、家計簿を別スプレッドシートで管理。既存DBの分離は `setupSplitDatabases` を使用します。手順はローカルの `gas/README.md`、現在の状態は `docs/STATUS.md`、家計簿の使い方は `docs/BUDGET.md` を参照してください。
+GASの現用保存先は「personal-hub ユーザー情報」1ファイルで、既存14テーブルと一時パスワード用1シートを保持します。現在の状態は [wikiのSTATUS](../../ObsidianLocation/CodexProject/personal-hub_wiki/STATUS.md)、家計簿の使い方は [wikiのBUDGET](../../ObsidianLocation/CodexProject/personal-hub_wiki/BUDGET.md) を参照してください。
 
 家計簿は記録を50件ずつ表示し、集計を再利用します。キャッシュがある場合は初回取得の応答待ち中も編集でき、編集内容は保持して次回同期へ回します。同じ記録の連続保存は未送信部分だけ最終値に集約。RSSのテーマ・絞込変更は表示設定だけを保存します。
 
@@ -97,3 +99,7 @@ GASは既存家計簿DBにListsUsers・ListItemsを追加するスキーマ5。l
 ホームまたは上部の「メモ」から開き、「メモを書く」で保存します。タイトルは任意（空欄なら本文の先頭を使用）、本文は5000文字まで。タイトル・本文の検索、編集・削除、JSONバックアップ、50件ずつの表示に対応。
 
 個人用と共有スペースを切り替えて利用できます。保存した内容は端末に保持し、日本時間の各時間帯初回と手動で同期。メモのデータ・更新番号・同期履歴はTODO/買いたいものから独立し、既存の同時編集統合・再送重複防止を再利用します。自動下書き保存・書式編集・画像添付・JSON復元UIはありません。
+
+## プロジェクト文書
+
+文書は [personal-hub_wiki](../../ObsidianLocation/CodexProject/personal-hub_wiki/Personal%20Hub.md) へ移行しました。このリンクは同じPC内の配置を前提とします。作業開始時はwikiのREADME.md・STATUS.mdを確認し、作業後はSTATUS.md・WORKLOG.md、構成変更時はPROJECT.mdを更新します。
