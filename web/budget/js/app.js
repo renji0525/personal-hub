@@ -7,6 +7,7 @@ let budgetState = { revision: 0, categories: [], entries: [] };
 let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
 let recordLimit = 50, recordFilter = null, summaryPeriod = null;
 let periodView = 'month', selectedDay = '';
+let quickCategory = false;
 let localBudget = null, savedRaw = null;
 let categoryIndex = new Map(), indexedState = null, months = new Map();
 const yenFormatter = new Intl.NumberFormat('ja-JP');
@@ -54,6 +55,13 @@ function shiftDay(date, offset) {
     return day.toISOString().split('T')[0];
 }
 function weekday(date) { return (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7; }
+function styleDay(element, date, index) {
+    const [year, month, day] = date.split('-');
+    const holiday = budgetHolidays[year]?.includes(month + day);
+    if (holiday || index === 6) element.classList.add('day-off');
+    else if (index === 5) element.classList.add('day-saturday');
+    return holiday;
+}
 function fillSuggestions(id, values) {
     const unique = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
     byId(id).replaceChildren(...unique.map(value => new Option(value, value)));
@@ -70,15 +78,24 @@ function renderCalendar(month, entries) {
     for (let i = 0; i < start; i++) calendar.append(node('span', 'calendar-blank'));
     for (let date = first; date.startsWith(month + '-'); date = shiftDay(date, 1)) {
         const current = date;
-        const total = totals.get(date) || { expense: 0, income: 0 };
+        const total = totals.get(date);
         const cell = node('button', 'calendar-day');
         cell.type = 'button';
-        cell.setAttribute('aria-label', dayLabel(date) + '、支出' + yen(total.expense) + '、収入' + yen(total.income));
+        const index = weekday(date), holiday = styleDay(cell, date, index);
+        const label = [dayLabel(date), weekdays[index] + '曜日'];
+        if (holiday) label.push('祝日');
+        cell.append(node('strong', 'day-number', String(Number(date.slice(8)))));
+        if (total?.expense) {
+            cell.append(node('span', 'expense', '−' + yenFormatter.format(total.expense)));
+            label.push('支出' + yen(total.expense));
+        }
+        if (total?.income) {
+            cell.append(node('span', 'income', '+' + yenFormatter.format(total.income)));
+            label.push('収入' + yen(total.income));
+        }
+        cell.setAttribute('aria-label', label.join('、'));
         cell.setAttribute('aria-pressed', String(date === selectedDay));
         if (date === currentDate) cell.setAttribute('aria-current', 'date');
-        cell.append(node('strong', 'day-number', String(Number(date.slice(8)))),
-            node('span', 'expense', '−' + yenFormatter.format(total.expense)),
-            node('span', 'income', '+' + yenFormatter.format(total.income)));
         cell.addEventListener('click', () => {
             selectedDay = current;
             if (!byId('entryId').value) byId('entryDate').value = current;
@@ -151,7 +168,7 @@ function render(append = false) {
         const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
         meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
         left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
-        const details = [entry.shop, entry.attribution?.kind === 'group' ? '共有グループ全体' : entry.attribution?.name,
+        const details = [entry.shop, entry.attribution?.kind === 'group' ? 'グループ共通' : entry.attribution?.name,
             entry.productName && entry.memo].filter(Boolean);
         if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
         const right = node('div', 'record-right');
@@ -172,7 +189,10 @@ function render(append = false) {
         let remaining = recordLimit;
         days.forEach((date, index) => {
             const day = append ? list.children[index] : node('section', 'week-day');
-            if (!append) day.append(node('h3', '', dayLabel(date) + '（' + weekdays[index] + '）'));
+            if (!append) {
+                const holiday = styleDay(day, date, index);
+                day.append(node('h3', '', dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）'));
+            }
             const records = filtered.filter(entry => entry.date === date);
             if (!records.length && !append) day.append(node('p', 'empty', '記録なし'));
             else {
@@ -186,7 +206,7 @@ function render(append = false) {
         if (!filtered.length) list.append(node('p', 'empty', 'この期間に条件に合う記録がありません。'));
         filtered.slice(append ? list.childElementCount : 0, recordLimit).forEach(entry => renderEntry(entry, list));
     }
-    if (dataChanged && byId('categoryDialog').open) renderCategoryList();
+    if (dataChanged && byId('categoryDialog').open && !quickCategory) renderCategoryList();
     setBusy(budgetBusy);
 }
 function renderCategoryList() {
@@ -236,6 +256,17 @@ function editEntry(entry) {
 }
 function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
+}
+function openCategories(quick) {
+    if (quick || quickCategory) resetCategory();
+    quickCategory = quick;
+    byId('categoryHeading').textContent = quick ? 'カテゴリを追加' : 'カテゴリを管理';
+    byId('categoryHint').hidden = quick;
+    byId('categories').hidden = quick;
+    byId('categoryStatus').textContent = '';
+    if (!quick) renderCategoryList();
+    byId('categoryDialog').showModal();
+    if (quick) byId('categoryName').focus();
 }
 function localStatus() {
     byId('status').dataset.state = localBudget.pending.length ? 'pending' : 'ready';
@@ -325,11 +356,19 @@ byId('entryForm').addEventListener('submit', async event => {
 byId('categoryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('categoryId').value) byId('categoryId').value = crypto.randomUUID();
-    byId('cancelCategory').hidden = false;
+    byId('cancelCategory').hidden = quickCategory;
     const value = { id: byId('categoryId').value, name: byId('categoryName').value, color: byId('categoryColor').value };
-    if (await mutate({ type: 'categorySave', value })) resetCategory();
+    if (await mutate({ type: 'categorySave', value })) {
+        resetCategory();
+        if (quickCategory) {
+            byId('entryCategory').value = value.id;
+            byId('categoryDialog').close();
+            byId('entryCategory').focus();
+        }
+    }
 });
-byId('categoryButton').addEventListener('click', () => { byId('categoryStatus').textContent = ''; renderCategoryList(); byId('categoryDialog').showModal(); });
+byId('categoryButton').addEventListener('click', () => openCategories(false));
+byId('addEntryCategory').addEventListener('click', () => openCategories(true));
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
 byId('cancelEntry').addEventListener('click', resetEntry); byId('cancelCategory').addEventListener('click', resetCategory);
 byId('entryAttribution').addEventListener('change', showPersonField);

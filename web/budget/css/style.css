@@ -194,6 +194,19 @@ main  {
 .week-day h3 {
     font-size:14px;
 }
+.calendar-day.day-saturday,.week-day.day-saturday {
+    background-color:color-mix(in srgb,var(--surface-raised),#477dbe 16%);
+}
+.calendar-day.day-off,.week-day.day-off {
+    background-color:color-mix(in srgb,var(--surface-raised),var(--danger) 13%);
+}
+.week-day:is(.day-saturday,.day-off) {
+    border-radius:6px;
+    padding-inline:8px;
+}
+.calendar-day[aria-pressed="true"] {
+    box-shadow:inset 0 0 0 1px var(--accent);
+}
 .record-details {
     color:var(--muted);
     font-size:12px;
@@ -246,6 +259,15 @@ fieldset>label:first-of-type  {
 }
 .entry-panel .form-actions button:first-child  {
     flex:1;
+}
+.entry-category-control {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+}
+.entry-category-control button {
+    padding-inline:10px;
+    white-space:nowrap;
 }
 #entryAmount  {
     font-size:21px;
