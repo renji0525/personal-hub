@@ -5,7 +5,8 @@ const budgetApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(act
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
 let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
-let recordLimit = 50, recordFilter = null, summaryMonth = null;
+let recordLimit = 50, recordFilter = null, summaryPeriod = null;
+let periodView = 'month', selectedDay = '';
 let localBudget = null, savedRaw = null;
 let categoryIndex = new Map(), indexedState = null, months = new Map();
 const yenFormatter = new Intl.NumberFormat('ja-JP');
@@ -42,6 +43,52 @@ function fillCategories(select, filter = false) {
     budgetState.categories.forEach(c => select.append(new Option(c.name, c.id)));
     if ([...select.options].some(o => o.value === selected)) select.value = selected;
 }
+const weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+function dayLabel(date) {
+    const [month, day] = date.split('-').slice(-2).map(Number);
+    return month + '月' + day + '日';
+}
+function shiftDay(date, offset) {
+    const day = new Date(date + 'T00:00:00Z');
+    day.setUTCDate(day.getUTCDate() + offset);
+    return day.toISOString().split('T')[0];
+}
+function weekday(date) { return (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7; }
+function fillSuggestions(id, values) {
+    const unique = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+    byId(id).replaceChildren(...unique.map(value => new Option(value, value)));
+}
+function renderCalendar(month, entries) {
+    const first = month + '-01', start = weekday(first), currentDate = today();
+    const totals = new Map();
+    for (const entry of entries) {
+        if (!totals.has(entry.date)) totals.set(entry.date, { expense: 0, income: 0 });
+        totals.get(entry.date)[entry.type] += entry.amount;
+    }
+    const calendar = byId('calendarDays');
+    calendar.replaceChildren();
+    for (let i = 0; i < start; i++) calendar.append(node('span', 'calendar-blank'));
+    for (let date = first; date.startsWith(month + '-'); date = shiftDay(date, 1)) {
+        const current = date;
+        const total = totals.get(date) || { expense: 0, income: 0 };
+        const cell = node('button', 'calendar-day');
+        cell.type = 'button';
+        cell.setAttribute('aria-label', dayLabel(date) + '、支出' + yen(total.expense) + '、収入' + yen(total.income));
+        cell.setAttribute('aria-pressed', String(date === selectedDay));
+        if (date === currentDate) cell.setAttribute('aria-current', 'date');
+        cell.append(node('strong', 'day-number', String(Number(date.slice(8)))),
+            node('span', 'expense', '−' + yenFormatter.format(total.expense)),
+            node('span', 'income', '+' + yenFormatter.format(total.income)));
+        cell.addEventListener('click', () => {
+            selectedDay = current;
+            if (!byId('entryId').value) byId('entryDate').value = current;
+            render();
+            calendar.children[start + Number(current.slice(8)) - 1]?.focus();
+        });
+        calendar.append(cell);
+    }
+    while (calendar.childElementCount % 7) calendar.append(node('span', 'calendar-blank'));
+}
 function render(append = false) {
     append = append === true;
     if (!budgetLoaded) return;
@@ -58,17 +105,27 @@ function render(append = false) {
         for (const entries of months.values()) entries.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
         fillCategories(byId('entryCategory'));
         fillCategories(byId('categoryFilter'), true);
+        fillSuggestions('shopSuggestions', budgetState.entries.map(entry => entry.shop));
+        fillSuggestions('personSuggestions', budgetState.entries.map(entry => entry.attribution?.name));
     }
-    const month = byId('monthInput').value;
-    const entries = months.get(month) || [];
-    if (dataChanged || summaryMonth !== month) {
+    const month = byId('monthInput').value || today().slice(0, 7);
+    const weekly = periodView === 'week';
+    const anchor = byId('weekDate').value || today();
+    const monday = weekly ? shiftDay(anchor, -weekday(anchor)) : '';
+    const days = weekly ? weekdays.map((_, index) => shiftDay(monday, index)) : [];
+    const period = weekly ? monday : month;
+    const entries = weekly ? [...new Set(days.map(date => date.slice(0, 7)))]
+        .flatMap(key => months.get(key) || []).filter(entry => days.includes(entry.date)) : months.get(month) || [];
+    byId('monthCalendar').hidden = weekly;
+    if (!weekly && !append) renderCalendar(month, entries);
+    if (dataChanged || summaryPeriod !== period) {
         const summary = BudgetModel.summarize(entries);
         byId('incomeTotal').textContent = yen(summary.income);
         byId('expenseTotal').textContent = yen(summary.expense);
         byId('balanceTotal').textContent = yen(summary.balance);
         const bars = byId('categorySummary'); bars.replaceChildren();
         const groups = [...summary.categories].sort((a, b) => b[1] - a[1]);
-        if (!groups.length) bars.append(node('p', 'empty', '今月の支出はまだありません。'));
+        if (!groups.length) bars.append(node('p', 'empty', 'この期間の支出はまだありません。'));
         groups.forEach(([id, amount]) => {
             const row = node('div', 'bar-row'), heading = node('div', 'bar-heading');
             heading.append(categoryLabel(id), node('span', '', yen(amount)));
@@ -76,21 +133,27 @@ function render(append = false) {
             fill.style.width = (amount / summary.expense * 100) + '%'; fill.style.backgroundColor = categoryInfo(id).color;
             track.append(fill); row.append(heading, track); bars.append(row);
         });
-        summaryMonth = month;
+        summaryPeriod = period;
     }
-    const filtered = entries.filter(e => (byId('typeFilter').value === 'all' || e.type === byId('typeFilter').value) &&
+    const filtered = entries.filter(e => (weekly || !selectedDay || e.date === selectedDay) &&
+        (byId('typeFilter').value === 'all' || e.type === byId('typeFilter').value) &&
         (byId('categoryFilter').value === 'all' || e.categoryId === byId('categoryFilter').value));
-    const filter = [month, byId('typeFilter').value, byId('categoryFilter').value].join(':');
-    if (dataChanged || recordFilter !== filter) { recordLimit = 50; append = false; recordFilter = filter; }
+    const filter = [period, selectedDay, byId('typeFilter').value, byId('categoryFilter').value].join(':');
+    if (dataChanged || recordFilter !== filter) { recordLimit = 50; recordFilter = filter; append = false; }
+    byId('recordsTitle').textContent = weekly ? dayLabel(days[0]) + '〜' + dayLabel(days[6]) + 'の記録' :
+        selectedDay ? dayLabel(selectedDay) + 'の記録' : '記録一覧';
+    byId('clearDay').hidden = weekly || !selectedDay;
     byId('entryCount').textContent = filtered.length + '件';
-    const list = byId('entries'), start = append ? list.childElementCount : 0;
+    const list = byId('entries');
     if (!append) list.replaceChildren();
     byId('moreEntries').hidden = filtered.length <= recordLimit;
-    if (!filtered.length) list.append(node('p', 'empty', entries.length ? '条件に合う記録がありません。' : 'この月の記録はまだありません。入力フォームから記録しましょう。'));
-    filtered.slice(start, recordLimit).forEach(entry => {
+    const renderEntry = (entry, target) => {
         const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
         meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
-        left.append(meta, node('p', 'record-memo', entry.memo || (entry.type === 'income' ? '収入' : '支出')));
+        left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
+        const details = [entry.shop, entry.attribution?.kind === 'group' ? '共有グループ全体' : entry.attribution?.name,
+            entry.productName && entry.memo].filter(Boolean);
+        if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
         const right = node('div', 'record-right');
         right.append(node('strong', 'record-amount ' + entry.type, (entry.type === 'income' ? '+' : '−') + yen(entry.amount)));
         const actions = node('div', 'record-actions');
@@ -103,8 +166,26 @@ function render(append = false) {
                 if (await mutate({ type: 'entryDelete', id: entry.id })) { if (byId('entryId').value === entry.id) resetEntry(); }
             }
         });
-        actions.append(edit, remove); right.append(actions); row.append(left, right); list.append(row);
-    });
+        actions.append(edit, remove); right.append(actions); row.append(left, right); target.append(row);
+    };
+    if (weekly) {
+        let remaining = recordLimit;
+        days.forEach((date, index) => {
+            const day = append ? list.children[index] : node('section', 'week-day');
+            if (!append) day.append(node('h3', '', dayLabel(date) + '（' + weekdays[index] + '）'));
+            const records = filtered.filter(entry => entry.date === date);
+            if (!records.length && !append) day.append(node('p', 'empty', '記録なし'));
+            else {
+                const start = append ? day.querySelectorAll('.record').length : 0;
+                records.slice(start, remaining).forEach(entry => renderEntry(entry, day));
+                remaining = Math.max(0, remaining - records.length);
+            }
+            if (!append) list.append(day);
+        });
+    } else {
+        if (!filtered.length) list.append(node('p', 'empty', 'この期間に条件に合う記録がありません。'));
+        filtered.slice(append ? list.childElementCount : 0, recordLimit).forEach(entry => renderEntry(entry, list));
+    }
     if (dataChanged && byId('categoryDialog').open) renderCategoryList();
     setBusy(budgetBusy);
 }
@@ -129,12 +210,27 @@ function renderCategoryList() {
     if (!budgetState.categories.length) list.append(node('p', 'empty', 'カテゴリを追加してください。カテゴリなしでも記録できます。'));
 }
 function resetEntry() {
-    byId('entryForm').reset(); byId('entryId').value = ''; byId('entryDate').value = today();
+    byId('entryForm').reset(); byId('entryId').value = '';
+    byId('entryDate').value = selectedDay || (periodView === 'week' ? byId('weekDate').value : today());
+    setEntryAttribution();
     byId('entryHeading').textContent = '収支を記録'; byId('saveEntry').textContent = '記録する'; byId('cancelEntry').hidden = true;
+}
+function showPersonField() {
+    const personal = byId('entryAttribution').value === 'person';
+    byId('entryPersonFields').hidden = !personal;
+    byId('entryPerson').required = personal;
+}
+function setEntryAttribution(attribution) {
+    const shared = budgetSession && window.BudgetSpaces?.selected(budgetSession.userId, 'budget')?.id;
+    byId('entryAttribution').value = attribution?.kind || (shared || !budgetSession ? 'group' : 'person');
+    byId('entryPerson').value = attribution?.name || (!attribution && !shared ? budgetSession?.userId || '' : '');
+    showPersonField();
 }
 function editEntry(entry) {
     byId('entryId').value = entry.id; byId('entryType').value = entry.type; byId('entryDate').value = entry.date;
     byId('entryAmount').value = entry.amount; byId('entryCategory').value = entry.categoryId; byId('entryMemo').value = entry.memo;
+    byId('entryShop').value = entry.shop || ''; byId('entryProduct').value = entry.productName || '';
+    setEntryAttribution(entry.attribution);
     byId('entryHeading').textContent = '記録を編集'; byId('saveEntry').textContent = '変更を保存'; byId('cancelEntry').hidden = false;
     byId('entryHeading').scrollIntoView({ behavior: 'smooth', block: 'center' }); byId('entryAmount').focus();
 }
@@ -212,10 +308,18 @@ byId('entryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('entryId').value) byId('entryId').value = crypto.randomUUID();
     byId('cancelEntry').hidden = false;
+    const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
     const value = { id: byId('entryId').value, type: byId('entryType').value, date: byId('entryDate').value,
-        amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value };
-    if (await mutate({ type: 'entrySave', value }, false)) {
-        byId('monthInput').value = value.date.slice(0, 7); byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all'; resetEntry(); render();
+        amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value,
+        attribution: byId('entryAttribution').value === 'person' ? { kind: 'person', name: byId('entryPerson').value.trim() } : { kind: 'group' } };
+    const shop = byId('entryShop').value.trim(), productName = byId('entryProduct').value.trim();
+    if (shop || existing?.shop) value.shop = shop;
+    if (productName || existing?.productName) value.productName = productName;
+    // 旧版GASでは追加項目を落として保存せず、未対応操作として同期を止める
+    if (await mutate({ type: 'entryDetailsSave', value }, false)) {
+        byId('monthInput').value = value.date.slice(0, 7); byId('weekDate').value = value.date;
+        if (selectedDay) selectedDay = value.date;
+        byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all'; resetEntry(); render();
     }
 });
 byId('categoryForm').addEventListener('submit', async event => {
@@ -228,13 +332,50 @@ byId('categoryForm').addEventListener('submit', async event => {
 byId('categoryButton').addEventListener('click', () => { byId('categoryStatus').textContent = ''; renderCategoryList(); byId('categoryDialog').showModal(); });
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
 byId('cancelEntry').addEventListener('click', resetEntry); byId('cancelCategory').addEventListener('click', resetCategory);
-['monthInput', 'typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
-function moveMonth(offset) {
-    const [year, month] = byId('monthInput').value.split('-').map(Number);
-    const date = new Date(year, month - 1 + offset, 1);
-    byId('monthInput').value = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'); render();
+byId('entryAttribution').addEventListener('change', showPersonField);
+byId('clearDay').addEventListener('click', () => { selectedDay = ''; render(); });
+['typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
+byId('monthInput').addEventListener('change', () => {
+    if (!/^\d{4}-\d{2}$/.test(byId('monthInput').value) || !byId('monthInput').validity.valid) byId('monthInput').value = today().slice(0, 7);
+    selectedDay = ''; render();
+});
+byId('weekDate').addEventListener('change', () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(byId('weekDate').value) || !byId('weekDate').validity.valid) byId('weekDate').value = today();
+    if (!byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
+    render();
+});
+function setPeriodView(view) {
+    if (periodView === view) return;
+    const weekly = view === 'week';
+    if (weekly) {
+        const month = byId('monthInput').value || today().slice(0, 7);
+        byId('weekDate').value = selectedDay || (today().startsWith(month) ? today() : month + '-01');
+    } else byId('monthInput').value = (byId('weekDate').value || today()).slice(0, 7);
+    periodView = view; selectedDay = '';
+    byId('monthInput').hidden = weekly; byId('weekDate').hidden = !weekly;
+    byId('monthView').setAttribute('aria-pressed', String(!weekly));
+    byId('weekView').setAttribute('aria-pressed', String(weekly));
+    byId('previousMonth').setAttribute('aria-label', weekly ? '前の週' : '前の月');
+    byId('nextMonth').setAttribute('aria-label', weekly ? '次の週' : '次の月');
+    if (weekly && !byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
+    render();
 }
-byId('previousMonth').addEventListener('click', () => moveMonth(-1)); byId('nextMonth').addEventListener('click', () => moveMonth(1));
+function movePeriod(offset) {
+    if (periodView === 'week') {
+        const date = shiftDay(byId('weekDate').value || today(), offset * 7);
+        if (date.length === 10 && !date.startsWith('0000')) byId('weekDate').value = date;
+        if (!byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
+    } else {
+        const month = byId('monthInput').value || today().slice(0, 7);
+        const date = new Date(month + '-01T00:00:00Z');
+        date.setUTCMonth(date.getUTCMonth() + offset);
+        if (date.getUTCFullYear() >= 1 && date.getUTCFullYear() <= 9999) byId('monthInput').value = date.toISOString().slice(0, 7);
+        selectedDay = '';
+    }
+    render();
+}
+byId('monthView').addEventListener('click', () => setPeriodView('month')); byId('weekView').addEventListener('click', () => setPeriodView('week'));
+byId('previousMonth').addEventListener('click', () => movePeriod(-1)); byId('nextMonth').addEventListener('click', () => movePeriod(1));
 byId('refreshButton').addEventListener('click', loadBudget);
 byId('moreEntries').addEventListener('click', () => { recordLimit += 50; render(true); });
 byId('logoutButton').addEventListener('click', async () => { if (!budgetBusy || budgetSyncMode === 'read') { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } } });
@@ -250,10 +391,11 @@ window.addEventListener('hub-auth-changed', event => {
     }
 });
 (async () => {
-    byId('monthInput').value = today().slice(0, 7); resetEntry();
+    byId('monthInput').value = today().slice(0, 7); byId('weekDate').value = today(); resetEntry();
     budgetSession = await HubAuth.ready;
     if (!budgetSession) return;
     if (window.BudgetSpaces) { BudgetSpaces.bind(budgetSession, 'budget'); BudgetSpaces.mount(budgetSession); }
+    setEntryAttribution();
     byId('currentUser').textContent = budgetSession.userId;
     document.documentElement.removeAttribute('data-auth-pending');
     if (window.BudgetSpaces && !BudgetSpaces.allowed()) { setBusy(false); return; }

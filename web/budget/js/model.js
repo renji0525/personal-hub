@@ -22,7 +22,20 @@ var BudgetModel = (() => {
             throw new Error('金額は1〜999,999,999,999円の整数で入力してください。');
         if (value.categoryId !== '' && !categories.some(c => c.id === value.categoryId)) throw new Error('カテゴリを選び直してください。');
         if (typeof value.memo !== 'string' || value.memo.length > 200) throw new Error('メモは200文字以内で入力してください。');
-        return { id: id(value.id), date: value.date, type: value.type, categoryId: value.categoryId, amount: value.amount, memo: value.memo.trim() };
+        const result = { id: id(value.id), date: value.date, type: value.type, categoryId: value.categoryId, amount: value.amount, memo: value.memo.trim() };
+        for (const [key, label] of [['shop', 'お店'], ['productName', '商品名']]) {
+            if (value[key] === undefined) continue;
+            if (typeof value[key] !== 'string' || value[key].length > 80) throw new Error(label + 'は80文字以内で入力してください。');
+            if (value[key].trim()) result[key] = value[key].trim();
+        }
+        if (value.attribution !== undefined) {
+            const attribution = value.attribution;
+            if (attribution?.kind === 'group') result.attribution = { kind: 'group' };
+            else if (attribution?.kind === 'person' && typeof attribution.name === 'string' && attribution.name.trim() && attribution.name.length <= 80)
+                result.attribution = { kind: 'person', name: attribution.name.trim() };
+            else throw new Error('対象を選び、個人の場合は名前を80文字以内で入力してください。');
+        }
+        return result;
     }
     function date(value) {
         if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value + 'T00:00:00Z')) || new Date(value + 'T00:00:00Z').toISOString().slice(0,10) !== value) throw new Error('購入日を確認してください。');
@@ -52,9 +65,11 @@ var BudgetModel = (() => {
             const key = id(operation.id);
             if (next.entries.some(e => e.categoryId === key) || next.products.some(p => p.categoryId === key)) throw new Error('使用中のカテゴリです。記録・商品のカテゴリを変更してから削除してください。');
             next.categories = next.categories.filter(c => c.id !== key);
-        } else if (operation.type === 'entrySave') {
-            const value = entry(operation.value, next.categories);
-            const index = next.entries.findIndex(e => e.id === value.id);
+        } else if (operation.type === 'entrySave' || operation.type === 'entryDetailsSave') {
+            const index = next.entries.findIndex(e => e.id === operation.value?.id);
+            // 旧画面からの編集では送信されない追加項目を引き継ぐ
+            const { shop, productName, attribution } = next.entries[index] || {};
+            const value = entry({ shop, productName, attribution, ...operation.value }, next.categories);
             if (index < 0) next.entries.push(value); else next.entries[index] = value;
         } else if (operation.type === 'entryDelete') {
             const key = id(operation.id);

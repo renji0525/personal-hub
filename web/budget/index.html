@@ -57,10 +57,16 @@
                 <button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button>
             </div>
             <div class="month-toolbar">
+                <div class="period-toggle" role="group" aria-label="表示形式">
+                    <button id="monthView" type="button" aria-pressed="true">月</button>
+                    <button id="weekView" type="button" aria-pressed="false">週</button>
+                </div>
                 <div class="month-picker">
                     <button id="previousMonth" type="button" aria-label="前の月">‹</button>
                     <label for="monthInput" class="sr-only">表示する月</label>
-                    <input id="monthInput" type="month" required>
+                    <input id="monthInput" type="month" min="0001-01" max="9999-12" required>
+                    <label for="weekDate" class="sr-only">表示する週の日付</label>
+                    <input id="weekDate" type="date" min="0001-01-01" max="9999-12-31" hidden>
                     <button id="nextMonth" type="button" aria-label="次の月">›</button>
                 </div>
                 <div class="toolbar-actions">
@@ -82,17 +88,23 @@
             <p class="save-note">記録はこの端末に保存。他の端末へは「同期する」で反映できます。</p>
             <button id="discardButton" type="button" class="quiet" hidden>未同期の変更を破棄して再取得</button>
             <p class="sync-status" id="status" role="status" aria-live="polite">読み込み中…</p>
-            <section class="summary" aria-label="月の収支">
+            <section id="monthCalendar" class="panel calendar-panel" aria-label="月カレンダー">
+                <h2>月カレンダー</h2>
+                <p class="calendar-legend"><span class="expense">− 支出（円）</span><span class="income">＋ 収入（円）</span></p>
+                <div class="calendar-weekdays" aria-hidden="true"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div>
+                <div id="calendarDays" class="calendar-days"></div>
+            </section>
+            <section class="summary" aria-label="表示期間の収支">
                 <article>
-                    <span>↗ 今月の収入</span>
+                    <span>↗ 期間の収入</span>
                     <strong id="incomeTotal">—</strong>
                 </article>
                 <article>
-                    <span>↘ 今月の支出</span>
+                    <span>↘ 期間の支出</span>
                     <strong id="expenseTotal">—</strong>
                 </article>
                 <article class="balance">
-                    <span>今月の差引</span>
+                    <span>期間の差引</span>
                     <strong id="balanceTotal">—</strong>
                 </article>
             </section>
@@ -108,15 +120,30 @@
                                 <option value="income">収入</option>
                             </select>
                             <label for="entryDate">日付</label>
-                            <input id="entryDate" type="date" required>
+                            <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
                             <label for="entryAmount">金額（円）</label>
                             <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
                             <label for="entryCategory">カテゴリ</label>
                             <select id="entryCategory">
                             </select>
+                            <label for="entryShop">お店 <span class="optional">任意</span></label>
+                            <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
+                            <datalist id="shopSuggestions"></datalist>
+                            <label for="entryAttribution">対象</label>
+                            <select id="entryAttribution">
+                                <option value="group">共有グループ全体</option>
+                                <option value="person">個人</option>
+                            </select>
+                            <div id="entryPersonFields" hidden>
+                                <label for="entryPerson">名前</label>
+                                <input id="entryPerson" list="personSuggestions" maxlength="80" autocomplete="off">
+                                <datalist id="personSuggestions"></datalist>
+                            </div>
+                            <label for="entryProduct">商品名 <span class="optional">任意</span></label>
+                            <input id="entryProduct" maxlength="80">
                             <label for="entryMemo">メモ <span class="optional">任意</span>
                             </label>
-                            <input id="entryMemo" maxlength="200" placeholder="お店や用途など">
+                            <input id="entryMemo" maxlength="200" placeholder="用途など">
                             <div class="form-actions">
                                 <button type="submit" id="saveEntry">記録する</button>
                                 <button type="button" id="cancelEntry" class="quiet" hidden>キャンセル</button>
@@ -133,7 +160,7 @@
                     </section>
                     <section class="panel records-panel">
                         <div class="records-heading">
-                            <h2>記録一覧 <span id="entryCount" class="count">0件</span>
+                            <h2><span id="recordsTitle">記録一覧</span> <span id="entryCount" class="count">0件</span>
                             </h2>
                             <div class="filters">
                                 <label class="sr-only" for="typeFilter">種類で絞り込み</label>
@@ -147,6 +174,7 @@
                                 </select>
                             </div>
                         </div>
+                        <button id="clearDay" class="quiet" type="button" hidden>月の全記録を表示</button>
                         <div id="entries" class="records">
                             <p class="empty">まだ記録がありません。</p>
                         </div>
