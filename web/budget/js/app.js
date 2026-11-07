@@ -8,6 +8,7 @@ let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
 let recordLimit = 50, recordFilter = null, summaryPeriod = null;
 let periodView = 'month', selectedDay = '';
 let quickCategory = false;
+let calendarState = null, calendarMonth = '', calendarDate = '';
 let localBudget = null, savedRaw = null;
 let categoryIndex = new Map(), indexedState = null, months = new Map();
 const yenFormatter = new Intl.NumberFormat('ja-JP');
@@ -68,12 +69,20 @@ function fillSuggestions(id, values) {
 }
 function renderCalendar(month, entries) {
     const first = month + '-01', start = weekday(first), currentDate = today();
+    const calendar = byId('calendarDays');
+    // データ・表示月・当日が同じなら日別集計とボタンを再生成しない
+    if (calendarState === budgetState && calendarMonth === month && calendarDate === currentDate) {
+        for (const cell of calendar.querySelectorAll('button')) {
+            const pressed = String(cell.dataset.date === selectedDay);
+            if (cell.getAttribute('aria-pressed') !== pressed) cell.setAttribute('aria-pressed', pressed);
+        }
+        return;
+    }
     const totals = new Map();
     for (const entry of entries) {
         if (!totals.has(entry.date)) totals.set(entry.date, { expense: 0, income: 0 });
         totals.get(entry.date)[entry.type] += entry.amount;
     }
-    const calendar = byId('calendarDays');
     calendar.replaceChildren();
     for (let i = 0; i < start; i++) calendar.append(node('span', 'calendar-blank'));
     for (let date = first; date.startsWith(month + '-'); date = shiftDay(date, 1)) {
@@ -81,6 +90,7 @@ function renderCalendar(month, entries) {
         const total = totals.get(date);
         const cell = node('button', 'calendar-day');
         cell.type = 'button';
+        cell.dataset.date = date;
         const index = weekday(date), holiday = styleDay(cell, date, index);
         const label = [dayLabel(date), weekdays[index] + '曜日'];
         if (holiday) label.push('祝日');
@@ -105,6 +115,7 @@ function renderCalendar(month, entries) {
         calendar.append(cell);
     }
     while (calendar.childElementCount % 7) calendar.append(node('span', 'calendar-blank'));
+    calendarState = budgetState; calendarMonth = month; calendarDate = currentDate;
 }
 function render(append = false) {
     append = append === true;
@@ -152,10 +163,10 @@ function render(append = false) {
         });
         summaryPeriod = period;
     }
+    const typeFilter = byId('typeFilter').value, categoryFilter = byId('categoryFilter').value;
     const filtered = entries.filter(e => (weekly || !selectedDay || e.date === selectedDay) &&
-        (byId('typeFilter').value === 'all' || e.type === byId('typeFilter').value) &&
-        (byId('categoryFilter').value === 'all' || e.categoryId === byId('categoryFilter').value));
-    const filter = [period, selectedDay, byId('typeFilter').value, byId('categoryFilter').value].join(':');
+        (typeFilter === 'all' || e.type === typeFilter) && (categoryFilter === 'all' || e.categoryId === categoryFilter));
+    const filter = [period, selectedDay, typeFilter, categoryFilter].join(':');
     if (dataChanged || recordFilter !== filter) { recordLimit = 50; recordFilter = filter; append = false; }
     byId('recordsTitle').textContent = weekly ? dayLabel(days[0]) + '〜' + dayLabel(days[6]) + 'の記録' :
         selectedDay ? dayLabel(selectedDay) + 'の記録' : '記録一覧';
