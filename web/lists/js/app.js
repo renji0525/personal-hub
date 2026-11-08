@@ -24,6 +24,36 @@ function save(value) {
     savedRaw = ListsLocal.write(localStorage, scope(), value); listsLocal = value;
 }
 function element(tag, text, className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
+const productImages = new Map();
+let previewQueue = Promise.resolve();
+function displayProductImage(link, url) {
+    const src = ListProductPreview.imageUrl(url);
+    if (!src || !link.isConnected || !sameAccount()) return;
+    const image = element('img', undefined, 'item-preview');
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => image.remove(), { once: true });
+    image.src = src;
+    link.prepend(image);
+}
+// 一覧に近いリンクだけ順番に取得し、再描画しても同じURLは問い合わせ直さない
+const productObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const link = entry.target, url = link.dataset.preview;
+        productObserver.unobserve(link);
+        previewQueue = previewQueue.then(async () => {
+            if (!link.isConnected || !sameAccount()) return;
+            if (!productImages.has(url)) {
+                const result = await BudgetSpaces.api('productPreview', { url }, listsSession);
+                productImages.set(url, result.image);
+            }
+            displayProductImage(link, productImages.get(url));
+        }).catch(() => { /* 取得できない場合は商品リンクだけを残す */ });
+    }
+}, { rootMargin: '160px' });
 function mutate(operation) {
     if (!listsLocal || listsSyncMode === 'write' || !sameAccount()) throw new Error('同期が完了してから操作してください。');
     save(ListsLocal.edit(listsLocal, operation)); render(); localStatus();
@@ -60,6 +90,7 @@ async function refreshAssignees() {
 }
 function render() {
     if (!listsLocal) return;
+    productObserver.disconnect();
     const items = ListsLocal.view(listsLocal).items, query = byId('search').value.trim().toLocaleLowerCase(), filter = byId('filter').value;
     for (const kind of ['todo', 'wish']) {
         const all = items.filter(value => value.kind === kind), visible = all.filter(value => (filter === 'all' || value.done === (filter === 'done')) && (value.title + ' ' + value.note).toLocaleLowerCase().includes(query))
@@ -78,7 +109,12 @@ function render() {
             card.append(element('p', '担当：' + (value.assignee || '未指定'), 'item-assignee'));
             if (value.dueDate) card.append(element('p', '期限 ' + value.dueDate + (!value.done && value.dueDate < today() ? '・期限を過ぎています' : ''), !value.done && value.dueDate < today() ? 'overdue' : 'muted'));
             if (value.note) card.append(element('p', value.note, 'item-note'));
-            if (value.url) { const link = element('a', '商品リンクを開く ↗', 'item-link'); link.href = value.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link); }
+            let productLink;
+            if (kind === 'wish' && value.url) {
+                productLink = element('a', '商品リンクを開く ↗', 'item-link');
+                productLink.href = value.url; productLink.target = '_blank'; productLink.rel = 'noopener noreferrer';
+                card.append(productLink);
+            }
             const actions = element('div', undefined, 'actions');
             if (value.done) {
                 const restore = element('button', kind === 'todo' ? '未完了に戻す' : '未購入に戻す', 'quiet'); restore.type = 'button';
@@ -88,6 +124,16 @@ function render() {
                 const button = element('button', label, 'quiet'); button.type = 'button'; button.addEventListener('click', () => { try { action(); } catch (error) { message(error.message, 'error'); } }); actions.append(button);
             }
             card.append(actions); container.append(card);
+            if (productLink) {
+                const image = ListProductPreview.imageUrl(value.url);
+                const page = ListProductPreview.pageUrl(value.url);
+                if (image && /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i.test(image)) displayProductImage(productLink, image);
+                else if (page && productImages.has(page)) displayProductImage(productLink, productImages.get(page));
+                else if (page) {
+                    productLink.dataset.preview = page;
+                    productObserver.observe(productLink);
+                }
+            }
         }
         if (!visible.length) container.append(element('p', query || filter !== 'all' ? '条件に合う項目はありません。' : kind === 'todo' ? 'やる事を追加して、ひとつずつ進めましょう。' : '気になるものを、ここにメモしておきましょう。', 'empty'));
         byId(kind + 'More').hidden = visible.length <= limits[kind];
