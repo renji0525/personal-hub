@@ -88,7 +88,7 @@ function renderCalendar(month, entries) {
     for (let date = first; date.startsWith(month + '-'); date = shiftDay(date, 1)) {
         const current = date;
         const total = totals.get(date);
-        const cell = node('button', 'calendar-day');
+        const cell = node('button', 'calendar-day requires-data');
         cell.type = 'button';
         cell.dataset.date = date;
         const index = weekday(date), holiday = styleDay(cell, date, index);
@@ -108,9 +108,8 @@ function renderCalendar(month, entries) {
         if (date === currentDate) cell.setAttribute('aria-current', 'date');
         cell.addEventListener('click', () => {
             selectedDay = current;
-            if (!byId('entryId').value) byId('entryDate').value = current;
             render();
-            calendar.children[start + Number(current.slice(8)) - 1]?.focus();
+            openEntry(current);
         });
         calendar.append(cell);
     }
@@ -202,7 +201,11 @@ function render(append = false) {
             const day = append ? list.children[index] : node('section', 'week-day');
             if (!append) {
                 const holiday = styleDay(day, date, index);
-                day.append(node('h3', '', dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）'));
+                const heading = node('h3');
+                const button = node('button', 'week-date quiet requires-data', dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）');
+                button.type = 'button';
+                button.addEventListener('click', () => openEntry(date));
+                heading.append(button); day.append(heading);
             }
             const records = filtered.filter(entry => entry.date === date);
             if (!records.length && !append) day.append(node('p', 'empty', '記録なし'));
@@ -240,11 +243,20 @@ function renderCategoryList() {
     });
     if (!budgetState.categories.length) list.append(node('p', 'empty', 'カテゴリを追加してください。カテゴリなしでも記録できます。'));
 }
-function resetEntry() {
+function resetEntry(date = selectedDay || (periodView === 'week' ? byId('weekDate').value : today())) {
     byId('entryForm').reset(); byId('entryId').value = '';
-    byId('entryDate').value = selectedDay || (periodView === 'week' ? byId('weekDate').value : today());
+    byId('entryDate').value = date || today();
     setEntryAttribution();
-    byId('entryHeading').textContent = '収支を記録'; byId('saveEntry').textContent = '記録する'; byId('cancelEntry').hidden = true;
+    byId('entryHeading').textContent = '収支を記録'; byId('saveEntry').textContent = '記録する';
+    byId('entryStatus').textContent = '';
+}
+function showEntry() {
+    byId('entryDialog').showModal();
+    byId('entryAmount').focus({ preventScroll: true });
+}
+function openEntry(date) {
+    resetEntry(date);
+    showEntry();
 }
 function showPersonField() {
     const personal = byId('entryAttribution').value === 'person';
@@ -258,12 +270,13 @@ function setEntryAttribution(attribution) {
     showPersonField();
 }
 function editEntry(entry) {
+    resetEntry(entry.date);
     byId('entryId').value = entry.id; byId('entryType').value = entry.type; byId('entryDate').value = entry.date;
     byId('entryAmount').value = entry.amount; byId('entryCategory').value = entry.categoryId; byId('entryMemo').value = entry.memo;
     byId('entryShop').value = entry.shop || ''; byId('entryProduct').value = entry.productName || '';
     setEntryAttribution(entry.attribution);
-    byId('entryHeading').textContent = '記録を編集'; byId('saveEntry').textContent = '変更を保存'; byId('cancelEntry').hidden = false;
-    byId('entryHeading').scrollIntoView({ behavior: 'smooth', block: 'center' }); byId('entryAmount').focus();
+    byId('entryHeading').textContent = '記録を編集'; byId('saveEntry').textContent = '変更を保存';
+    showEntry();
 }
 function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
@@ -327,14 +340,14 @@ async function loadBudget() {
         byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
     } finally { budgetSyncMode = null; setBusy(false); }
 }
-async function mutate(operation, refresh = true) {
+async function mutate(operation, refresh = true, errorId = 'categoryStatus') {
     if (budgetBusy && budgetSyncMode !== 'read' || !budgetLoaded || !sameAccount()) return false;
     try {
         saveLocal(BudgetLocal.edit(localBudget, operation));
         if (refresh) render();
-        localStatus(); byId('categoryStatus').textContent = ''; return true;
+        localStatus(); byId(errorId).textContent = ''; return true;
     } catch (error) {
-        byId('status').textContent = byId('categoryStatus').textContent = '端末に保存できませんでした。' + error.message;
+        byId('status').textContent = byId(errorId).textContent = '端末に保存できませんでした。' + error.message;
         return false;
     }
 }
@@ -349,7 +362,6 @@ window.addEventListener('storage', event => {
 byId('entryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('entryId').value) byId('entryId').value = crypto.randomUUID();
-    byId('cancelEntry').hidden = false;
     const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
     const value = { id: byId('entryId').value, type: byId('entryType').value, date: byId('entryDate').value,
         amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value,
@@ -358,10 +370,11 @@ byId('entryForm').addEventListener('submit', async event => {
     if (shop || existing?.shop) value.shop = shop;
     if (productName || existing?.productName) value.productName = productName;
     // 旧版GASでは追加項目を落として保存せず、未対応操作として同期を止める
-    if (await mutate({ type: 'entryDetailsSave', value }, false)) {
+    if (await mutate({ type: 'entryDetailsSave', value }, false, 'entryStatus')) {
         byId('monthInput').value = value.date.slice(0, 7); byId('weekDate').value = value.date;
         if (selectedDay) selectedDay = value.date;
-        byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all'; resetEntry(); render();
+        byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all';
+        byId('entryDialog').close(); resetEntry(); render();
     }
 });
 byId('categoryForm').addEventListener('submit', async event => {
@@ -381,7 +394,9 @@ byId('categoryForm').addEventListener('submit', async event => {
 byId('categoryButton').addEventListener('click', () => openCategories(false));
 byId('addEntryCategory').addEventListener('click', () => openCategories(true));
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
-byId('cancelEntry').addEventListener('click', resetEntry); byId('cancelCategory').addEventListener('click', resetCategory);
+byId('newEntry').addEventListener('click', () => openEntry());
+for (const id of ['cancelEntry', 'closeEntry']) byId(id).addEventListener('click', () => byId('entryDialog').close());
+byId('cancelCategory').addEventListener('click', resetCategory);
 byId('entryAttribution').addEventListener('change', showPersonField);
 byId('clearDay').addEventListener('click', () => { selectedDay = ''; render(); });
 ['typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
@@ -391,7 +406,6 @@ byId('monthInput').addEventListener('change', () => {
 });
 byId('weekDate').addEventListener('change', () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(byId('weekDate').value) || !byId('weekDate').validity.valid) byId('weekDate').value = today();
-    if (!byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
     render();
 });
 function setPeriodView(view) {
@@ -407,14 +421,12 @@ function setPeriodView(view) {
     byId('weekView').setAttribute('aria-pressed', String(weekly));
     byId('previousMonth').setAttribute('aria-label', weekly ? '前の週' : '前の月');
     byId('nextMonth').setAttribute('aria-label', weekly ? '次の週' : '次の月');
-    if (weekly && !byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
     render();
 }
 function movePeriod(offset) {
     if (periodView === 'week') {
         const date = shiftDay(byId('weekDate').value || today(), offset * 7);
         if (date.length === 10 && !date.startsWith('0000')) byId('weekDate').value = date;
-        if (!byId('entryId').value) byId('entryDate').value = byId('weekDate').value;
     } else {
         const month = byId('monthInput').value || today().slice(0, 7);
         const date = new Date(month + '-01T00:00:00Z');

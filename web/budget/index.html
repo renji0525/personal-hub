@@ -55,7 +55,7 @@
                         <img class="heading-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">家計簿</h1>
                     <p class="subtitle">毎日の収支を、ひと目で。</p>
                 </div>
-                <button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button>
+                <div class="toolbar-actions"><button id="newEntry" class="requires-data" type="button" disabled>記録</button><button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button></div>
             </div>
             <div class="month-toolbar">
                 <div class="period-toggle" role="group" aria-label="表示形式">
@@ -109,83 +109,85 @@
                     <strong id="balanceTotal">—</strong>
                 </article>
             </section>
-            <div class="workspace">
-                <aside class="panel entry-panel">
-                    <h2 id="entryHeading">収支を記録</h2>
-                    <form id="entryForm">
-                        <fieldset id="entryFields" disabled>
-                            <input id="entryId" type="hidden">
-                            <label for="entryType">種類</label>
-                            <select id="entryType">
-                                <option value="expense">支出</option>
-                                <option value="income">収入</option>
+            <div class="details">
+                <section class="panel category-summary">
+                    <h2>カテゴリ別の支出</h2>
+                    <div id="categorySummary" class="breakdown">
+                        <p class="empty">今月の支出はまだありません。</p>
+                    </div>
+                </section>
+                <section class="panel records-panel">
+                    <div class="records-heading">
+                        <h2><span id="recordsTitle">記録一覧</span> <span id="entryCount" class="count">0件</span>
+                        </h2>
+                        <div class="filters">
+                            <label class="sr-only" for="typeFilter">種類で絞り込み</label>
+                            <select id="typeFilter">
+                                <option value="all">収入・支出</option>
+                                <option value="expense">支出のみ</option>
+                                <option value="income">収入のみ</option>
                             </select>
-                            <label for="entryDate">日付</label>
-                            <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
-                            <label for="entryAmount">金額（円）</label>
-                            <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
-                            <label for="entryCategory">カテゴリ</label>
-                            <div class="entry-category-control">
-                                <select id="entryCategory"></select>
-                                <button id="addEntryCategory" class="quiet requires-data" type="button" aria-label="カテゴリを追加" disabled>＋ 追加</button>
-                            </div>
-                            <label for="entryShop">お店 <span class="optional">任意</span></label>
-                            <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
-                            <datalist id="shopSuggestions"></datalist>
-                            <label for="entryAttribution">対象</label>
-                            <select id="entryAttribution">
-                                <option value="group">グループ共通</option>
-                                <option value="person">個人</option>
+                            <label class="sr-only" for="categoryFilter">カテゴリで絞り込み</label>
+                            <select id="categoryFilter">
                             </select>
-                            <div id="entryPersonFields" hidden>
-                                <label for="entryPerson">名前</label>
-                                <input id="entryPerson" list="personSuggestions" maxlength="80" autocomplete="off">
-                                <datalist id="personSuggestions"></datalist>
-                            </div>
-                            <label for="entryProduct">商品名 <span class="optional">任意</span></label>
-                            <input id="entryProduct" maxlength="80">
-                            <label for="entryMemo">メモ <span class="optional">任意</span>
-                            </label>
-                            <input id="entryMemo" maxlength="200" placeholder="用途など">
-                            <div class="form-actions">
-                                <button type="submit" id="saveEntry">記録する</button>
-                                <button type="button" id="cancelEntry" class="quiet" hidden>キャンセル</button>
-                            </div>
-                        </fieldset>
-                    </form>
-                </aside>
-                <div class="details">
-                    <section class="panel category-summary">
-                        <h2>カテゴリ別の支出</h2>
-                        <div id="categorySummary" class="breakdown">
-                            <p class="empty">今月の支出はまだありません。</p>
                         </div>
-                    </section>
-                    <section class="panel records-panel">
-                        <div class="records-heading">
-                            <h2><span id="recordsTitle">記録一覧</span> <span id="entryCount" class="count">0件</span>
-                            </h2>
-                            <div class="filters">
-                                <label class="sr-only" for="typeFilter">種類で絞り込み</label>
-                                <select id="typeFilter">
-                                    <option value="all">収入・支出</option>
-                                    <option value="expense">支出のみ</option>
-                                    <option value="income">収入のみ</option>
-                                </select>
-                                <label class="sr-only" for="categoryFilter">カテゴリで絞り込み</label>
-                                <select id="categoryFilter">
-                                </select>
-                            </div>
-                        </div>
-                        <button id="clearDay" class="quiet" type="button" hidden>月の全記録を表示</button>
-                        <div id="entries" class="records">
-                            <p class="empty">まだ記録がありません。</p>
-                        </div>
-                        <button id="moreEntries" class="quiet requires-data" type="button" hidden>次の50件を表示</button>
-                    </section>
-                </div>
+                    </div>
+                    <button id="clearDay" class="quiet" type="button" hidden>月の全記録を表示</button>
+                    <div id="entries" class="records">
+                        <p class="empty">まだ記録がありません。</p>
+                    </div>
+                    <button id="moreEntries" class="quiet requires-data" type="button" hidden>次の50件を表示</button>
+                </section>
             </div>
         </main>
+        <dialog id="entryDialog" aria-labelledby="entryHeading">
+            <div class="dialog-heading">
+                <h2 id="entryHeading">収支を記録</h2>
+                <button id="closeEntry" class="quiet" type="button" aria-label="記録ウィンドウを閉じる">✕</button>
+            </div>
+            <form id="entryForm">
+                <fieldset id="entryFields" disabled>
+                    <input id="entryId" type="hidden">
+                    <label for="entryType">種類</label>
+                    <select id="entryType">
+                        <option value="expense">支出</option>
+                        <option value="income">収入</option>
+                    </select>
+                    <label for="entryDate">日付</label>
+                    <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
+                    <label for="entryAmount">金額（円）</label>
+                    <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
+                    <label for="entryCategory">カテゴリ</label>
+                    <div class="entry-category-control">
+                        <select id="entryCategory"></select>
+                        <button id="addEntryCategory" class="quiet requires-data" type="button" aria-label="カテゴリを追加" disabled>＋ 追加</button>
+                    </div>
+                    <label for="entryShop">お店 <span class="optional">任意</span></label>
+                    <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
+                    <datalist id="shopSuggestions"></datalist>
+                    <label for="entryAttribution">対象</label>
+                    <select id="entryAttribution">
+                        <option value="group">グループ共通</option>
+                        <option value="person">個人</option>
+                    </select>
+                    <div id="entryPersonFields" hidden>
+                        <label for="entryPerson">名前</label>
+                        <input id="entryPerson" list="personSuggestions" maxlength="80" autocomplete="off">
+                        <datalist id="personSuggestions"></datalist>
+                    </div>
+                    <label for="entryProduct">商品名 <span class="optional">任意</span></label>
+                    <input id="entryProduct" maxlength="80">
+                    <label for="entryMemo">メモ <span class="optional">任意</span>
+                    </label>
+                    <input id="entryMemo" maxlength="200" placeholder="用途など">
+                    <div class="form-actions">
+                        <button type="submit" id="saveEntry">記録する</button>
+                        <button type="button" id="cancelEntry" class="quiet">キャンセル</button>
+                    </div>
+                </fieldset>
+            </form>
+            <p id="entryStatus" role="status" aria-live="polite"></p>
+        </dialog>
         <dialog id="categoryDialog" aria-labelledby="categoryHeading">
             <div class="dialog-heading">
                 <h2 id="categoryHeading">カテゴリを管理</h2>
