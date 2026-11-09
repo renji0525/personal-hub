@@ -1,14 +1,15 @@
 // メモはリストの保存・同期基盤を再利用し、データと同期履歴を独立させる
 const byId = id => document.getElementById(id);
-let listsSession, listsLocal, listsBusy = false, listsSyncMode = null, savedRaw = null, stale = false, limit = 50;
+const autoPush = HubSync.autoPush(sync, () => !listsBusy && !!listsLocal?.pending.length && sameAccount());
+let listsSession, listsLocal, listsBusy = false, savedRaw = null, stale = false, limit = 50;
 const scope = () => 'notes:' + BudgetSpaces.storageUser(listsSession.userId);
 const sameAccount = () => listsSession && HubAuth.read()?.token === listsSession.token && BudgetSpaces.allowed() && !stale;
 function message(text, state = 'ready') { byId('status').textContent = text; byId('status').dataset.state = state; }
 function controls() {
-    const locked = !listsLocal || listsSyncMode === 'write' || !sameAccount();
+    const locked = !listsLocal || !sameAccount();
     document.querySelectorAll('[data-edit], .note-card button').forEach(node => { node.disabled = locked; });
     byId('syncButton').disabled = listsBusy || !sameAccount(); byId('syncButton').setAttribute('aria-busy', String(listsBusy));
-    byId('discardButton').disabled = listsBusy || !sameAccount(); byId('exportButton').disabled = !listsLocal; byId('logoutButton').disabled = listsSyncMode === 'write';
+    byId('discardButton').disabled = listsBusy || !sameAccount(); byId('exportButton').disabled = !listsLocal; byId('logoutButton').disabled = !sameAccount();
 }
 function localStatus() { message(listsLocal.pending.length ? '端末に保存済み・未同期 ' + listsLocal.pending.length + '件' : '同期済み', listsLocal.pending.length ? 'pending' : 'ready'); }
 function save(value) {
@@ -18,8 +19,8 @@ function save(value) {
 }
 function element(tag, text, className) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; }
 function mutate(operation) {
-    if (!listsLocal || listsSyncMode === 'write' || !sameAccount()) throw new Error('同期が完了してから操作してください。');
-    save(ListsLocal.edit(listsLocal, operation)); render(); localStatus();
+    if (!listsLocal || !sameAccount()) throw new Error('同期が完了してから操作してください。');
+    save(ListsLocal.edit(listsLocal, operation)); autoPush.schedule(); render(); localStatus();
 }
 function render() {
     if (!listsLocal) return;
@@ -47,7 +48,8 @@ function edit(value) {
 }
 async function sync() {
     if (listsBusy || !sameAccount()) return;
-    const startedAt = Date.now(); listsSyncMode = listsLocal?.pending.length ? 'write' : 'read'; listsBusy = true; controls(); message('同期中…', 'syncing');
+    autoPush.start();
+    const startedAt = Date.now(); listsBusy = true; controls(); message('同期中…', 'syncing');
     try {
         if (listsLocal?.pending.length) {
             while (listsLocal.pending.length) {
@@ -55,6 +57,7 @@ async function sync() {
                 const result = await BudgetSpaces.api('notesSync', packet.request, listsSession);
                 if (!sameAccount()) return;
                 save(ListsLocal.ack(listsLocal, result, packet.request.operations.length));
+                if (autoPush.waiting()) break;
             }
         } else {
             const before = listsLocal, result = await BudgetSpaces.api('notesLoad', before ? { knownRevision: before.base.revision } : {}, listsSession);
@@ -66,7 +69,7 @@ async function sync() {
         }
         HubSync.mark(scope(), 'notes', startedAt); byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) { BudgetSpaces.handleError(error); message('同期できませんでした。端末の変更は保持しています。' + error.message, 'error'); byId('discardButton').hidden = error.code !== 'LISTS_CONFLICT'; }
-    finally { listsBusy = false; listsSyncMode = null; controls(); }
+    finally { listsBusy = false; controls(); autoPush.finish(); }
 }
 byId('addNote').addEventListener('click', () => edit());
 byId('noteCancel').addEventListener('click', () => { byId('noteDialog').close(); byId('addNote').focus({ preventScroll: true }); });
@@ -99,5 +102,5 @@ window.addEventListener('hub-auth-changed', event => { if (listsSession && event
     if (!BudgetSpaces.allowed()) { controls(); return; }
     try { listsLocal = ListsLocal.read(localStorage, scope()); savedRaw = localStorage.getItem(ListsLocal.key(scope())); if (listsLocal) { render(); localStatus(); } }
     catch (error) { stale = true; message(error.message, 'error'); controls(); return; }
-    controls(); if (HubSync.needed(scope(), 'notes', !!listsLocal)) await sync();
+    controls(); if (HubSync.needed(scope(), 'notes', !!listsLocal)) await sync(); else autoPush.schedule();
 })();

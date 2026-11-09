@@ -32,7 +32,7 @@
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>未同期の変更を破棄して再取得</button>
 <div id="undoNotice" class="undo-notice" role="status" hidden><span id="undoText"></span><button id="undoButton" type="button" class="quiet" data-edit>元に戻す</button></div>
 <p class="muted">間違えた完了・購入済みは「元に戻す」で取り消せます。後からは表示を「完了・購入済み」に切り替えて戻せます。</p>
-<p class="muted">変更は端末に保存。各時間帯の初回表示と「同期する」で共有先に反映します。購入済みにしても家計簿の支出や在庫には自動追加しません。</p>
+<p class="muted">変更は端末に保存し、最後の変更から約3秒後に自動同期します。購入済みにしても家計簿の支出や在庫には自動追加しません。</p>
 <div class="filters"><label>リストを検索<input id="search" type="search" placeholder="タイトルやメモ"></label><label>表示する項目<select id="filter"><option value="open">未完了・未購入</option><option value="all">すべて</option><option value="done">完了・購入済み</option></select></label></div>
 <div class="lists-grid">
 <section class="list-panel" aria-labelledby="todoTitle"><div class="panel-heading"><div><h2 id="todoTitle">やる事リスト</h2><small id="todoCount"></small></div><button id="todoAdd" data-edit disabled>やる事を追加</button></div><div id="todoItems"></div><p id="todoShown" class="shown"></p><button id="todoMore" class="quiet" hidden>次の50件を表示</button></section>

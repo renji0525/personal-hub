@@ -2,19 +2,20 @@
 const $ = id => document.getElementById(id);
 const inventoryStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(session.userId) : session.userId;
 const inventoryApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, session) : HubAuth.api(action, params, session);
+const autoPush = HubSync.autoPush(sync, () => !mode && !stale && !!local?.pending.length && sameAccount());
 let session, local, raw = null, mode = null, stale = false, limit = 50, renderedDay;
 const today = () => { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); };
 const state = () => BudgetLocal.view(local);
 const sameAccount = () => session && HubAuth.read()?.token === session.token && (!window.BudgetSpaces || BudgetSpaces.allowed());
 function message(text, type='ready') { $('status').textContent=text; $('status').dataset.state=type; }
 function controls() {
-    const locked=!local || mode==='write' || stale;
+    const locked=!local || stale || !sameAccount();
     for (const id of ['addProduct','saveProduct','savePurchase','exportButton']) $(id).disabled=locked;
     document.querySelectorAll('.product button').forEach(b=>b.disabled=locked);
     $('syncButton').disabled=!!mode || stale || !session;
     $('syncButton').setAttribute('aria-busy',String(!!mode));
     $('discardButton').disabled=!!mode || stale;
-    $('logoutButton').disabled=mode==='write';
+    $('logoutButton').disabled=!sameAccount();
 }
 function write(value) {
     if (!sameAccount()) throw new Error('トップからログインし直してください。');
@@ -60,12 +61,13 @@ function purchase(p) {
     $('purchaseId').value=p.id;$('purchaseTitle').textContent=p.name+'の購入';$('purchaseDate').value=today();$('purchaseDate').min=p.purchasedAt;$('purchaseDate').max=today();categories($('purchaseCategory'),p.categoryId);$('purchaseDialog').showModal();
 }
 function mutate(operation) {
-    if(!local||mode==='write'||stale)throw new Error('同期が完了してから操作してください。');
-    write(BudgetLocal.edit(local,operation));render();localStatus();
+    if(!local||stale||!sameAccount())throw new Error('同期が完了してから操作してください。');
+    write(BudgetLocal.edit(local,operation));autoPush.schedule();render();localStatus();
 }
 function remove(p) { if(confirm('「'+p.name+'」を在庫管理から削除しますか？ 家計簿の支出は残ります。'))try{mutate({type:'productDelete',id:p.id});}catch(e){message(e.message,'error');} }
 async function sync() {
     if(mode||stale||!sameAccount())return;
+    autoPush.start();
     const syncStartedAt=Date.now();
     mode=local?.pending.length?'write':'read';controls();message('同期中…','syncing');
     try {
@@ -73,6 +75,7 @@ async function sync() {
             const packet=BudgetLocal.packet(local);write(packet.local);
             const result=await inventoryApi('budgetSync',packet.request);
             if(!sameAccount())return;write(BudgetLocal.ack(local,result,packet.request.operations.length));
+            if(autoPush.waiting())break;
         } else {
             const before=local,result=await inventoryApi('budgetLoad',Array.isArray(before?.base.products)?{knownRevision:before.base.revision}:{});
             if(!sameAccount())return;
@@ -83,7 +86,7 @@ async function sync() {
         window.HubSync?.mark(inventoryStorageUser(),'budget',syncStartedAt);
         $('discardButton').hidden=true;render();localStatus();
     } catch(e){window.BudgetSpaces?.handleError(e);message('同期できませんでした。端末の変更は保持しています。'+e.message,'error');$('discardButton').hidden=e.code!=='BUDGET_CONFLICT';}
-    finally{mode=null;controls();}
+    finally{mode=null;controls();autoPush.finish();}
 }
 $('productForm').addEventListener('submit',e=>{
     e.preventDefault();try{
@@ -122,5 +125,5 @@ window.addEventListener('focus',render);document.addEventListener('visibilitycha
     if(window.BudgetSpaces&&!BudgetSpaces.allowed()){controls();return;}
     try{local=BudgetLocal.read(localStorage,inventoryStorageUser());raw=localStorage.getItem(BudgetLocal.key(inventoryStorageUser()));if(local){render();localStatus();}}
     catch(e){stale=true;message(e.message,'error');controls();return;}
-    controls();if(!window.HubSync||HubSync.needed(inventoryStorageUser(),'budget',!!local))await sync();
+    controls();if(!window.HubSync||HubSync.needed(inventoryStorageUser(),'budget',!!local))await sync();else autoPush.schedule();
 })();

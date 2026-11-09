@@ -218,5 +218,19 @@ window.HubSync = (() => {
         try { localStorage.setItem(key(userId, resource), slot(startedAt)); }
         catch (error) { /* 保存できない場合は次回も同期する */ }
     }
-    return { slot, needed, mark };
+    function autoPush(run, ready) {
+        let timer, due = 0;
+        function arm() {
+            clearTimeout(timer);
+            if (!due || !ready() || navigator.onLine === false) return;
+            timer = setTimeout(() => {
+                if (ready() && navigator.onLine !== false) run();
+            }, Math.max(0, due - Date.now()));
+        }
+        function schedule() { due = Date.now() + 3000; arm(); }
+        function start() { due = 0; clearTimeout(timer); }
+        window.addEventListener('online', schedule);
+        return { schedule, start, finish: arm, waiting: () => due !== 0 };
+    }
+    return { slot, needed, mark, autoPush };
 })();

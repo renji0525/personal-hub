@@ -144,7 +144,7 @@ async function withBusy(action) {
     busy = true;
     try { await action(); }
     catch (error) { showNotification(error.message, 'error'); }
-    finally { busy = false; }
+    finally { busy = false; if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish(); }
 }
 
 /**
@@ -219,34 +219,37 @@ async function fetchFeed(channelId, inChannelName="None", addText="", quiet=fals
  * 新しいチャンネルをリストに追加する
  */
 async function addNewChannel() {
-    return withBusy(async () => {
-    const input = document.getElementById('channelIdInput').value.trim();
-    if (!input) return;
-    const parsed = YouTubeChannelInput.parse(input);
-    let cid = parsed.channelId;
-    if (!cid) {
-        showNotification('チャンネルURLからIDを確認しています…');
-        const resolved = await accountApi('resolveChannel', { input });
-        if (!YouTubeChannelInput.validId(resolved.channelId)) throw new Error('チャンネルIDを取得できませんでした。');
-        cid = resolved.channelId;
-    }
-
-    // 空チェックおよび重複チェック
-    if (appState.channels.some(c => c.id === cid)) { showNotification('このチャンネルは登録済みです。'); return; }
-
-    const result = await fetchFeed(cid);
-    // 取得失敗しても、とりあえずIDだけは登録する（あとでリトライ可能にするため）
-    const channelName = result ? result.name : `Channel(${cid.substring(0,6)})`;
-
-    appState.channels.push({ id: cid, title: channelName });
-    document.getElementById('channelIdInput').value = ''; // 入力欄をクリア
-    
-    if (result) mergeVideos(result.items); // 動画リストを合流
-    save();
-    renderChannels();
-    renderVideos();
-    if (typeof authSession !== 'undefined' && authSession) { resetLibraryPager(); await reloadLibrary(); }
-    });
+    const session = typeof authSession !== 'undefined' ? authSession : null;
+    const add = async () => {
+        const field = document.getElementById('channelIdInput');
+        const input = field.value.trim();
+        if (!input) return;
+        let { channelId } = YouTubeChannelInput.parse(input);
+        if (!channelId) {
+            showNotification('チャンネルURLからIDを確認しています…');
+            const resolved = await accountApi('resolveChannel', { input }, session);
+            if (!YouTubeChannelInput.validId(resolved.channelId)) throw new Error('チャンネルIDを取得できませんでした。');
+            channelId = resolved.channelId;
+        }
+        if (session && authSession !== session) return;
+        if (appState.channels.some(channel => channel.id === channelId)) {
+            showNotification('このチャンネルは登録済みです。');
+            return;
+        }
+        if (session) {
+            queueChannel(channelId, true);
+            appState = applyPendingChannels(appState);
+        } else {
+            const result = await fetchFeed(channelId);
+            appState.channels.push({ id: channelId, title: result?.name || 'Channel(' + channelId.slice(0, 6) + ')' });
+            if (result) mergeVideos(result.items);
+        }
+        if (field.value.trim() === input) field.value = '';
+        save(); renderChannels(); renderVideos();
+    };
+    if (!session) return withBusy(add);
+    try { await add(); }
+    catch (error) { showNotification(error.message, 'error'); }
 }
 
 /**
@@ -254,19 +257,12 @@ async function addNewChannel() {
  */
 async function removeChannel(cid, event) {
     event.stopPropagation(); // 親要素のクリックイベント（フィルタ切り替え）を阻止
-    if (busy) return showNotification('取得が終わってから削除してください。');
     if (!confirm("チャンネルと動画データを削除しますか？")) return;
     if (typeof authSession !== 'undefined' && authSession) {
-        busy = true;
         try {
-            await accountApi('removeChannel', { channelId: cid });
-            resetLibraryPager();
-            const pending = pendingWatched();
-            for (const id of Object.keys(pending)) if (pending[id].channelId === cid) delete pending[id];
-            localStorage.setItem('yt_rss_pending_watched:' + authSession.userId, JSON.stringify(pending));
+            queueChannel(cid, false);
         }
         catch (error) { showNotification(error.message, 'error'); return; }
-        finally { busy = false; }
     }
     
     // チャンネルリストと動画リストの両方から削除
@@ -287,6 +283,7 @@ async function removeChannel(cid, event) {
  */
 async function refreshAll() {
     return withBusy(async () => {
+    if (typeof librarySync !== 'undefined' && librarySync) await librarySync.promise;
     const channels = [...appState.channels];
     const panel = document.getElementById('refreshProgress');
     const label = document.getElementById('refreshProgressText');
@@ -301,10 +298,10 @@ async function refreshAll() {
         for (const [index, ch] of channels.entries()) {
             label.textContent = `${index + 1} / ${channels.length} 件を更新中：${ch.title}`;
             const result = await fetchFeed(ch.id, ch.title, '', true, true);
-            if (result) {
+            if (result && appState.channels.some(channel => channel.id === ch.id)) {
                 if (ch.title.startsWith('Channel(')) ch.title = result.name;
                 mergeVideos(result.items, false);
-            } else failures.push(ch.title);
+            } else if (!result) failures.push(ch.title);
             bar.value = index + 1;
         }
         appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
@@ -527,7 +524,7 @@ async function importJSON(e) {
         }
     } catch (error) {
         report(uploading ? 'シートへの復元が中断しました。一部が保存済みの可能性があります。同じJSONで再実行できます。' + error.message : '復元できません。ファイルの形式・内容・保存容量を確認してください。');
-    } finally { busy = false; e.target.value = ''; }
+    } finally { busy = false; e.target.value = ''; if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish(); }
 }
 
 /**
@@ -553,11 +550,15 @@ async function startApp() {
     // 廃止した認証キーを、このブラウザから削除する
     try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
     load(); // ストレージからデータを読み込む
+    if (typeof authSession !== 'undefined' && authSession) {
+        appState = applyPendingChannels(appState);
+        renderChannels(); renderVideos();
+    }
     document.documentElement.removeAttribute('data-auth-pending');
     if (typeof authSession !== 'undefined' && authSession &&
         (!window.HubSync || HubSync.needed(authSession.userId, 'rss', !!localStorage.getItem(accountStorageKey())))) reloadLibrary();
     else if (typeof authSession !== 'undefined' && authSession) {
-        setSyncStatus(Object.keys(pendingWatched()).length ? 'ローカルに保存済み・次回同期時に送信' : '同期済み');
+        updateRssSyncStatus(); rssAutoPush?.schedule();
     }
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp, { once: true });

@@ -49,6 +49,31 @@ test('同期履歴の保存失敗でも次回の自動同期を許可する', ()
     assert.equal(sync.needed('alice', 'budget', true), true);
 });
 
+test('自動送信は最後の編集から3秒待ち、通信中の編集を応答後に送る', () => {
+    const s = auth(), sync = s.context.window.HubSync;
+    s.context.navigator = { onLine: true };
+    let busy = false, requests = 0;
+    const queue = sync.autoPush(() => { requests++; busy = true; queue.start(); }, () => !busy);
+    queue.schedule();
+    assert.equal(s.timers.at(-1).delay, 3000);
+    s.clock.now += 1000;
+    queue.schedule();
+    assert.equal(s.timers.at(-1).delay, 3000);
+    s.clock.now += 3000;
+    s.timers.at(-1).callback();
+    assert.equal(requests, 1);
+    queue.schedule();
+    const timerCount = s.timers.length;
+    s.clock.now += 1200;
+    assert.equal(s.timers.length, timerCount);
+    busy = false;
+    queue.finish();
+    assert.equal(s.timers.at(-1).delay, 1800);
+    s.clock.now += 1800;
+    s.timers.at(-1).callback();
+    assert.equal(requests, 2);
+});
+
 test('旧RSSセッションを共通キーへ移行し、期限切れ・破損した値を認証しない', () => {
     const s = auth(), value = session();
     s.legacy.set('yt_rss_session', JSON.stringify(value));

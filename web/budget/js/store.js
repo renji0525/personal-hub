@@ -25,6 +25,8 @@ var BudgetLocal = (() => {
     }
     function edit(local, operation) {
         operation = { ...operation, before: merge.target(view(local), operation) };
+        const nextView = BudgetModel.apply(view(local), operation);
+        if (!operation.entry && JSON.stringify(operation.before) === JSON.stringify(merge.target(nextView, operation))) return local;
         const pending = [...local.pending];
         const previous = pending.at(-1);
         // 送信済み部分は固定し、隣接する同じ記録の保存だけを最終値へまとめる
@@ -32,7 +34,7 @@ var BudgetLocal = (() => {
         if (editable && previous?.type === operation.type && operation.type.endsWith('Save') && previous.value.id === operation.value.id) pending[pending.length - 1] = { ...operation, ...(Object.prototype.hasOwnProperty.call(previous, 'before') ? { before: previous.before } : {}) };
         else pending.push(operation);
         const next = { ...local, pending };
-        views.set(next, { ...BudgetModel.apply(view(local), operation), revision: local.base.revision });
+        views.set(next, { ...nextView, revision: local.base.revision });
         return next;
     }
     function packet(local) {
@@ -49,7 +51,11 @@ var BudgetLocal = (() => {
         return { local: next, request: { revision: local.base.revision, syncId: flight.id, operations: flight.operations || local.pending.slice(0, flight.count) } };
     }
     function ack(local, result, count) {
-        return { ...create(result), pending: local.pending.slice(count) };
+        const next = { ...create(result), pending: local.pending.slice(count) };
+        // 応答に送信中の編集を重ねられない場合は、端末の送信元と編集をそのまま残す
+        try { view(next); }
+        catch (error) { error.code = 'BUDGET_CONFLICT'; throw error; }
+        return next;
     }
     return { key, create, view, read, write, edit, packet, ack };
 })();

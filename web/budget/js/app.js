@@ -4,7 +4,8 @@ const budgetStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(b
 const budgetApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, budgetSession) : HubAuth.api(action, params, budgetSession);
 let budgetSession = null;
 let budgetState = { revision: 0, categories: [], entries: [] };
-let budgetBusy = false, budgetLoaded = false, budgetSyncMode = null;
+const autoPush = HubSync.autoPush(loadBudget, () => !budgetBusy && !!localBudget?.pending.length && sameAccount());
+let budgetBusy = false, budgetLoaded = false;
 let recordLimit = 50, recordFilter = null, summaryPeriod = null;
 let periodView = 'month', selectedDay = '';
 let quickCategory = false;
@@ -22,7 +23,7 @@ function node(tag, className, text) {
 }
 function setBusy(value) {
     budgetBusy = value;
-    const locked = value && budgetSyncMode !== 'read';
+    const locked = !sameAccount();
     byId('entryFields').disabled = locked || !budgetLoaded;
     byId('categoryFields').disabled = locked || !budgetLoaded;
     document.querySelectorAll('.requires-data').forEach(el => { el.disabled = locked || !budgetLoaded; });
@@ -306,8 +307,8 @@ function saveLocal(value) {
 }
 async function loadBudget() {
     if (budgetBusy || !budgetSession || !sameAccount()) return;
+    autoPush.start();
     const syncStartedAt = Date.now();
-    budgetSyncMode = localBudget?.pending.length ? 'write' : 'read';
     setBusy(true); byId('status').dataset.state = 'syncing'; byId('status').textContent = '同期中…';
     try {
         if (localBudget?.pending.length) {
@@ -318,6 +319,7 @@ async function loadBudget() {
                 const result = await budgetApi('budgetSync', packet.request);
                 if (!sameAccount()) return;
                 saveLocal(BudgetLocal.ack(localBudget, result, packet.request.operations.length));
+                if (autoPush.waiting()) break;
             }
         } else {
             const before = localBudget;
@@ -338,12 +340,13 @@ async function loadBudget() {
         byId('status').dataset.state = 'error';
         byId('status').textContent = '同期できませんでした。端末の変更は保持しています。' + error.message;
         byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
-    } finally { budgetSyncMode = null; setBusy(false); }
+    } finally { setBusy(false); autoPush.finish(); }
 }
 async function mutate(operation, refresh = true, errorId = 'categoryStatus') {
-    if (budgetBusy && budgetSyncMode !== 'read' || !budgetLoaded || !sameAccount()) return false;
+    if (!budgetLoaded || !sameAccount()) return false;
     try {
         saveLocal(BudgetLocal.edit(localBudget, operation));
+        autoPush.schedule();
         if (refresh) render();
         localStatus(); byId(errorId).textContent = ''; return true;
     } catch (error) {
@@ -440,7 +443,7 @@ byId('monthView').addEventListener('click', () => setPeriodView('month')); byId(
 byId('previousMonth').addEventListener('click', () => movePeriod(-1)); byId('nextMonth').addEventListener('click', () => movePeriod(1));
 byId('refreshButton').addEventListener('click', loadBudget);
 byId('moreEntries').addEventListener('click', () => { recordLimit += 50; render(true); });
-byId('logoutButton').addEventListener('click', async () => { if (!budgetBusy || budgetSyncMode === 'read') { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } } });
+byId('logoutButton').addEventListener('click', async () => { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } });
 byId('exportButton').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: budgetState.categories, entries: budgetState.entries, products: budgetState.products || [] }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), link = node('a'); link.href = url; link.download = 'personal-hub-budget-' + today() + '.json';
@@ -467,5 +470,5 @@ window.addEventListener('hub-auth-changed', event => {
         if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
     } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
     if (!window.HubSync || HubSync.needed(budgetStorageUser(), 'budget', !!localBudget)) await loadBudget();
-    else setBusy(false);
+    else { setBusy(false); autoPush.schedule(); }
 })();

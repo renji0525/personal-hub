@@ -1,5 +1,6 @@
 // リストは端末へ保存し、各時間帯の初回と手動操作で共有先と同期する
 const byId = id => document.getElementById(id);
+const autoPush = HubSync.autoPush(sync, () => !listsBusy && !!listsLocal?.pending.length && sameAccount());
 let listsSession, listsLocal, listsBusy = false, listsSyncMode = null, savedRaw = null, stale = false;
 let lastCompletion = null, membersLoading = false;
 const limits = { todo: 50, wish: 50 };
@@ -8,13 +9,13 @@ const sameAccount = () => listsSession && HubAuth.read()?.token === listsSession
 const today = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); };
 function message(text, state = 'ready') { byId('status').textContent = text; byId('status').dataset.state = state; }
 function controls() {
-    const locked = !listsLocal || listsSyncMode === 'write' || !sameAccount();
+    const locked = !listsLocal || !sameAccount();
     document.querySelectorAll('[data-edit], .list-item button, .list-item input').forEach(node => { node.disabled = locked; });
     byId('syncButton').disabled = listsBusy || !sameAccount();
     byId('syncButton').setAttribute('aria-busy', String(listsBusy));
     byId('discardButton').disabled = listsBusy || !sameAccount();
     byId('exportButton').disabled = !listsLocal;
-    byId('logoutButton').disabled = listsSyncMode === 'write';
+    byId('logoutButton').disabled = !sameAccount();
     byId('assigneeRefresh').disabled = membersLoading || listsBusy || !sameAccount();
 }
 function localStatus() { message(listsLocal.pending.length ? '端末に保存済み・未同期 ' + listsLocal.pending.length + '件' : '同期済み', listsLocal.pending.length ? 'pending' : 'ready'); }
@@ -55,8 +56,8 @@ const productObserver = new IntersectionObserver(entries => {
     }
 }, { rootMargin: '160px' });
 function mutate(operation) {
-    if (!listsLocal || listsSyncMode === 'write' || !sameAccount()) throw new Error('同期が完了してから操作してください。');
-    save(ListsLocal.edit(listsLocal, operation)); render(); localStatus();
+    if (!listsLocal || !sameAccount()) throw new Error('同期が完了してから操作してください。');
+    save(ListsLocal.edit(listsLocal, operation)); autoPush.schedule(); render(); localStatus();
 }
 function completionNotice() {
     const value = lastCompletion && ListsLocal.view(listsLocal).items.find(item => item.id === lastCompletion.id);
@@ -156,6 +157,7 @@ function edit(kind, value) {
 }
 async function sync() {
     if (listsBusy || !sameAccount()) return;
+    autoPush.start();
     const startedAt = Date.now(); listsSyncMode = listsLocal?.pending.length ? 'write' : 'read'; listsBusy = true; controls(); message('同期中…', 'syncing');
     try {
         if (listsLocal?.pending.length) {
@@ -164,6 +166,7 @@ async function sync() {
                 const result = await BudgetSpaces.api('listsSync', packet.request, listsSession);
                 if (!sameAccount()) return;
                 save(ListsLocal.ack(listsLocal, result, packet.request.operations.length));
+                if (autoPush.waiting()) break;
             }
         } else {
             const before = listsLocal, result = await BudgetSpaces.api('listsLoad', before ? { knownRevision: before.base.revision } : {}, listsSession);
@@ -175,7 +178,7 @@ async function sync() {
         }
         HubSync.mark(scope(), 'lists', startedAt); byId('discardButton').hidden = true; render(); localStatus();
     } catch (error) { BudgetSpaces.handleError(error); message('同期できませんでした。端末の変更は保持しています。' + error.message, 'error'); byId('discardButton').hidden = error.code !== 'LISTS_CONFLICT'; }
-    finally { listsBusy = false; listsSyncMode = null; controls(); }
+    finally { listsBusy = false; listsSyncMode = null; controls(); autoPush.finish(); }
 }
 byId('itemKind').addEventListener('change', kindFields);
 byId('itemForm').addEventListener('submit', event => {
@@ -218,5 +221,5 @@ window.addEventListener('focus', render);
     if (!BudgetSpaces.allowed()) { controls(); return; }
     try { listsLocal = ListsLocal.read(localStorage, scope()); savedRaw = localStorage.getItem(ListsLocal.key(scope())); if (listsLocal) { render(); localStatus(); } }
     catch (error) { stale = true; message(error.message, 'error'); controls(); return; }
-    controls(); if (HubSync.needed(scope(), 'lists', !!listsLocal)) await sync();
+    controls(); if (HubSync.needed(scope(), 'lists', !!listsLocal)) await sync(); else autoPush.schedule();
 })();

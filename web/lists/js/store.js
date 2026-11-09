@@ -29,6 +29,7 @@ var ListsLocal = (() => {
     function edit(local, operation) {
         operation = { ...operation, before: merge.target(view(local), operation) };
         const pending = [...local.pending], previous = pending.at(-1), nextView = ListsModel.apply(view(local), operation);
+        if (JSON.stringify(operation.before) === JSON.stringify(merge.target(nextView, operation))) return local;
         if (pending.length > (local.flight?.count || 0) && previous?.type === operation.type && ['itemSave', 'itemDone'].includes(operation.type) && (previous.id || previous.value.id) === (operation.id || operation.value.id)) pending[pending.length - 1] = { ...operation, ...(Object.prototype.hasOwnProperty.call(previous, 'before') ? { before: previous.before } : {}) };
         else pending.push(operation);
         const next = { ...local, pending }; views.set(next, nextView); return next;
@@ -45,7 +46,13 @@ var ListsLocal = (() => {
         const next = { ...local, flight }; views.set(next, view(local));
         return { local: next, request: { revision: local.base.revision, syncId: flight.id, operations: flight.operations || local.pending.slice(0, flight.count) } };
     }
-    function ack(local, result, count) { return { ...create(result), pending: local.pending.slice(count) }; }
+    function ack(local, result, count) {
+        const next = { ...create(result), pending: local.pending.slice(count) };
+        // 応答に送信中の編集を重ねられない場合は、端末の送信元と編集をそのまま残す
+        try { view(next); }
+        catch (error) { error.code = 'LISTS_CONFLICT'; throw error; }
+        return next;
+    }
     function withAssignees(local, assignees) {
         const next = { ...local, base: create({ ...local.base, assignees }).base };
         views.set(next, view(local)); return next;

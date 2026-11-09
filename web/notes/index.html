@@ -24,7 +24,7 @@
 <div class="heading"><div><p class="eyebrow">A LITTLE SPACE FOR YOUR THOUGHTS</p><h1><img src="../shared/icons/notes.svg" width="42" height="42" alt="">メモ</h1><p class="muted">思いついたことを、忘れないうちに。</p></div><button id="addNote" data-edit disabled>メモを書く</button></div>
 <div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>メモの未同期変更を破棄して再取得</button>
-<p class="muted">保存したメモは端末に残ります。各時間帯の初回表示や「同期する」で同期します。共有スペースでは参加者と共同編集できます。</p>
+<p class="muted">メモは端末に保存し、最後の変更から約3秒後に自動同期します。共有スペースでは参加者と共同編集できます。</p>
 <label class="search-field">メモを検索<input id="search" type="search" placeholder="タイトルや本文"></label><p id="noteCount" class="muted" role="status"></p><div id="notes" class="notes-grid"></div><button id="moreButton" class="quiet" hidden>次の50件を表示</button>
 </main>
 <dialog id="noteDialog" aria-labelledby="noteDialogTitle"><form id="noteForm"><h2 id="noteDialogTitle">メモを書く</h2><input id="noteId" type="hidden"><label>タイトル（任意）<input id="noteTitle" maxlength="120" placeholder="空欄なら本文の先頭を使います"></label><label>本文<textarea id="noteBody" maxlength="5000" rows="10" placeholder="ここにメモを入力…"></textarea></label><p id="noteError" class="error" role="alert"></p><div class="actions"><button id="noteSave" data-edit>保存する</button><button id="noteCancel" type="button" class="quiet">キャンセル</button></div></form></dialog>
