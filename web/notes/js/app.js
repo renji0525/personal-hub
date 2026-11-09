@@ -47,6 +47,7 @@ function edit(value) {
     byId('noteDialog').showModal(); byId('noteBody').focus();
 }
 async function sync() {
+    if (HubConflict.busy()) return;
     if (listsBusy || !sameAccount()) return;
     autoPush.start();
     const startedAt = Date.now(); listsBusy = true; controls(); message('同期中…', 'syncing');
@@ -104,3 +105,5 @@ window.addEventListener('hub-auth-changed', event => { if (listsSession && event
     catch (error) { stale = true; message(error.message, 'error'); controls(); return; }
     controls(); if (HubSync.needed(scope(), 'notes', !!listsLocal)) await sync(); else autoPush.schedule();
 })();
+
+HubConflict.bind({ read: () => listsLocal, save, load: async () => ListsLocal.create(await BudgetSpaces.api('notesLoad', {}, listsSession)).base, apply: ListsModel.apply, ready: () => !listsBusy && sameAccount(), done: async () => { render(); await sync(); }, error: error => message(error.message, 'error') });

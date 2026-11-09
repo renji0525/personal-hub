@@ -298,3 +298,7 @@ dialog::backdrop  {
 
 .inventory-reminder { display:block; padding:16px 20px; margin-bottom:24px; border:1px solid #b8b0e8; border-radius:12px; background:var(--surface); color:var(--text); overflow-wrap:anywhere; }
 .hub-nav { flex-wrap:wrap; }
+/* 競合内容はスマートフォンでも横にはみ出さず確認できる。 */
+.sync-conflict-dialog { box-sizing: border-box; width: min(640px, calc(100vw - 24px)); max-height: 85dvh; overflow: auto; }
+.sync-conflict-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; padding: 12px; background: #f2f4f8; color: #182230; border-radius: 8px; }
+.sync-conflict-dialog button { margin: 4px; max-width: 100%; }

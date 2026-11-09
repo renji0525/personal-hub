@@ -156,6 +156,7 @@ function edit(kind, value) {
     if (!Array.isArray(listsLocal.base.assignees)) refreshAssignees();
 }
 async function sync() {
+    if (HubConflict.busy()) return;
     if (listsBusy || !sameAccount()) return;
     autoPush.start();
     const startedAt = Date.now(); listsSyncMode = listsLocal?.pending.length ? 'write' : 'read'; listsBusy = true; controls(); message('同期中…', 'syncing');
@@ -223,3 +224,5 @@ window.addEventListener('focus', render);
     catch (error) { stale = true; message(error.message, 'error'); controls(); return; }
     controls(); if (HubSync.needed(scope(), 'lists', !!listsLocal)) await sync(); else autoPush.schedule();
 })();
+
+HubConflict.bind({ read: () => listsLocal, save, load: async () => ListsLocal.create(await BudgetSpaces.api('listsLoad', {}, listsSession)).base, apply: ListsModel.apply, ready: () => !listsBusy && sameAccount(), done: async () => { render(); await sync(); }, error: error => message(error.message, 'error') });

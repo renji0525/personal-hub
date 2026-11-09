@@ -1,4 +1,4 @@
-// 編集は端末へ保存し、時間帯の初回表示と明示的な同期時だけ通信する
+// 編集は端末へ保存し、3秒後の自動送信・時間帯の初回表示・手動同期で通信する
 const byId = id => document.getElementById(id);
 const budgetStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(budgetSession.userId) : budgetSession.userId;
 const budgetApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, budgetSession) : HubAuth.api(action, params, budgetSession);
@@ -306,6 +306,7 @@ function saveLocal(value) {
     window.dispatchEvent(new Event('budget-local-changed'));
 }
 async function loadBudget() {
+    if (HubConflict.busy()) return;
     if (budgetBusy || !budgetSession || !sameAccount()) return;
     autoPush.start();
     const syncStartedAt = Date.now();
@@ -472,3 +473,5 @@ window.addEventListener('hub-auth-changed', event => {
     if (!window.HubSync || HubSync.needed(budgetStorageUser(), 'budget', !!localBudget)) await loadBudget();
     else { setBusy(false); autoPush.schedule(); }
 })();
+
+HubConflict.bind({ read: () => localBudget, save: saveLocal, load: async () => BudgetLocal.create(await budgetApi('budgetLoad', {})).base, apply: BudgetModel.apply, ready: () => !budgetBusy && sameAccount(), done: async () => { render(); await loadBudget(); }, error: error => { byId('status').textContent = error.message; } });

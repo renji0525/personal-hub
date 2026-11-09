@@ -66,6 +66,7 @@ function mutate(operation) {
 }
 function remove(p) { if(confirm('「'+p.name+'」を在庫管理から削除しますか？ 家計簿の支出は残ります。'))try{mutate({type:'productDelete',id:p.id});}catch(e){message(e.message,'error');} }
 async function sync() {
+    if (HubConflict.busy()) return;
     if(mode||stale||!sameAccount())return;
     autoPush.start();
     const syncStartedAt=Date.now();
@@ -127,3 +128,5 @@ window.addEventListener('focus',render);document.addEventListener('visibilitycha
     catch(e){stale=true;message(e.message,'error');controls();return;}
     controls();if(!window.HubSync||HubSync.needed(inventoryStorageUser(),'budget',!!local))await sync();else autoPush.schedule();
 })();
+
+HubConflict.bind({ read: () => local, save: write, load: async () => BudgetLocal.create(await inventoryApi('budgetLoad', {})).base, apply: BudgetModel.apply, ready: () => !mode && !stale && sameAccount(), done: async () => { render(); await sync(); }, error: error => message(error.message, 'error') });
