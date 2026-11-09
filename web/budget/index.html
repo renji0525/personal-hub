@@ -141,6 +141,15 @@
                 </section>
             </div>
         </main>
+        <dialog id="dayRecordsDialog" aria-labelledby="dayRecordsHeading">
+            <div class="dialog-heading">
+                <h2 id="dayRecordsHeading"></h2>
+                <button id="closeDayRecords" class="quiet" type="button" aria-label="日別記録を閉じる">✕</button>
+            </div>
+            <button id="addDayRecord" class="requires-data" type="button">＋ 追加</button>
+            <p id="dayRecordsStatus" role="status" aria-live="polite"></p>
+            <div id="dayRecords" class="records"></div>
+        </dialog>
         <dialog id="entryDialog" aria-labelledby="entryHeading">
             <div class="dialog-heading">
                 <h2 id="entryHeading">収支を記録</h2>

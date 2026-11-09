@@ -110,7 +110,7 @@ function renderCalendar(month, entries) {
         cell.addEventListener('click', () => {
             selectedDay = current;
             render();
-            openEntry(current);
+            openDayRecords(current);
         });
         calendar.append(cell);
     }
@@ -175,27 +175,6 @@ function render(append = false) {
     const list = byId('entries');
     if (!append) list.replaceChildren();
     byId('moreEntries').hidden = filtered.length <= recordLimit;
-    const renderEntry = (entry, target) => {
-        const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
-        meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
-        left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
-        const details = [entry.shop, entry.attribution?.kind === 'group' ? 'グループ共通' : entry.attribution?.name,
-            entry.productName && entry.memo].filter(Boolean);
-        if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
-        const right = node('div', 'record-right');
-        right.append(node('strong', 'record-amount ' + entry.type, (entry.type === 'income' ? '+' : '−') + yen(entry.amount)));
-        const actions = node('div', 'record-actions');
-        const edit = node('button', 'requires-data', '編集'), remove = node('button', 'requires-data', '削除');
-        edit.type = remove.type = 'button';
-        edit.setAttribute('aria-label', entry.date + 'の記録を編集'); remove.setAttribute('aria-label', entry.date + 'の記録を削除');
-        edit.addEventListener('click', () => editEntry(entry));
-        remove.addEventListener('click', async () => {
-            if (confirm(entry.date + 'の' + yen(entry.amount) + 'の記録を削除しますか？')) {
-                if (await mutate({ type: 'entryDelete', id: entry.id })) { if (byId('entryId').value === entry.id) resetEntry(); }
-            }
-        });
-        actions.append(edit, remove); right.append(actions); row.append(left, right); target.append(row);
-    };
     if (weekly) {
         let remaining = recordLimit;
         days.forEach((date, index) => {
@@ -205,7 +184,7 @@ function render(append = false) {
                 const heading = node('h3');
                 const button = node('button', 'week-date quiet requires-data', dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）');
                 button.type = 'button';
-                button.addEventListener('click', () => openEntry(date));
+                button.addEventListener('click', () => openDayRecords(date));
                 heading.append(button); day.append(heading);
             }
             const records = filtered.filter(entry => entry.date === date);
@@ -221,8 +200,47 @@ function render(append = false) {
         if (!filtered.length) list.append(node('p', 'empty', 'この期間に条件に合う記録がありません。'));
         filtered.slice(append ? list.childElementCount : 0, recordLimit).forEach(entry => renderEntry(entry, list));
     }
+    if (dataChanged && byId('dayRecordsDialog').open) renderDayRecords();
     if (dataChanged && byId('categoryDialog').open && !quickCategory) renderCategoryList();
     setBusy(budgetBusy);
+}
+function renderEntry(entry, target, errorId = 'categoryStatus') {
+    const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
+    meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
+    left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
+    const details = [entry.shop, entry.attribution?.kind === 'group' ? 'グループ共通' : entry.attribution?.name,
+        entry.productName && entry.memo].filter(Boolean);
+    if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
+    const right = node('div', 'record-right');
+    right.append(node('strong', 'record-amount ' + entry.type, (entry.type === 'income' ? '+' : '−') + yen(entry.amount)));
+    const actions = node('div', 'record-actions');
+    const edit = node('button', 'requires-data', '編集'), remove = node('button', 'requires-data', '削除');
+    edit.type = remove.type = 'button';
+    edit.setAttribute('aria-label', entry.date + 'の記録を編集'); remove.setAttribute('aria-label', entry.date + 'の記録を削除');
+    edit.addEventListener('click', () => editEntry(entry));
+    remove.addEventListener('click', async () => {
+        if (confirm(entry.date + 'の' + yen(entry.amount) + 'の記録を削除しますか？')) {
+            if (await mutate({ type: 'entryDelete', id: entry.id }, true, errorId)) { if (byId('entryId').value === entry.id) resetEntry(); }
+        }
+    });
+    actions.append(edit, remove); right.append(actions); row.append(left, right); target.append(row);
+}
+function renderDayRecords() {
+    const date = byId('dayRecordsDialog').dataset.date;
+    const list = byId('dayRecords');
+    const entries = (months.get(date.slice(0, 7)) || []).filter(entry => entry.date === date);
+    list.replaceChildren();
+    if (!entries.length) list.append(node('p', 'empty', 'この日の記録はありません。'));
+    entries.forEach(entry => renderEntry(entry, list, 'dayRecordsStatus'));
+}
+function openDayRecords(date) {
+    const dialog = byId('dayRecordsDialog');
+    dialog.dataset.date = date;
+    byId('dayRecordsHeading').textContent = dayLabel(date) + 'の記録';
+    byId('dayRecordsStatus').textContent = '';
+    renderDayRecords();
+    setBusy(budgetBusy);
+    dialog.showModal();
 }
 function renderCategoryList() {
     const list = byId('categories'); list.replaceChildren();
@@ -379,6 +397,8 @@ byId('entryForm').addEventListener('submit', async event => {
         if (selectedDay) selectedDay = value.date;
         byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all';
         byId('entryDialog').close(); resetEntry(); render();
+        if (byId('dayRecordsDialog').open) byId('addDayRecord').focus({ preventScroll: true });
+        if (byId('dayRecordsDialog').open) byId('addDayRecord').focus({ preventScroll: true });
     }
 });
 byId('categoryForm').addEventListener('submit', async event => {
@@ -399,6 +419,8 @@ byId('categoryButton').addEventListener('click', () => openCategories(false));
 byId('addEntryCategory').addEventListener('click', () => openCategories(true));
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
 byId('newEntry').addEventListener('click', () => openEntry());
+byId('addDayRecord').addEventListener('click', () => openEntry(byId('dayRecordsDialog').dataset.date));
+byId('closeDayRecords').addEventListener('click', () => byId('dayRecordsDialog').close());
 for (const id of ['cancelEntry', 'closeEntry']) byId(id).addEventListener('click', () => byId('entryDialog').close());
 byId('cancelCategory').addEventListener('click', resetCategory);
 byId('entryAttribution').addEventListener('change', showPersonField);

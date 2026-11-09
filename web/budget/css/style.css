@@ -247,11 +247,14 @@ fieldset>label:first-of-type  {
 #entryForm .form-actions button:first-child  {
     flex:1;
 }
-#entryStatus:empty {
+#entryStatus:empty,#dayRecordsStatus:empty {
     display:none;
 }
-#entryStatus {
+#entryStatus,#dayRecordsStatus {
     color:var(--danger);
+}
+#dayRecords {
+    margin-top:12px;
 }
 .week-date {
     min-height:40px;
