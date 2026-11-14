@@ -9,13 +9,20 @@ var ListsModel = (() => {
             if (!value.title.trim() && !value.note.trim()) throw new Error('タイトルか本文を入力してください。');
             value = { ...value, title: value.title.trim() || value.note.trim().split(/\r?\n/)[0].slice(0, 60) };
         }
-        if (!value || !['todo', 'wish', 'note'].includes(value.kind) || typeof value.title !== 'string' || !value.title.trim() || value.title.trim().length > 120 ||
-            typeof value.note !== 'string' || value.note.length > (value.kind === 'note' ? 5000 : 500) || typeof value.done !== 'boolean') throw new Error(value?.kind === 'note' ? 'タイトルは120文字、本文は5000文字以内で入力してください。' : 'タイトルは1〜120文字、メモは500文字以内で入力してください。');
+        if (!value || !['todo', 'wish', 'visit', 'note'].includes(value.kind) || typeof value.title !== 'string' || !value.title.trim() || value.title.trim().length > 120 ||
+            typeof value.note !== 'string' || value.note.length > (value.kind === 'note' ? 5000 : 500) || typeof value.done !== 'boolean') {
+            if (value?.kind === 'visit') throw new Error('行くところの名前は1〜120文字、メモは500文字以内で入力してください。');
+            throw new Error(value?.kind === 'note' ? 'タイトルは120文字、本文は5000文字以内で入力してください。' : 'タイトルは1〜120文字、メモは500文字以内で入力してください。');
+        }
         if (typeof value.dueDate !== 'string' || value.dueDate && (!/^\d{4}-\d{2}-\d{2}$/.test(value.dueDate) || !Number.isFinite(Date.parse(value.dueDate + 'T00:00:00Z')) || new Date(value.dueDate + 'T00:00:00Z').toISOString().slice(0, 10) !== value.dueDate)) throw new Error('期限の日付を確認してください。');
-        if (typeof value.url !== 'string' || value.url.length > 1000 || value.url && !/^https?:\/\/[^\s<>"\\]+$/i.test(value.url)) throw new Error('リンクはhttpまたはhttpsのURLを1000文字以内で入力してください。');
+        if (value.kind === 'visit') {
+            if (typeof value.url !== 'string' || value.url.length > 2048 || value.url &&
+                !/^https?:\/\/(?:(?:www\.)?google\.(?:com|co\.jp)\/maps(?=[/?#]|$)|maps\.google\.(?:com|co\.jp)(?=[/?#]|$)|maps\.app\.goo\.gl\/[^/?#]+|goo\.gl\/maps\/[^/?#]+)[^\s<>"\\]*$/i.test(value.url))
+                throw new Error('GoogleマップのURLを確認してください。');
+        } else if (typeof value.url !== 'string' || value.url.length > 1000 || value.url && !/^https?:\/\/[^\s<>"\\]+$/i.test(value.url)) throw new Error('リンクはhttpまたはhttpsのURLを1000文字以内で入力してください。');
         const assignee = value.assignee === undefined ? '' : value.assignee;
         if (typeof assignee !== 'string' || assignee !== '' && !/^[a-z0-9_-]{3,32}$/.test(assignee)) throw new Error('担当ユーザーを選び直してください。');
-        return { id: id(value.id), kind: value.kind, title: value.title.trim(), note: value.note.trim(), done: value.kind === 'note' ? false : value.done, dueDate: value.kind === 'todo' ? value.dueDate : '', url: value.kind === 'wish' ? value.url : '', assignee: value.kind === 'note' ? '' : assignee };
+        return { id: id(value.id), kind: value.kind, title: value.title.trim(), note: value.note.trim(), done: value.kind === 'note' ? false : value.done, dueDate: value.kind === 'todo' ? value.dueDate : '', url: ['wish', 'visit'].includes(value.kind) ? value.url : '', assignee: ['todo', 'wish'].includes(value.kind) ? assignee : '' };
     }
     function apply(state, operation) {
         const items = state.items.map(value => ({ ...value }));
