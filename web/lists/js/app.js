@@ -145,6 +145,15 @@ function render() {
 function kindFields() {
     const todo = byId('itemKind').value === 'todo'; byId('dueField').hidden = !todo; byId('urlField').hidden = todo;
     byId('itemDue').disabled = !todo; byId('itemUrl').disabled = todo;
+    const title = byId('itemTitle'), suggestions = byId('wishTitleSuggestions');
+    if (todo) {
+        title.removeAttribute('list');
+        suggestions.replaceChildren();
+    } else {
+        const titles = new Set(ListsLocal.view(listsLocal).items.filter(item => item.kind === 'wish').map(item => item.title));
+        suggestions.replaceChildren(...[...titles].map(value => new Option(value, value)));
+        title.setAttribute('list', suggestions.id);
+    }
 }
 function edit(kind, value) {
     byId('itemForm').reset(); byId('itemError').textContent = ''; byId('itemId').value = value?.id || crypto.randomUUID();
@@ -185,9 +194,31 @@ byId('itemKind').addEventListener('change', kindFields);
 byId('itemForm').addEventListener('submit', event => {
     event.preventDefault();
     try {
-        const previous = ListsLocal.view(listsLocal).items.find(item => item.id === byId('itemId').value);
-        mutate({ type: 'itemSave', value: { id: byId('itemId').value, kind: byId('itemKind').value, title: byId('itemTitle').value, note: byId('itemNote').value, done: byId('itemDone').checked, dueDate: byId('itemDue').value, url: byId('itemUrl').value.trim(), assignee: byId('itemAssignee').value } });
-        if (byId('itemDone').checked && !previous?.done) { lastCompletion = { id: byId('itemId').value }; completionNotice(); }
+        const items = ListsLocal.view(listsLocal).items;
+        const value = ListsModel.item({
+            id: byId('itemId').value, kind: byId('itemKind').value, title: byId('itemTitle').value,
+            note: byId('itemNote').value, done: byId('itemDone').checked, dueDate: byId('itemDue').value,
+            url: byId('itemUrl').value.trim(), assignee: byId('itemAssignee').value
+        });
+        const previous = items.find(item => item.id === value.id);
+        const matches = !previous && value.kind === 'wish' ? items.filter(item =>
+            item.kind === 'wish' && item.title === value.title && item.url === value.url && item.note === value.note) : [];
+        const existing = matches.find(item => !item.done) || matches.at(-1);
+        if (existing) {
+            if (existing.done) {
+                mutate({ type: 'itemDone', id: existing.id, done: false });
+                if (byId('filter').value === 'done') {
+                    byId('filter').value = 'open';
+                    render();
+                }
+                message('「' + existing.title + '」を未購入に戻しました。同期待ちです。', 'pending');
+            } else {
+                message('「' + existing.title + '」は未購入リストに登録済みです。', listsLocal.pending.length ? 'pending' : 'ready');
+            }
+        } else {
+            mutate({ type: 'itemSave', value });
+            if (value.done && !previous?.done) { lastCompletion = { id: value.id }; completionNotice(); }
+        }
         byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true });
     }
     catch (error) { byId('itemError').textContent = error.message; }

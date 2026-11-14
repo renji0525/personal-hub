@@ -43,7 +43,7 @@
 <dialog id="itemDialog" aria-labelledby="itemDialogTitle"><form id="itemForm"><h2 id="itemDialogTitle">項目を追加</h2><input id="itemId" type="hidden">
 <label>リストの種類<select id="itemKind"><option value="todo">やる事</option><option value="wish">買いたいもの</option></select></label>
 <label>担当ユーザー<select id="itemAssignee"><option value="">未指定</option></select></label><button id="assigneeRefresh" class="quiet" type="button">担当者一覧を更新</button><small id="assigneeStatus" class="muted" role="status"></small>
-<label>タイトル<input id="itemTitle" maxlength="120" required></label><label id="dueField">期限（任意）<input id="itemDue" type="date"></label><label id="urlField" hidden>商品リンク（任意）<input id="itemUrl" type="url" maxlength="1000" placeholder="https://"></label>
+<label>タイトル<input id="itemTitle" maxlength="120" required></label><datalist id="wishTitleSuggestions"></datalist><label id="dueField">期限（任意）<input id="itemDue" type="date"></label><label id="urlField" hidden>商品リンク（任意）<input id="itemUrl" type="url" maxlength="1000" placeholder="https://"></label>
 <label>メモ（任意）<textarea id="itemNote" maxlength="500" rows="3"></textarea></label><label class="done-field"><input id="itemDone" type="checkbox">完了・購入済み</label>
 <p id="itemError" class="error" role="alert"></p><div class="actions"><button id="itemSave" data-edit>保存する</button><button id="itemCancel" type="button" class="quiet">キャンセル</button></div>
 </form></dialog>
