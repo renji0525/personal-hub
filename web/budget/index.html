@@ -176,12 +176,18 @@
                     <label for="entryCategory">カテゴリ 大項目</label>
                     <div class="entry-category-control">
                         <select id="entryCategory"></select>
-                        <button id="addEntryCategory" class="quiet requires-data" type="button" aria-label="カテゴリを追加" disabled>＋ 追加</button>
+                        <button id="addEntryCategory" class="quiet" type="button" aria-label="大項目を追加">＋ 追加</button>
                     </div>
                     <label for="entryCategoryMiddle">カテゴリ 中項目 <span class="optional">任意</span></label>
-                    <select id="entryCategoryMiddle" disabled></select>
+                    <div class="entry-category-control">
+                        <select id="entryCategoryMiddle" disabled></select>
+                        <button id="addEntryCategoryMiddle" class="quiet" type="button" aria-label="中項目を追加" disabled>＋ 追加</button>
+                    </div>
                     <label for="entryCategorySmall">カテゴリ 小項目 <span class="optional">任意</span></label>
-                    <select id="entryCategorySmall" disabled></select>
+                    <div class="entry-category-control">
+                        <select id="entryCategorySmall" disabled></select>
+                        <button id="addEntryCategorySmall" class="quiet" type="button" aria-label="小項目を追加" disabled>＋ 追加</button>
+                    </div>
                     <label for="entryAttribution">使用者</label>
                     <select id="entryAttribution" required>
                         <option value="group">全体</option>

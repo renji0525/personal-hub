@@ -57,8 +57,8 @@ function fillEntryCategories(large = byId('entryCategory').value, middle = byId(
     fillCategoryChoices(root, '', large, '未項目');
     fillCategoryChoices(child, root.value || null, middle, '選択なし');
     fillCategoryChoices(leaf, child.value || null, small, '選択なし');
-    child.disabled = !root.value;
-    leaf.disabled = !child.value;
+    child.disabled = byId('addEntryCategoryMiddle').disabled = !root.value;
+    leaf.disabled = byId('addEntryCategorySmall').disabled = !child.value;
 }
 function fillCategoryFilter() {
     const select = byId('categoryFilter');
@@ -356,17 +356,20 @@ function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
     byId('categoryParent').disabled = false; fillCategoryParents();
 }
-function openCategories(quick) {
+function openCategories(level = '', parentId = '') {
     resetCategory();
-    if (quick) fillCategoryParents(byId('entryCategoryMiddle').value || byId('entryCategory').value);
-    quickCategory = quick;
-    byId('categoryHeading').textContent = quick ? 'カテゴリを追加' : 'カテゴリを管理';
-    byId('categoryHint').hidden = quick;
-    byId('categories').hidden = quick;
+    quickCategory = Boolean(level);
+    if (quickCategory) {
+        byId('categoryParent').value = parentId;
+        byId('categoryParent').disabled = true;
+    }
+    byId('categoryHeading').textContent = quickCategory ? level + 'を追加' : 'カテゴリを管理';
+    byId('categoryHint').hidden = quickCategory;
+    byId('categories').hidden = quickCategory;
     byId('categoryStatus').textContent = '';
-    if (!quick) renderCategoryList();
+    if (!quickCategory) renderCategoryList();
     byId('categoryDialog').showModal();
-    if (quick) byId('categoryName').focus();
+    if (quickCategory) byId('categoryName').focus();
 }
 function localStatus() {
     byId('status').dataset.state = localBudget.pending.length ? 'pending' : 'ready';
@@ -479,8 +482,10 @@ byId('categoryForm').addEventListener('submit', async event => {
         }
     }
 });
-byId('categoryButton').addEventListener('click', () => openCategories(false));
-byId('addEntryCategory').addEventListener('click', () => openCategories(true));
+byId('categoryButton').addEventListener('click', () => openCategories());
+byId('addEntryCategory').addEventListener('click', () => openCategories('大項目'));
+byId('addEntryCategoryMiddle').addEventListener('click', () => openCategories('中項目', byId('entryCategory').value));
+byId('addEntryCategorySmall').addEventListener('click', () => openCategories('小項目', byId('entryCategoryMiddle').value));
 byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
 byId('newEntry').addEventListener('click', () => openEntry());
 byId('addDayRecord').addEventListener('click', () => openEntry(byId('dayRecordsDialog').dataset.date));
