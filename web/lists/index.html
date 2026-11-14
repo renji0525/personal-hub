@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja" data-auth-pending>
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>リスト | Personal Hub</title><meta name="theme-color" content="#101a22"><meta name="description" content="やる事リスト、買いたいものリスト、行く予定リストを個人用・共有スペースで管理。">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>リスト | Personal Hub</title><meta name="theme-color" content="#141e27"><meta name="description" content="やる事リスト、買いたいものリスト、行く予定リストを個人用・共有スペースで管理。">
 <link rel="icon" href="../shared/icons/lists.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../shared/css/base.css"><link rel="stylesheet" href="css/style.css"><link rel="stylesheet" href="../shared/css/navigation.css"><link rel="stylesheet" href="../shared/css/budget-spaces.css">
 <script src="../shared/js/auth.js"></script><script>HubAuth.ready = HubAuth.protect({ local: true });</script>
@@ -23,17 +23,16 @@
         </nav>
         <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
     </header>
-<main id="main">
+<main id="main" class="workspace">
 <div id="budgetSpaceBar" class="budget-space-bar" aria-label="共有スペースの選択">
     <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
-    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+    <p id="budgetSpaceNotice" class="muted" role="status">未同期の変更は元のスペースに残ります。</p>
 </div>
-<div class="heading"><h1><img src="../shared/icons/lists.svg" width="42" height="42" alt="">リスト</h1></div>
-<div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
+<div class="page-heading"><h1><img class="heading-icon" src="../shared/icons/lists.svg" width="42" height="42" alt="">リスト</h1></div>
+<div class="toolbar page-actions"><button id="syncButton" class="quiet" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>未同期の変更を破棄して再取得</button>
 <div id="undoNotice" class="undo-notice" role="status" hidden><span id="undoText"></span><button id="undoButton" type="button" class="quiet" data-edit>元に戻す</button></div>
-<p class="muted">完了・購入済み・訪問済みは「元に戻す」で取り消せます。</p>
-<p class="muted">変更は端末に保存し、最後の変更から約3秒後に自動同期します。購入済みにしても家計簿の支出や在庫には自動追加しません。</p>
+<p class="muted">購入済みにしても家計簿・在庫には追加されません。</p>
 <div id="listTabs" class="list-tabs" role="tablist" aria-label="リストの種類">
     <button id="todoTab" type="button" role="tab" aria-controls="todoPanel" aria-selected="true" data-kind="todo">やる事リスト</button>
     <button id="wishTab" type="button" role="tab" aria-controls="wishPanel" aria-selected="false" data-kind="wish" tabindex="-1">買いたいものリスト</button>
@@ -41,9 +40,9 @@
 </div>
 <div class="filters"><label>リストを検索<input id="search" type="search" placeholder="タイトルやメモ"></label><label>表示する項目<select id="filter"><option value="open">未完了</option><option value="all">すべて</option><option value="done">完了</option></select></label></div>
 <div id="listPanels">
-<section id="todoPanel" class="list-panel" role="tabpanel" aria-labelledby="todoTab" tabindex="0"><div class="panel-heading"><small id="todoCount"></small><button id="todoAdd" data-edit disabled>やる事を追加</button></div><div id="todoItems"></div><p id="todoShown" class="shown"></p><button id="todoMore" class="quiet" hidden>次の50件を表示</button></section>
-<section id="wishPanel" class="list-panel" role="tabpanel" aria-labelledby="wishTab" tabindex="0" hidden><div class="panel-heading"><small id="wishCount"></small><button id="wishAdd" data-edit disabled>買いたいものを追加</button></div><div id="wishItems"></div><p id="wishShown" class="shown"></p><button id="wishMore" class="quiet" hidden>次の50件を表示</button></section>
-<section id="visitPanel" class="list-panel" role="tabpanel" aria-labelledby="visitTab" tabindex="0" hidden><div class="panel-heading"><small id="visitCount"></small><button id="visitAdd" data-edit disabled>行くところを追加</button></div><div id="visitItems"></div><p id="visitShown" class="shown"></p><button id="visitMore" class="quiet" hidden>次の50件を表示</button></section>
+<section id="todoPanel" class="list-panel panel-surface" role="tabpanel" aria-labelledby="todoTab" tabindex="0"><div class="panel-heading"><small id="todoCount"></small><button id="todoAdd" data-edit disabled>やる事を追加</button></div><div id="todoItems"></div><p id="todoShown" class="shown"></p><button id="todoMore" class="quiet" hidden>次の50件を表示</button></section>
+<section id="wishPanel" class="list-panel panel-surface" role="tabpanel" aria-labelledby="wishTab" tabindex="0" hidden><div class="panel-heading"><small id="wishCount"></small><button id="wishAdd" data-edit disabled>買いたいものを追加</button></div><div id="wishItems"></div><p id="wishShown" class="shown"></p><button id="wishMore" class="quiet" hidden>次の50件を表示</button></section>
+<section id="visitPanel" class="list-panel panel-surface" role="tabpanel" aria-labelledby="visitTab" tabindex="0" hidden><div class="panel-heading"><small id="visitCount"></small><button id="visitAdd" data-edit disabled>行くところを追加</button></div><div id="visitItems"></div><p id="visitShown" class="shown"></p><button id="visitMore" class="quiet" hidden>次の50件を表示</button></section>
 </div>
 </main>
 <dialog id="itemDialog" aria-labelledby="itemDialogTitle"><form id="itemForm"><h2 id="itemDialogTitle">項目を追加</h2><input id="itemId" type="hidden">

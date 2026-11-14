@@ -2,10 +2,10 @@
 <html lang="ja" data-auth-pending>
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <meta name="description" content="お気に入りのYouTubeチャンネルと動画の既読をまとめて管理。">
         <title>YouTube RSS | Personal Hub</title>
-        <meta name="theme-color" content="#101a22">
+        <meta name="theme-color" content="#141e27">
         <link rel="icon" href="../shared/icons/youtube-32.png" type="image/png" sizes="32x32">
         <link rel="icon" href="../shared/icons/youtube.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="../shared/icons/youtube-180.png">
@@ -72,16 +72,7 @@
             </div>
         </dialog>
         <main id="main">
-            <div class="page-heading">
-                <div>
-                    <p class="eyebrow">YOUR VIDEO LIBRARY</p>
-                    <h1>YouTube RSS <span id="videoCount" class="count">
-                        </span>
-                    </h1>
-                    <p class="subtitle">気になる動画を、あなたのペースで。</p>
-                </div>
-                <img class="heading-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">
-            </div>
+            <div class="page-heading"><h1><img class="heading-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">YouTube RSS <span id="videoCount" class="count"></span></h1></div>
             <header class="library-toolbar">
                 <form class="channel-add" onsubmit="event.preventDefault(); addNewChannel()">
                     <label class="sr-only" for="channelIdInput">追加するチャンネルURL・ハンドル・ID</label>

@@ -2,10 +2,10 @@
 <html lang="ja" data-auth-pending>
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <meta name="description" content="毎日の収支を、自由なカテゴリと色で記録。端末保存で軽快に使える家計簿。">
         <title>家計簿 | Personal Hub</title>
-        <meta name="theme-color" content="#101a22">
+        <meta name="theme-color" content="#141e27">
         <link rel="icon" href="../shared/icons/budget-32.png" type="image/png" sizes="32x32">
         <link rel="icon" href="../shared/icons/budget.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="../shared/icons/budget-180.png">
@@ -43,20 +43,15 @@
         <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
     </header>
 
-        <main id="main">
+        <main id="main" class="workspace">
 <div id="budgetSpaceBar" class="budget-space-bar" aria-label="共有スペースの選択">
     <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
-    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+    <p id="budgetSpaceNotice" class="muted" role="status">未同期の変更は元のスペースに残ります。</p>
 </div>
 <a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
-            <div class="heading">
-                <div>
-                    <p class="eyebrow">YOUR MONEY, YOUR WAY</p>
-                    <h1>
-                        <img class="heading-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">家計簿</h1>
-                    <p class="subtitle">毎日の収支を、ひと目で。</p>
-                </div>
-                <div class="toolbar-actions"><button id="newEntry" class="requires-data" type="button" disabled>記録</button><button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button></div>
+            <div class="page-heading">
+                <h1><img class="heading-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">家計簿</h1>
+                <div class="page-actions"><button id="newEntry" class="requires-data" type="button" disabled>記録</button><button id="categoryButton" class="secondary requires-data" disabled>カテゴリを管理</button></div>
             </div>
             <div class="month-toolbar">
                 <div class="period-toggle" role="group" aria-label="表示形式">
@@ -90,34 +85,27 @@
             <p class="save-note">記録はこの端末に保存し、最後の変更から約3秒後に自動同期します。</p>
             <button id="discardButton" type="button" class="quiet" hidden>未同期の変更を破棄して再取得</button>
             <p class="sync-status" id="status" role="status" aria-live="polite">読み込み中…</p>
-            <section id="monthCalendar" class="panel calendar-panel" aria-label="月カレンダー">
-                <h2>月カレンダー</h2>
-                <p class="calendar-legend"><span class="expense">− 支出（円）</span><span class="income">＋ 収入（円）</span></p>
-                <div class="calendar-weekdays" aria-hidden="true"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div>
-                <div id="calendarDays" class="calendar-days"></div>
-            </section>
             <section class="summary" aria-label="表示期間の収支">
-                <article>
-                    <span>↗ 期間の収入</span>
+                <article class="panel-surface">
+                    <span>収入</span>
                     <strong id="incomeTotal">—</strong>
                 </article>
-                <article>
-                    <span>↘ 期間の支出</span>
+                <article class="panel-surface">
+                    <span>支出</span>
                     <strong id="expenseTotal">—</strong>
                 </article>
-                <article class="balance">
-                    <span>期間の差引</span>
+                <article class="balance panel-surface">
+                    <span>差引</span>
                     <strong id="balanceTotal">—</strong>
                 </article>
             </section>
+            <section id="monthCalendar" class="panel panel-surface calendar-panel" aria-label="月カレンダー">
+                <div class="calendar-heading"><h2>月カレンダー</h2><p class="calendar-legend"><span class="expense">− 支出（円）</span><span class="income">＋ 収入（円）</span></p></div>
+                <div class="calendar-weekdays" aria-hidden="true"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div>
+                <div id="calendarDays" class="calendar-days"></div>
+            </section>
             <div class="details">
-                <section class="panel category-summary">
-                    <h2>カテゴリ別の支出</h2>
-                    <div id="categorySummary" class="breakdown">
-                        <p class="empty">今月の支出はまだありません。</p>
-                    </div>
-                </section>
-                <section class="panel records-panel">
+                <section class="panel panel-surface records-panel">
                     <div class="records-heading">
                         <h2><span id="recordsTitle">記録一覧</span> <span id="entryCount" class="count">0件</span>
                         </h2>
@@ -139,6 +127,12 @@
                     </div>
                     <button id="moreEntries" class="quiet requires-data" type="button" hidden>次の50件を表示</button>
                 </section>
+                <section class="panel panel-surface category-summary">
+                    <h2>カテゴリ別の支出</h2>
+                    <div id="categorySummary" class="breakdown">
+                        <p class="empty">今月の支出はまだありません。</p>
+                    </div>
+                </section>
             </div>
         </main>
         <dialog id="dayRecordsDialog" aria-labelledby="dayRecordsHeading">
@@ -156,47 +150,67 @@
                 <button id="closeEntry" class="quiet" type="button" aria-label="記録ウィンドウを閉じる">✕</button>
             </div>
             <form id="entryForm">
-                <fieldset id="entryFields" disabled>
+                <fieldset id="entryFields" class="entry-fields" disabled>
                     <input id="entryId" type="hidden">
-                    <label for="entryType">種類</label>
-                    <select id="entryType" required>
-                        <option value="expense">支出</option>
-                        <option value="income">収入</option>
-                    </select>
-                    <label for="entryDate">日付</label>
-                    <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
-                    <label for="entryAmount">金額（円）</label>
-                    <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
-                    <label for="entryProduct">商品名 <span class="optional">任意</span></label>
-                    <input id="entryProduct" list="productSuggestions" maxlength="80" autocomplete="off">
-                    <datalist id="productSuggestions"></datalist>
-                    <label for="entryShop">店舗名 <span class="optional">任意</span></label>
-                    <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
-                    <datalist id="shopSuggestions"></datalist>
-                    <label for="entryCategory">カテゴリ 大項目</label>
-                    <div class="entry-category-control">
-                        <select id="entryCategory"></select>
-                        <button id="addEntryCategory" class="quiet" type="button" aria-label="大項目を追加">＋ 追加</button>
+                    <div>
+                        <label for="entryType">種類</label>
+                        <select id="entryType" required>
+                            <option value="expense">支出</option>
+                            <option value="income">収入</option>
+                        </select>
                     </div>
-                    <label for="entryCategoryMiddle">カテゴリ 中項目 <span class="optional">任意</span></label>
-                    <div class="entry-category-control">
-                        <select id="entryCategoryMiddle" disabled></select>
-                        <button id="addEntryCategoryMiddle" class="quiet" type="button" aria-label="中項目を追加" disabled>＋ 追加</button>
+                    <div>
+                        <label for="entryDate">日付</label>
+                        <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
                     </div>
-                    <label for="entryCategorySmall">カテゴリ 小項目 <span class="optional">任意</span></label>
-                    <div class="entry-category-control">
-                        <select id="entryCategorySmall" disabled></select>
-                        <button id="addEntryCategorySmall" class="quiet" type="button" aria-label="小項目を追加" disabled>＋ 追加</button>
+                    <div>
+                        <label for="entryAmount">金額（円）</label>
+                        <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
                     </div>
-                    <label for="entryAttribution">使用者</label>
-                    <select id="entryAttribution" required>
-                        <option value="group">全体</option>
-                    </select>
-                    <small id="entryUsersStatus" class="hint" role="status" hidden></small>
-                    <label for="entryMemo">メモ <span class="optional">任意</span>
-                    </label>
-                    <input id="entryMemo" maxlength="200" placeholder="用途など">
-                    <div class="form-actions">
+                    <div>
+                        <label for="entryProduct">商品名 <span class="optional">任意</span></label>
+                        <input id="entryProduct" list="productSuggestions" maxlength="80" autocomplete="off">
+                        <datalist id="productSuggestions"></datalist>
+                    </div>
+                    <div>
+                        <label for="entryShop">店舗名 <span class="optional">任意</span></label>
+                        <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
+                        <datalist id="shopSuggestions"></datalist>
+                    </div>
+                    <div class="entry-wide">
+                        <label for="entryCategory">カテゴリ 大項目</label>
+                        <div class="entry-category-control">
+                            <select id="entryCategory"></select>
+                            <button id="addEntryCategory" class="quiet" type="button" aria-label="大項目を追加">＋ 追加</button>
+                        </div>
+                    </div>
+                    <div class="entry-wide">
+                        <label for="entryCategoryMiddle">カテゴリ 中項目 <span class="optional">任意</span></label>
+                        <div class="entry-category-control">
+                            <select id="entryCategoryMiddle" disabled></select>
+                            <button id="addEntryCategoryMiddle" class="quiet" type="button" aria-label="中項目を追加" disabled>＋ 追加</button>
+                        </div>
+                    </div>
+                    <div class="entry-wide">
+                        <label for="entryCategorySmall">カテゴリ 小項目 <span class="optional">任意</span></label>
+                        <div class="entry-category-control">
+                            <select id="entryCategorySmall" disabled></select>
+                            <button id="addEntryCategorySmall" class="quiet" type="button" aria-label="小項目を追加" disabled>＋ 追加</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="entryAttribution">使用者</label>
+                        <select id="entryAttribution" required>
+                            <option value="group">全体</option>
+                        </select>
+                    </div>
+                    <small id="entryUsersStatus" class="hint entry-wide" role="status" hidden></small>
+                    <div class="entry-wide">
+                        <label for="entryMemo">メモ <span class="optional">任意</span>
+                        </label>
+                        <input id="entryMemo" maxlength="200" placeholder="用途など">
+                    </div>
+                    <div class="form-actions entry-wide">
                         <button type="submit" id="saveEntry">記録する</button>
                         <button type="button" id="cancelEntry" class="quiet">キャンセル</button>
                     </div>

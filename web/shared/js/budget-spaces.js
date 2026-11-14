@@ -76,7 +76,9 @@ window.BudgetSpaces = (() => {
         const tabs = el('div'); tabs.id = 'budgetSpaceTabs'; tabs.className = 'budget-space-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '個人用・共有スペース');
         const tabsStatus = el('p'); tabsStatus.id = 'budgetSpaceTabsStatus'; tabsStatus.className = 'muted'; tabsStatus.setAttribute('role', 'status');
         const refresh = el('button', 'タブを更新'); refresh.type = 'button'; refresh.id = 'budgetSpaceTabsRefresh'; refresh.className = 'quiet';
-        bar.insertBefore(tabs, document.getElementById('budgetSpaceNotice')); bar.append(refresh, tabsStatus);
+        bar.insertBefore(refresh, document.getElementById('budgetSpaceNotice'));
+        bar.insertBefore(tabs, document.getElementById('budgetSpaceNotice'));
+        bar.append(tabsStatus);
         const panel = el('div'); panel.id = 'budgetSpacePanel'; panel.setAttribute('role', 'tabpanel');
         const main = document.getElementById('main');
         for (const child of [...main.children]) if (child !== bar) panel.append(child);
@@ -103,6 +105,10 @@ window.BudgetSpaces = (() => {
                 tabs.append(tab);
             }
             if (!tabs.querySelector('[aria-selected="true"]')) tabs.firstElementChild.tabIndex = 0;
+            const selected = tabs.querySelector('[aria-selected="true"]');
+            if (selected && selected.offsetLeft + selected.offsetWidth > tabs.clientWidth) {
+                tabs.scrollLeft = selected.offsetLeft;
+            }
         }
         tabs.addEventListener('keydown', event => {
             const buttons = [...tabs.querySelectorAll('[role="tab"]')].filter(button => !button.disabled), index = buttons.indexOf(document.activeElement);

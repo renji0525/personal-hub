@@ -12,8 +12,8 @@ function setLoginMode(temporary) {
     resetSession = null;
     resetForm.reset();
     document.getElementById('passwordInput').value = '';
-    document.getElementById('accountTitle').textContent = temporary ? '一時パスワードでログイン' : 'おかえりなさい';
-    document.getElementById('accountHelp').textContent = temporary ? '管理者から受け取った一時パスワードを入力してください。ログイン後に新しいパスワードを設定します。' : 'アカウントにログインして、続きを始めましょう。';
+    document.getElementById('accountTitle').textContent = temporary ? '一時パスワードでログイン' : 'ログイン';
+    document.getElementById('accountHelp').textContent = temporary ? '管理者から受け取った一時パスワードを入力してください。ログイン後に新しいパスワードを設定します。' : '';
     document.getElementById('passwordLabel').textContent = temporary ? '一時パスワード' : 'パスワード';
     document.getElementById('submitLabel').textContent = temporary ? '一時ログイン' : 'ログイン';
     document.getElementById('registerButton').hidden = temporary;

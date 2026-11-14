@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja" data-auth-pending><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>メモ | Personal Hub</title><meta name="theme-color" content="#101a22"><meta name="description" content="思いついたことを気軽に残せるメモ。個人用でも共有スペースでも。">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><title>メモ | Personal Hub</title><meta name="theme-color" content="#141e27"><meta name="description" content="思いついたことを気軽に残せるメモ。個人用でも共有スペースでも。">
 <link rel="icon" href="../shared/icons/notes.svg" type="image/svg+xml"><link rel="stylesheet" href="../shared/css/base.css"><link rel="stylesheet" href="css/style.css"><link rel="stylesheet" href="../shared/css/navigation.css"><link rel="stylesheet" href="../shared/css/budget-spaces.css">
 <script src="../shared/js/auth.js"></script><script>HubAuth.ready=HubAuth.protect({local:true});</script>
 <script src="../shared/js/sync-merge.js" defer></script><script src="../lists/js/model.js" defer></script><script src="../lists/js/store.js" defer></script><script src="../shared/js/budget-spaces.js" defer></script><script src="../shared/js/sync-conflict.js" defer></script>
@@ -18,14 +18,13 @@
         </nav>
         <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
     </header>
-<main id="main"><div id="budgetSpaceBar" class="budget-space-bar" aria-label="共有スペースの選択">
+<main id="main" class="workspace"><div id="budgetSpaceBar" class="budget-space-bar" aria-label="共有スペースの選択">
     <strong id="budgetSpaceName">個人用</strong><button id="budgetSpaceSettings" type="button" class="quiet">共有の設定</button><button id="budgetSpacePersonal" type="button" class="quiet">個人用に戻る</button>
-    <p id="budgetSpaceNotice" class="muted" role="status">個人用と共有用は別々に保存します。切り替えても未同期内容は元のスペースに残ります。</p>
+    <p id="budgetSpaceNotice" class="muted" role="status">未同期の変更は元のスペースに残ります。</p>
 </div>
-<div class="heading"><div><p class="eyebrow">A LITTLE SPACE FOR YOUR THOUGHTS</p><h1><img src="../shared/icons/notes.svg" width="42" height="42" alt="">メモ</h1><p class="muted">思いついたことを、忘れないうちに。</p></div><button id="addNote" data-edit disabled>メモを書く</button></div>
-<div class="toolbar"><button id="syncButton" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
+<div class="page-heading"><h1><img class="heading-icon" src="../shared/icons/notes.svg" width="42" height="42" alt="">メモ</h1><button id="addNote" data-edit disabled>メモを書く</button></div>
+<div class="toolbar page-actions"><button id="syncButton" class="quiet" disabled>同期する</button><button id="exportButton" class="quiet" disabled>バックアップ</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div>
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p><button id="discardButton" class="quiet" hidden>メモの未同期変更を破棄して再取得</button>
-<p class="muted">メモは端末に保存し、最後の変更から約3秒後に自動同期します。共有スペースでは参加者と共同編集できます。</p>
 <label class="search-field">メモを検索<input id="search" type="search" placeholder="タイトルや本文"></label><p id="noteCount" class="muted" role="status"></p><div id="notes" class="notes-grid"></div><button id="moreButton" class="quiet" hidden>次の50件を表示</button>
 </main>
 <dialog id="noteDialog" aria-labelledby="noteDialogTitle"><form id="noteForm"><h2 id="noteDialogTitle">メモを書く</h2><input id="noteId" type="hidden"><label>タイトル（任意）<input id="noteTitle" maxlength="120" placeholder="空欄なら本文の先頭を使います"></label><label>本文<textarea id="noteBody" maxlength="5000" rows="10" placeholder="ここにメモを入力…"></textarea></label><p id="noteError" class="error" role="alert"></p><div class="actions"><button id="noteSave" data-edit>保存する</button><button id="noteCancel" type="button" class="quiet">キャンセル</button></div></form></dialog>

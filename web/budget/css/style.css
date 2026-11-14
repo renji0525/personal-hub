@@ -1,35 +1,11 @@
 /* 家計簿固有のレイアウト。共通の操作部品はbase.cssへ集約する */
 
-main  {
-    width:min(1160px,calc(100% - 64px));
-    margin:auto;
-    padding:36px 0 64px;
-}
-.heading  {
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    justify-content:space-between;
-    gap:16px;
-}
-.heading h1  {
-    display:flex;
-    align-items:center;
-    gap:14px;
-}
-.heading .eyebrow  {
-    font-size:9px;
-}
-.heading .subtitle  {
-    margin-left:58px;
-}
 .month-toolbar  {
     display:flex;
     flex-wrap:wrap;
     align-items:center;
     justify-content:space-between;
-    gap:16px;
-    margin-top:32px;
+    gap:12px;
 }
 .month-picker,.toolbar-actions  {
     display:flex;
@@ -61,11 +37,6 @@ main  {
 .toolbar-actions button  {
     font-size:12px;
 }
-#refreshButton  {
-    background:var(--accent);
-    color:var(--accent-ink);
-    border-color:transparent;
-}
 .save-note  {
     margin:16px 0 8px;
     font-size:11px;
@@ -82,15 +53,10 @@ main  {
 .summary  {
     display:grid;
     grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:16px;
+    gap:12px;
     margin-bottom:28px;
 }
-.summary article  {
-    padding:24px;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--surface);
-}
+.summary article { padding:var(--panel-padding); }
 .summary article span  {
     font-size:11px;
     color:var(--muted);
@@ -106,10 +72,10 @@ main  {
 }
 .summary .balance  {
     background:var(--accent-soft);
-    border-color:#446c5e;
+    border-color:color-mix(in srgb,var(--accent),var(--line) 72%);
 }
 .summary .balance span  {
-    color:#c3d9d0;
+    color:var(--accent);
 }
 #incomeTotal,.income  {
     color:var(--accent);
@@ -117,35 +83,28 @@ main  {
 #expenseTotal,.expense  {
     color:var(--danger);
 }
-.period-toggle {
-    display:flex;
-    gap:4px;
-}
+.period-toggle { display:flex; gap:4px; padding:3px; border:1px solid var(--line); border-radius:var(--control-radius); background:var(--surface); }
 .period-toggle button {
     min-width:44px;
     padding:8px 12px;
 }
-.period-toggle button[aria-pressed="false"] {
-    background:var(--surface);
-    color:var(--text);
-}
+.period-toggle button[aria-pressed="false"] { background:transparent; color:var(--muted); }
 .panel.calendar-panel {
     margin-bottom:24px;
-    padding:clamp(8px, 3vw, 24px);
+    padding:clamp(8px, 2vw, 22px);
 }
-.panel.calendar-panel h2 {
-    margin-bottom:8px;
-}
+.calendar-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 12px; margin-bottom:12px; }
+.panel .calendar-heading h2 { margin:0; }
 .calendar-legend {
     display:flex;
-    gap:16px;
-    margin:0 0 12px;
+    gap:12px;
+    margin:0;
     font-size:12px;
 }
 .calendar-weekdays,.calendar-days {
     display:grid;
     grid-template-columns:repeat(7,minmax(0,1fr));
-    gap:2px;
+    gap:clamp(2px, .55vw, 7px);
 }
 .calendar-weekdays {
     text-align:center;
@@ -158,13 +117,13 @@ main  {
     border-radius:6px;
     background:var(--surface-raised);
     min-width:0;
-    min-height:66px;
+    min-height:clamp(64px, 7vw, 86px);
 }
 .calendar-day {
     display:grid;
     align-content:start;
     justify-items:start;
-    gap:2px;
+    gap:clamp(2px, .55vw, 7px);
     text-align:left;
     padding:clamp(2px, 1vw, 8px);
     color:var(--text);
@@ -209,13 +168,7 @@ main  {
     font-size:12px;
     overflow-wrap:anywhere;
 }
-.panel  {
-    min-width:0;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--surface);
-    padding:24px;
-}
+.panel { padding:var(--panel-padding); }
 .panel h2  {
     margin-bottom:24px;
 }
@@ -232,7 +185,6 @@ label  {
     margin:16px 0 7px;
 }
 fieldset>label:first-of-type  {
-    margin-top:0;
 }
 .optional  {
     margin-left:5px;
@@ -273,11 +225,7 @@ fieldset>label:first-of-type  {
     font-size:21px;
     font-variant-numeric:tabular-nums;
 }
-.details  {
-    display:grid;
-    gap:24px;
-    min-width:0;
-}
+.details { display:grid; gap:var(--section-gap); align-items:start; }
 .breakdown  {
     display:grid;
     gap:18px;
@@ -448,37 +396,6 @@ input[type=color]  {
     }
 }
 @media(max-width:700px)  {
-    main  {
-        width:calc(100% - 32px);
-        padding-top:26px;
-    }
-    .heading .heading-icon  {
-        width:38px;
-        height:38px;
-    }
-    .heading .subtitle  {
-        margin-left:52px;
-    }
-    .heading .toolbar-actions button  {
-        min-height:40px;
-    }
-    .summary  {
-        gap:8px;
-        margin-bottom:20px;
-    }
-    .summary article  {
-        padding:16px 10px;
-        border-radius:12px;
-    }
-    .summary article span  {
-        font-size:10px;
-    }
-    .summary strong  {
-        font-size:18px;
-    }
-    .toolbar-actions  {
-        gap:6px;
-    }
     .month-toolbar  {
         gap:14px;
         margin-top:24px;
@@ -492,10 +409,6 @@ input[type=color]  {
     .filters  {
         flex-wrap:wrap;
     }
-    .details  {
-        gap:16px;
-    }
-
 }
 @media(max-width:380px)  {
 
@@ -511,4 +424,26 @@ input[type=color]  {
     .month-picker input  {
         width:155px;
     }
+}
+@media(min-width:950px) {
+    .details { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
+}
+@media(max-width:550px) {
+    .month-toolbar { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px; }
+    .month-picker input { flex:1; width:0; padding-inline:2px; font-size:14px; }
+    .month-picker button { flex:0 0 34px; }
+    .month-toolbar .toolbar-actions { grid-column:1/-1; }
+    .filters select { max-width:none; flex:1 1 100px; }
+}
+.page-actions button { padding-inline:12px; }
+.calendar-day span:first-child { font-weight:700; }
+.calendar-day[aria-current="date"] span:first-child { color:var(--accent); }
+#entryDialog { width:min(640px,calc(100% - 24px)); }
+.entry-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.entry-fields label { display:block; margin:0 0 5px; }
+.entry-wide { grid-column:1/-1; }
+.entry-fields .form-actions { margin-top:6px; }
+@media(max-width:550px) {
+    .entry-fields { grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:10px; }
+    .entry-fields > div:has(#entryAmount,#entryProduct,#entryShop,#entryAttribution) { grid-column:1/-1; }
 }

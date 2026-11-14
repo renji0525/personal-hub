@@ -1,7 +1,7 @@
 /* RSS固有の配置。基本部品と配色は共通CSSを使用する */
 body  {
     display:grid;
-    grid-template-columns:238px minmax(0,1fr);
+    grid-template-columns:clamp(188px, 19vw, 248px) minmax(0,1fr);
     grid-template-rows:auto minmax(0,1fr);
     height:100dvh;
     overflow:hidden;
@@ -11,10 +11,10 @@ body  {
 .sidebar  {
     display:flex;
     flex-direction:column;
-    flex:0 0 238px;
+
     min-width:0;
     min-height:0;
-    padding:26px 16px 18px;
+    padding:var(--section-gap) 14px 18px;
     background:var(--surface);
     border-right:1px solid var(--line);
 }
@@ -108,21 +108,7 @@ main  {
     min-height:0;
     overflow:hidden;
 }
-.page-heading  {
-    display:flex;
-    flex-shrink:0;
-    justify-content:space-between;
-    align-items:center;
-    padding:32px 36px 24px;
-    gap:16px;
-}
-.page-heading .eyebrow  {
-    font-size:9px;
-    margin-bottom:9px;
-}
-.page-heading h1  {
-    font-size:29px;
-}
+.page-heading { flex-shrink:0; margin:0; padding:var(--section-gap) var(--gutter) 16px; }
 .count  {
     display:inline-block;
     vertical-align:middle;
@@ -130,7 +116,7 @@ main  {
     font-weight:400;
     color:var(--muted);
     letter-spacing:0;
-    margin-left:10px;
+    font-variant-numeric:tabular-nums;
 }
 .library-toolbar  {
     display:flex;
@@ -138,7 +124,7 @@ main  {
     align-items:center;
     gap:16px;
     padding:0 0 20px;
-    margin:0 36px;
+    margin:0 var(--gutter);
     border-bottom:1px solid var(--line);
 }
 .channel-add  {
@@ -181,7 +167,7 @@ main  {
 .activity-area  {
     flex-shrink:0;
     padding:12px 0 0;
-    margin:0 36px;
+    margin:0 var(--gutter);
 }
 .activity-area .sync-status  {
     font-size:11px;
@@ -207,28 +193,24 @@ main  {
     grid-template-columns:repeat(auto-fill,minmax(min(255px,100%),1fr));
     align-content:start;
     grid-auto-rows:max-content;
-    gap:22px;
+    gap:var(--section-gap);
     overflow-y:auto;
-    padding:24px 36px 36px;
+    padding:16px var(--gutter) 36px;
 }
 .watched-toggle { cursor:pointer; display:flex; align-items:center; gap:6px; }
 .video-card  {
     min-width:0;
     overflow:hidden;
     border:1px solid var(--line);
-    border-radius:14px;
+    border-radius:var(--radius);
     background:var(--surface);
     transition:border-color .15s,opacity .15s;
 }
 .video-card:hover  {
     border-color:var(--muted);
 }
-.video-card.watched  {
-    opacity:.55;
-}
-.video-card.watched:hover  {
-    opacity:.9;
-}
+.video-card.watched .video-title { color:var(--muted); }
+.video-card.watched .thumb-wrapper img { opacity:.65; }
 .thumb-wrapper  {
     display:block;
     aspect-ratio:16/9;
@@ -252,7 +234,7 @@ main  {
     -webkit-box-orient:vertical;
     overflow:hidden;
     min-height:3.1em;
-    font-size:13px;
+    font-size:14px;
     font-weight:600;
     line-height:1.6;
 }
@@ -335,7 +317,7 @@ main  {
     .sidebar  {
         display:grid;
         grid-template-columns:1fr auto;
-        padding:16px;
+        padding:8px var(--gutter);
         border-right:0;
         border-bottom:1px solid var(--line);
         gap:14px;
@@ -370,24 +352,11 @@ main  {
         border:0;
     }
     .sidebar-bottom button  {
-        min-height:36px;
+        min-height:44px;
         padding:7px 10px;
     }
     main  {
         overflow:visible;
-    }
-    .page-heading  {
-        padding:26px 20px 20px;
-    }
-    .page-heading h1  {
-        font-size:25px;
-    }
-    .page-heading .heading-icon  {
-        display:none;
-    }
-    .library-toolbar  {
-        margin-inline:20px;
-        gap:12px;
     }
     .channel-add  {
         flex-basis:100%;
@@ -398,21 +367,14 @@ main  {
     .unread-filter  {
         margin-left:auto;
     }
-    .activity-area  {
-        margin-inline:20px;
-    }
     #video-container  {
         overflow:visible;
-        padding:20px;
+        padding:12px var(--gutter) 24px;
         gap:16px;
         grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));
     }
 }
 @media(max-width:380px)  {
-    .page-heading,.library-toolbar,.activity-area  {
-        margin-inline:0;
-        padding-inline:16px;
-    }
     #video-container  {
         padding-inline:16px;
     }
@@ -444,3 +406,5 @@ main  {
         transform:translateY(12px);
     }
 }
+
+@media(max-width:480px) { .channel-add input { font-size:16px; } }

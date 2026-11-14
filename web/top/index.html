@@ -2,10 +2,10 @@
 <html lang="ja">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <meta name="description" content="動画と家計簿。毎日のツールをまとめるPersonal Hub。">
         <title>Personal Hub</title>
-        <meta name="theme-color" content="#101a22">
+        <meta name="theme-color" content="#141e27">
         <link rel="icon" href="../shared/icons/hub-32.png" type="image/png" sizes="32x32">
         <link rel="icon" href="../shared/icons/hub.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="../shared/icons/hub-180.png">
@@ -34,21 +34,17 @@
         <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
     </header>
 
-        <main id="main">
+        <main id="main" class="workspace">
 <a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
-            <div class="welcome">
-                <p class="eyebrow">YOUR EVERYDAY SPACE</p>
-                <h1>いつものことを、<br>ここから。</h1>
-                <p class="lead">動画のチェックも、お金の記録も。<br>毎日使うツールを、ひとつに。</p>
-            </div>
+            <div class="welcome"><h1>ホーム</h1></div>
             <section class="account-panel" aria-label="共通アカウント">
                 <div class="account-heading">
                     <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
 
                 </div>
                 <form id="accountForm" hidden>
-                    <h2 id="accountTitle">おかえりなさい</h2>
-                    <p class="muted" id="accountHelp">アカウントにログインして、続きを始めましょう。</p>
+                    <h2 id="accountTitle">ログイン</h2>
+                    <p class="muted" id="accountHelp"></p>
                     <label for="userIdInput">ユーザーID</label>
                     <input id="userIdInput" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" placeholder="ユーザーIDを入力" required>
                     <label for="passwordInput" id="passwordLabel">パスワード</label>
@@ -80,35 +76,25 @@
                 <a class="tool-link video-tool" href="../youtube-rss/index.html" aria-label="YouTube RSSを開く">
                     <img class="tool-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">
                     <span class="tool-copy">
-                        <span class="eyebrow">WATCH</span>
+
                         <strong>YouTube RSS</strong>
-                        <span>お気に入りの動画を、見逃さずに。<br>チャンネルと既読をまとめて管理。</span>
+                        <span>登録チャンネルの新着と未読動画</span>
                     </span>
-                    <span class="tool-open">開く <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14m-6-6 6 6-6 6"/>
-                        </svg>
-                    </span>
+                    <span class="tool-open" aria-hidden="true">→</span>
                 </a>
                 <a class="tool-link budget-tool" href="../budget/index.html" aria-label="家計簿を開く">
                     <img class="tool-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">
                     <span class="tool-copy">
-                        <span class="eyebrow">TRACK</span>
+
                         <strong>家計簿</strong>
-                        <span>日々の収支を、自分らしく。<br>自由なカテゴリで、すっきり記録。</span>
+                        <span>収支の記録と月・週の集計</span>
                     </span>
-                    <span class="tool-open">開く <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M5 12h14m-6-6 6 6-6 6"/>
-                        </svg>
-                    </span>
+                    <span class="tool-open" aria-hidden="true">→</span>
                 </a>
-            <a class="tool-link" href="../inventory/index.html" aria-label="在庫管理を開く"><img class="tool-icon" src="../shared/icons/inventory.svg" width="40" height="40" alt=""><span class="tool-copy"><span class="eyebrow">REFILL</span><strong>在庫管理</strong><span>購入日から、次の買いどきを。<br>家計簿とつながる補充メモ。</span></span><span class="tool-open">開く →</span></a>
-<a class="tool-link" href="../lists/index.html" aria-label="リストを開く"><img class="tool-icon" src="../shared/icons/lists.svg" width="40" height="40" alt=""><span class="tool-copy"><span class="eyebrow">PLAN</span><strong>リスト</strong><span>やる事と、買いたいもの。<br>みんなで使える、日々のメモ。</span></span><span class="tool-open">開く →</span></a>
-<a class="tool-link" href="../notes/index.html" aria-label="メモを開く"><img class="tool-icon" src="../shared/icons/notes.svg" width="40" height="40" alt=""><span class="tool-copy"><span class="eyebrow">WRITE</span><strong>メモ</strong><span>思いついたことを、ひとこと。<br>日々のメモをまとめる場所。</span></span><span class="tool-open">開く →</span></a>
+            <a class="tool-link" href="../inventory/index.html" aria-label="在庫管理を開く"><img class="tool-icon" src="../shared/icons/inventory.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>在庫管理</strong><span>購入日と次の補充目安</span></span><span class="tool-open" aria-hidden="true">→</span></a>
+<a class="tool-link" href="../lists/index.html" aria-label="リストを開く"><img class="tool-icon" src="../shared/icons/lists.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>リスト</strong><span>やる事・買いたいもの・行く予定</span></span><span class="tool-open" aria-hidden="true">→</span></a>
+<a class="tool-link" href="../notes/index.html" aria-label="メモを開く"><img class="tool-icon" src="../shared/icons/notes.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>メモ</strong><span>個人用・共有スペースのメモ</span></span><span class="tool-open" aria-hidden="true">→</span></a>
 </nav>
-            <footer class="home-footer">
-                <span>PERSONAL HUB</span>
-                <span>日常を、少し軽やかに。</span>
-            </footer>
         </main>
     </body>
 </html>
