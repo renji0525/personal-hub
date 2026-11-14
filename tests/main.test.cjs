@@ -93,12 +93,13 @@ test('corrupt storage does not interrupt initial rendering', () => {
     assert.equal(context.renders, 1);
 });
 
-test('未読表示はチャンネル条件と組み合わせ、既読化で対象から外れる', () => {
+test('未読表示はチャンネル条件と組み合わせ、Shortsは未読・全件表示から外れる', () => {
     const { run } = app();
     run(`appState.videos = [
         { id: 'a', channelId: 'one', watched: false },
         { id: 'b', channelId: 'one', watched: true },
-        { id: 'c', channelId: 'two', watched: false }
+        { id: 'c', channelId: 'two', watched: false },
+        { id: 'short', channelId: 'one', watched: false, url: 'https://www.youtube.com/shorts/abcdefghijk' }
     ]; setUnreadOnly(true);`);
     assert.equal(run('getDisplayVideos().length'), 2);
     run("appState.selectedChannel = 'one'");

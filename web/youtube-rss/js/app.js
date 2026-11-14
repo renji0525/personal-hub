@@ -443,6 +443,7 @@ function setWatched(vid, watched) {
 // チャンネルと未読条件を組み合わせて表示対象を選ぶ
 function getDisplayVideos() {
     return appState.videos.filter(v =>
+        !/^https?:\/\/(?:[a-z0-9-]+\.)?youtube\.com\/shorts\/[\w-]+(?:[/?#]|$)/i.test(v.url) &&
         (appState.selectedChannel === 'all' || v.channelId === appState.selectedChannel) &&
         (!appState.unreadOnly || !v.watched));
 }
