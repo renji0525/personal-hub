@@ -39,3 +39,24 @@ test('収入支出を整数で集計し、編集・削除を反映する', () =>
     state = model.apply(state, { type: 'entryDelete', id: 'entry_0001' });
     assert.equal(model.summarize(state.entries).balance, 200000);
 });
+
+test('カテゴリを親ごとに管理し、記録を残して削除できる', () => {
+    const add = (state, id, parentId) => model.apply(state, { type: 'categoryTreeSave', value: { id, parentId, name: 'その他', color: '#ffffff' } });
+    let state = add(initial(), 'cat_mid1', 'cat_food');
+    state = add(state, 'cat_mid2', 'cat_daily');
+    state = add(state, 'cat_leaf', 'cat_mid1');
+    assert.throws(() => add(state, 'cat_four', 'cat_leaf'), /親カテゴリ/);
+    assert.throws(() => add(state, 'cat_dupe', 'cat_food'), /同じ名前/);
+    const value = entry({ categoryMiddleId: 'cat_mid1', categorySmallId: 'cat_leaf' });
+    assert.throws(() => model.entry({ ...value, categoryId: 'cat_daily' }, state.categories), /カテゴリ/);
+    assert.throws(() => model.apply(state, { type: 'entryRecordSave', value }), /使用者/);
+    const attribution = { kind: 'group' };
+    state = model.apply(state, { type: 'entryRecordSave', value: { ...value, attribution } });
+    state = model.apply(state, { type: 'entrySave', value: entry({ amount: 1500 }) });
+    assert.equal(state.entries[0].categorySmallId, 'cat_leaf');
+    state = model.apply(state, { type: 'categoryTreeDelete', id: 'cat_mid1' });
+    assert.deepEqual(state.entries[0], entry({ amount: 1500, attribution }));
+    assert.deepEqual(state.categories.filter(c => c.parentId).map(c => c.id), ['cat_mid2']);
+    state = model.apply(state, { type: 'categoryTreeDelete', id: 'cat_food' });
+    assert.equal(state.entries[0].categoryId, '');
+});

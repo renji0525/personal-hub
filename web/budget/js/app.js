@@ -12,6 +12,7 @@ let quickCategory = false;
 let calendarState = null, calendarMonth = '', calendarDate = '';
 let localBudget = null, savedRaw = null;
 let categoryIndex = new Map(), indexedState = null, months = new Map();
+let entryUsers = [], loadingEntryUsers = null;
 const yenFormatter = new Intl.NumberFormat('ja-JP');
 const yen = value => yenFormatter.format(value) + '円';
 const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
@@ -32,18 +33,39 @@ function setBusy(value) {
     byId('refreshButton').setAttribute('aria-busy', String(value));
 }
 function sameAccount() { return HubAuth.read()?.token === budgetSession?.token && (!window.BudgetSpaces || BudgetSpaces.allowed()); }
-function categoryInfo(id) { return categoryIndex.get(id) || { name: '未分類', color: '#9eacb9' }; }
+function categoryInfo(id) { return categoryIndex.get(id) || { name: '未項目', color: '#9eacb9' }; }
+function categoryPath(id) {
+    const c = categoryInfo(id);
+    return c.parentId ? categoryPath(c.parentId) + ' / ' + c.name : c.name;
+}
 function categoryLabel(id) {
     const c = categoryInfo(id), label = node('span', 'category-name');
     const dot = node('span', 'swatch'); dot.style.backgroundColor = c.color; dot.setAttribute('aria-hidden', 'true');
-    label.append(dot, node('span', '', c.name)); return label;
+    label.append(dot, node('span', '', categoryPath(id))); return label;
 }
-function fillCategories(select, filter = false) {
-    const selected = select.options.length ? select.value : (filter ? 'all' : '');
+function fillCategoryChoices(select, parentId, selected, emptyLabel) {
+    select.replaceChildren(new Option(emptyLabel, ''));
+    if (parentId !== null) {
+        for (const c of budgetState.categories) {
+            if ((c.parentId || '') === parentId) select.add(new Option(c.name, c.id));
+        }
+    }
+    select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+}
+function fillEntryCategories(large = byId('entryCategory').value, middle = byId('entryCategoryMiddle').value, small = byId('entryCategorySmall').value) {
+    const root = byId('entryCategory'), child = byId('entryCategoryMiddle'), leaf = byId('entryCategorySmall');
+    fillCategoryChoices(root, '', large, '未項目');
+    fillCategoryChoices(child, root.value || null, middle, '選択なし');
+    fillCategoryChoices(leaf, child.value || null, small, '選択なし');
+    child.disabled = !root.value;
+    leaf.disabled = !child.value;
+}
+function fillCategoryFilter() {
+    const select = byId('categoryFilter');
+    const selected = select.value || (select.options.length ? '' : 'all');
     select.replaceChildren();
-    if (filter) select.append(new Option('すべてのカテゴリ', 'all'));
-    select.append(new Option('未分類', ''));
-    budgetState.categories.forEach(c => select.append(new Option(c.name, c.id)));
+    select.append(new Option('すべてのカテゴリ', 'all'), new Option('未項目', ''));
+    budgetState.categories.forEach(c => select.append(new Option(categoryPath(c.id), c.id)));
     if ([...select.options].some(o => o.value === selected)) select.value = selected;
 }
 const weekdays = ['月', '火', '水', '木', '金', '土', '日'];
@@ -131,10 +153,11 @@ function render(append = false) {
             months.get(month).push(entry);
         }
         for (const entries of months.values()) entries.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-        fillCategories(byId('entryCategory'));
-        fillCategories(byId('categoryFilter'), true);
+        fillEntryCategories();
+        fillCategoryFilter();
         fillSuggestions('shopSuggestions', budgetState.entries.map(entry => entry.shop));
-        fillSuggestions('personSuggestions', budgetState.entries.map(entry => entry.attribution?.name));
+        fillSuggestions('productSuggestions', budgetState.entries.map(entry => entry.productName));
+        if (byId('categoryDialog').open && !byId('categoryParent').disabled) fillCategoryParents(byId('categoryParent').value);
     }
     const month = byId('monthInput').value || today().slice(0, 7);
     const weekly = periodView === 'week';
@@ -165,7 +188,8 @@ function render(append = false) {
     }
     const typeFilter = byId('typeFilter').value, categoryFilter = byId('categoryFilter').value;
     const filtered = entries.filter(e => (weekly || !selectedDay || e.date === selectedDay) &&
-        (typeFilter === 'all' || e.type === typeFilter) && (categoryFilter === 'all' || e.categoryId === categoryFilter));
+        (typeFilter === 'all' || e.type === typeFilter) &&
+        (categoryFilter === 'all' || [e.categoryId, e.categoryMiddleId, e.categorySmallId].includes(categoryFilter)));
     const filter = [period, selectedDay, typeFilter, categoryFilter].join(':');
     if (dataChanged || recordFilter !== filter) { recordLimit = 50; recordFilter = filter; append = false; }
     byId('recordsTitle').textContent = weekly ? dayLabel(days[0]) + '〜' + dayLabel(days[6]) + 'の記録' :
@@ -206,9 +230,9 @@ function render(append = false) {
 }
 function renderEntry(entry, target, errorId = 'categoryStatus') {
     const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
-    meta.append(node('time', '', entry.date), categoryLabel(entry.categoryId));
+    meta.append(node('time', '', entry.date), categoryLabel(entry.categorySmallId || entry.categoryMiddleId || entry.categoryId));
     left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
-    const details = [entry.shop, entry.attribution?.kind === 'group' ? 'グループ共通' : entry.attribution?.name,
+    const details = [entry.shop, entry.attribution?.name || '全体',
         entry.productName && entry.memo].filter(Boolean);
     if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
     const right = node('div', 'record-right');
@@ -244,27 +268,31 @@ function openDayRecords(date) {
 }
 function renderCategoryList() {
     const list = byId('categories'); list.replaceChildren();
-    budgetState.categories.forEach(c => {
+    const sorted = [...budgetState.categories].sort((a, b) => categoryPath(a.id).localeCompare(categoryPath(b.id), 'ja'));
+    sorted.forEach(c => {
         const row = node('div', 'category-row'), actions = node('div', 'category-actions');
         row.append(categoryLabel(c.id));
         const edit = node('button', 'requires-data', '編集'), remove = node('button', 'requires-data', '削除');
         edit.type = remove.type = 'button';
-        edit.setAttribute('aria-label', c.name + 'を編集'); remove.setAttribute('aria-label', c.name + 'を削除');
+        const path = categoryPath(c.id);
+        edit.setAttribute('aria-label', path + 'を編集'); remove.setAttribute('aria-label', path + 'を削除');
         edit.addEventListener('click', () => {
             byId('categoryId').value = c.id; byId('categoryName').value = c.name; byId('categoryColor').value = c.color;
+            byId('categoryParent').value = c.parentId || ''; byId('categoryParent').disabled = true;
             byId('saveCategory').textContent = '変更を保存'; byId('cancelCategory').hidden = false; byId('categoryName').focus();
         });
         remove.addEventListener('click', async () => {
-            if (budgetState.entries.some(e => e.categoryId === c.id)) { byId('categoryStatus').textContent = '使用中のカテゴリです。記録のカテゴリを変更してから削除してください。'; return; }
-            if (confirm('「' + c.name + '」を削除しますか？') && await mutate({ type: 'categoryDelete', id: c.id })) resetCategory();
+            if (confirm('「' + path + '」と配下のカテゴリを削除しますか？記録は残っている親カテゴリに移ります。') &&
+                await mutate({ type: 'categoryTreeDelete', id: c.id })) resetCategory();
         });
         actions.append(edit, remove); row.append(actions); list.append(row);
     });
     if (!budgetState.categories.length) list.append(node('p', 'empty', 'カテゴリを追加してください。カテゴリなしでも記録できます。'));
 }
-function resetEntry(date = selectedDay || (periodView === 'week' ? byId('weekDate').value : today())) {
+function resetEntry(date = today()) {
     byId('entryForm').reset(); byId('entryId').value = '';
     byId('entryDate').value = date || today();
+    fillEntryCategories('', '', '');
     setEntryAttribution();
     byId('entryHeading').textContent = '収支を記録'; byId('saveEntry').textContent = '記録する';
     byId('entryStatus').textContent = '';
@@ -272,36 +300,65 @@ function resetEntry(date = selectedDay || (periodView === 'week' ? byId('weekDat
 function showEntry() {
     byId('entryDialog').showModal();
     byId('entryAmount').focus({ preventScroll: true });
+    refreshEntryUsers();
 }
 function openEntry(date) {
     resetEntry(date);
     showEntry();
 }
-function showPersonField() {
-    const personal = byId('entryAttribution').value === 'person';
-    byId('entryPersonFields').hidden = !personal;
-    byId('entryPerson').required = personal;
+function setEntryAttribution(attribution, selected) {
+    const select = byId('entryAttribution');
+    select.replaceChildren(new Option('全体', 'group'));
+    for (const user of new Set([budgetSession?.userId, ...entryUsers].filter(Boolean))) {
+        select.add(new Option(user === budgetSession?.userId ? user + '（自分）' : user, 'user:' + user));
+    }
+    const saved = attribution?.kind === 'person' ? 'saved' : 'group';
+    if (saved === 'saved') select.add(new Option(attribution.name + '（保存済み）', saved));
+    const preferred = selected ?? (attribution?.userId ? 'user:' + attribution.userId : saved);
+    select.value = [...select.options].some(option => option.value === preferred) ? preferred : saved;
 }
-function setEntryAttribution(attribution) {
-    const shared = budgetSession && window.BudgetSpaces?.selected(budgetSession.userId, 'budget')?.id;
-    byId('entryAttribution').value = attribution?.kind || (shared || !budgetSession ? 'group' : 'person');
-    byId('entryPerson').value = attribution?.name || (!attribution && !shared ? budgetSession?.userId || '' : '');
-    showPersonField();
+function refreshEntryUsers() {
+    if (!window.BudgetSpaces?.selected(budgetSession.userId, 'budget')?.id || loadingEntryUsers) return;
+    const status = byId('entryUsersStatus');
+    status.hidden = false; status.textContent = '使用者の候補を取得中…';
+    loadingEntryUsers = budgetApi('listsMembers', {}).then(result => {
+        if (!sameAccount()) return;
+        entryUsers = result.assignees;
+        if (byId('entryDialog').open) {
+            const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
+            setEntryAttribution(existing?.attribution, byId('entryAttribution').value === 'saved' ? undefined : byId('entryAttribution').value);
+        }
+        status.hidden = true;
+    }).catch(error => {
+        window.BudgetSpaces?.handleError(error);
+        status.textContent = '使用者の候補を取得できませんでした。記録を開き直すと再取得できます。';
+    }).finally(() => { loadingEntryUsers = null; });
 }
 function editEntry(entry) {
     resetEntry(entry.date);
     byId('entryId').value = entry.id; byId('entryType').value = entry.type; byId('entryDate').value = entry.date;
-    byId('entryAmount').value = entry.amount; byId('entryCategory').value = entry.categoryId; byId('entryMemo').value = entry.memo;
+    byId('entryAmount').value = entry.amount; byId('entryMemo').value = entry.memo;
+    fillEntryCategories(entry.categoryId, entry.categoryMiddleId || '', entry.categorySmallId || '');
     byId('entryShop').value = entry.shop || ''; byId('entryProduct').value = entry.productName || '';
     setEntryAttribution(entry.attribution);
     byId('entryHeading').textContent = '記録を編集'; byId('saveEntry').textContent = '変更を保存';
     showEntry();
 }
+function fillCategoryParents(selected = '') {
+    const parent = byId('categoryParent');
+    parent.replaceChildren(new Option('なし（大項目として追加）', ''));
+    for (const c of budgetState.categories) {
+        if (!categoryIndex.get(c.parentId)?.parentId) parent.add(new Option(categoryPath(c.id), c.id));
+    }
+    parent.value = [...parent.options].some(option => option.value === selected) ? selected : '';
+}
 function resetCategory() {
     byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
+    byId('categoryParent').disabled = false; fillCategoryParents();
 }
 function openCategories(quick) {
-    if (quick || quickCategory) resetCategory();
+    resetCategory();
+    if (quick) fillCategoryParents(byId('entryCategoryMiddle').value || byId('entryCategory').value);
     quickCategory = quick;
     byId('categoryHeading').textContent = quick ? 'カテゴリを追加' : 'カテゴリを管理';
     byId('categoryHint').hidden = quick;
@@ -385,19 +442,23 @@ byId('entryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('entryId').value) byId('entryId').value = crypto.randomUUID();
     const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
+    const user = byId('entryAttribution').value;
+    const attribution = user === 'saved' ? existing?.attribution : user === 'group' ? { kind: 'group' } :
+        { kind: 'person', name: user.slice(5), userId: user.slice(5) };
+    if (!attribution) { byId('entryStatus').textContent = '使用者を選び直してください。'; return; }
     const value = { id: byId('entryId').value, type: byId('entryType').value, date: byId('entryDate').value,
-        amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value,
-        attribution: byId('entryAttribution').value === 'person' ? { kind: 'person', name: byId('entryPerson').value.trim() } : { kind: 'group' } };
-    const shop = byId('entryShop').value.trim(), productName = byId('entryProduct').value.trim();
-    if (shop || existing?.shop) value.shop = shop;
-    if (productName || existing?.productName) value.productName = productName;
+        amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value, attribution };
+    for (const [key, input] of [['shop', 'entryShop'], ['productName', 'entryProduct'],
+        ['categoryMiddleId', 'entryCategoryMiddle'], ['categorySmallId', 'entryCategorySmall']]) {
+        const text = byId(input).value.trim();
+        if (text || existing?.[key]) value[key] = text;
+    }
     // 旧版GASでは追加項目を落として保存せず、未対応操作として同期を止める
-    if (await mutate({ type: 'entryDetailsSave', value }, false, 'entryStatus')) {
+    if (await mutate({ type: 'entryRecordSave', value }, false, 'entryStatus')) {
         byId('monthInput').value = value.date.slice(0, 7); byId('weekDate').value = value.date;
         if (selectedDay) selectedDay = value.date;
         byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all';
         byId('entryDialog').close(); resetEntry(); render();
-        if (byId('dayRecordsDialog').open) byId('addDayRecord').focus({ preventScroll: true });
         if (byId('dayRecordsDialog').open) byId('addDayRecord').focus({ preventScroll: true });
     }
 });
@@ -405,13 +466,16 @@ byId('categoryForm').addEventListener('submit', async event => {
     event.preventDefault();
     if (!byId('categoryId').value) byId('categoryId').value = crypto.randomUUID();
     byId('cancelCategory').hidden = quickCategory;
-    const value = { id: byId('categoryId').value, name: byId('categoryName').value, color: byId('categoryColor').value };
-    if (await mutate({ type: 'categorySave', value })) {
+    const value = { id: byId('categoryId').value, name: byId('categoryName').value, color: byId('categoryColor').value, parentId: byId('categoryParent').value };
+    if (await mutate({ type: 'categoryTreeSave', value })) {
         resetCategory();
         if (quickCategory) {
-            byId('entryCategory').value = value.id;
+            const parent = categoryIndex.get(value.parentId);
+            if (parent?.parentId) fillEntryCategories(parent.parentId, parent.id, value.id);
+            else if (parent) fillEntryCategories(parent.id, value.id, '');
+            else fillEntryCategories(value.id, '', '');
             byId('categoryDialog').close();
-            byId('entryCategory').focus();
+            byId(parent?.parentId ? 'entryCategorySmall' : parent ? 'entryCategoryMiddle' : 'entryCategory').focus();
         }
     }
 });
@@ -423,7 +487,8 @@ byId('addDayRecord').addEventListener('click', () => openEntry(byId('dayRecordsD
 byId('closeDayRecords').addEventListener('click', () => byId('dayRecordsDialog').close());
 for (const id of ['cancelEntry', 'closeEntry']) byId(id).addEventListener('click', () => byId('entryDialog').close());
 byId('cancelCategory').addEventListener('click', resetCategory);
-byId('entryAttribution').addEventListener('change', showPersonField);
+byId('entryCategory').addEventListener('change', () => fillEntryCategories(byId('entryCategory').value, '', ''));
+byId('entryCategoryMiddle').addEventListener('change', () => fillEntryCategories(byId('entryCategory').value, byId('entryCategoryMiddle').value, ''));
 byId('clearDay').addEventListener('click', () => { selectedDay = ''; render(); });
 ['typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
 byId('monthInput').addEventListener('change', () => {

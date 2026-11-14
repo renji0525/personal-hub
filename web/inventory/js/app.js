@@ -27,7 +27,7 @@ function localStatus() { message(local.pending.length ? '端末に保存済み�
 function element(tag,cls,text) { const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e; }
 function categories(select,selected='') {
     select.replaceChildren(new Option('未分類',''));
-    state().categories.forEach(c=>select.append(new Option(c.name,c.id)));select.value=selected;
+    state().categories.filter(c=>!c.parentId).forEach(c=>select.append(new Option(c.name,c.id)));select.value=selected;
 }
 function render() {
     if (!local) return;

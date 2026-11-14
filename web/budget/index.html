@@ -159,7 +159,7 @@
                 <fieldset id="entryFields" disabled>
                     <input id="entryId" type="hidden">
                     <label for="entryType">種類</label>
-                    <select id="entryType">
+                    <select id="entryType" required>
                         <option value="expense">支出</option>
                         <option value="income">収入</option>
                     </select>
@@ -167,26 +167,26 @@
                     <input id="entryDate" type="date" min="0001-01-01" max="9999-12-31" required>
                     <label for="entryAmount">金額（円）</label>
                     <input id="entryAmount" type="number" min="1" max="999999999999" step="1" inputmode="numeric" placeholder="0" required>
-                    <label for="entryCategory">カテゴリ</label>
+                    <label for="entryProduct">商品名 <span class="optional">任意</span></label>
+                    <input id="entryProduct" list="productSuggestions" maxlength="80" autocomplete="off">
+                    <datalist id="productSuggestions"></datalist>
+                    <label for="entryShop">店舗名 <span class="optional">任意</span></label>
+                    <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
+                    <datalist id="shopSuggestions"></datalist>
+                    <label for="entryCategory">カテゴリ 大項目</label>
                     <div class="entry-category-control">
                         <select id="entryCategory"></select>
                         <button id="addEntryCategory" class="quiet requires-data" type="button" aria-label="カテゴリを追加" disabled>＋ 追加</button>
                     </div>
-                    <label for="entryShop">お店 <span class="optional">任意</span></label>
-                    <input id="entryShop" list="shopSuggestions" maxlength="80" autocomplete="off">
-                    <datalist id="shopSuggestions"></datalist>
-                    <label for="entryAttribution">対象</label>
-                    <select id="entryAttribution">
-                        <option value="group">グループ共通</option>
-                        <option value="person">個人</option>
+                    <label for="entryCategoryMiddle">カテゴリ 中項目 <span class="optional">任意</span></label>
+                    <select id="entryCategoryMiddle" disabled></select>
+                    <label for="entryCategorySmall">カテゴリ 小項目 <span class="optional">任意</span></label>
+                    <select id="entryCategorySmall" disabled></select>
+                    <label for="entryAttribution">使用者</label>
+                    <select id="entryAttribution" required>
+                        <option value="group">全体</option>
                     </select>
-                    <div id="entryPersonFields" hidden>
-                        <label for="entryPerson">名前</label>
-                        <input id="entryPerson" list="personSuggestions" maxlength="80" autocomplete="off">
-                        <datalist id="personSuggestions"></datalist>
-                    </div>
-                    <label for="entryProduct">商品名 <span class="optional">任意</span></label>
-                    <input id="entryProduct" maxlength="80">
+                    <small id="entryUsersStatus" class="hint" role="status" hidden></small>
                     <label for="entryMemo">メモ <span class="optional">任意</span>
                     </label>
                     <input id="entryMemo" maxlength="200" placeholder="用途など">
@@ -203,10 +203,12 @@
                 <h2 id="categoryHeading">カテゴリを管理</h2>
                 <button id="closeCategories" class="quiet" aria-label="カテゴリ管理を閉じる">✕</button>
             </div>
-            <p id="categoryHint" class="hint">名前と色は自由に変更できます。使用中のカテゴリは削除できません。</p>
+            <p id="categoryHint" class="hint">親カテゴリを選ぶと中項目・小項目を追加できます。削除すると配下のカテゴリも削除され、記録は残っている親カテゴリに移ります。</p>
             <form id="categoryForm">
                 <fieldset id="categoryFields" disabled>
                     <input id="categoryId" type="hidden">
+                    <label for="categoryParent">親カテゴリ</label>
+                    <select id="categoryParent"></select>
                     <div class="category-inputs">
                         <div>
                             <label for="categoryName">カテゴリ名</label>
