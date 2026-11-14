@@ -1,13 +1,14 @@
 main { max-width:1160px; margin:auto; padding:36px 24px 64px; }
 h1 { display:flex; align-items:center; gap:14px; margin:8px 0; font-size:32px; }
-.heading { margin:28px 0; }.heading p { margin:8px 0; }
+.heading { margin:28px 0; }
 .toolbar,.filters,.actions,.panel-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
-.toolbar { margin-bottom:12px; }.filters { align-items:end; margin:28px 0 20px; }.filters label { flex:1; max-width:360px; }
+.toolbar { margin-bottom:12px; }.filters { align-items:end; margin:16px 0 20px; }.filters label { flex:1; min-width:0; max-width:360px; }
 label { display:grid; gap:7px; font-size:13px; }
-.lists-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
-@media(min-width:1024px) { .lists-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.list-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
+.list-tabs button { min-height:44px; padding:8px 4px; white-space:normal; line-break:strict; font-size:clamp(12px, 3.6vw, 14px); color:var(--muted); background:transparent; border:1px solid transparent; border-radius:8px; }
+.list-tabs button[aria-selected=true] { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }
 .list-panel { min-width:0; padding:24px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
-.panel-heading { justify-content:space-between; margin-bottom:18px; }.panel-heading h2 { font-size:20px; margin:0; }.panel-heading small { display:block; color:var(--muted); margin-top:4px; }
+.panel-heading { justify-content:space-between; margin-bottom:18px; }.panel-heading small { color:var(--muted); }
 .list-item { padding:18px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
 .item-heading { display:flex; align-items:flex-start; gap:12px; }.item-heading input { margin:5px 0 0; width:20px; height:20px; flex-shrink:0; }.item-heading h3 { margin:0; font-size:16px; white-space:pre-wrap; }
 .list-item.is-done h3 { color:var(--muted); text-decoration:line-through; }.list-item p { font-size:13px; margin:10px 0; }.item-note { white-space:pre-wrap; color:var(--muted); }
@@ -19,4 +20,4 @@ label { display:grid; gap:7px; font-size:13px; }
 .done-field { display:flex; align-items:center; gap:10px; }.done-field input { width:20px; height:20px; }
 .item-assignee { color:var(--accent); }.undo-notice { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; margin:12px 0; border:1px solid var(--accent); border-radius:12px; background:var(--accent-soft); overflow-wrap:anywhere; }
 #assigneeStatus { display:block; margin-top:8px; }
-@media(max-width:760px) { main { padding:24px 16px 48px; }.lists-grid { grid-template-columns:1fr; }h1 { font-size:26px; }.list-panel { padding:20px; } }
+@media(max-width:760px) { main { padding:24px 16px 48px; }h1 { font-size:26px; }.list-panel { padding:20px; } }

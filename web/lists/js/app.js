@@ -3,12 +3,39 @@ const byId = id => document.getElementById(id);
 const autoPush = HubSync.autoPush(sync, () => !listsBusy && !!listsLocal?.pending.length && sameAccount());
 let listsSession, listsLocal, listsBusy = false, listsSyncMode = null, savedRaw = null, stale = false;
 let lastCompletion = null, membersLoading = false;
+let activeKind = 'todo';
 const limits = { todo: 50, wish: 50, visit: 50 };
 const itemLabels = {
     todo: { open: '未完了', done: '完了', add: 'やる事を追加', empty: 'やる事を追加して、ひとつずつ進めましょう。' },
     wish: { open: '未購入', done: '購入済み', add: '買いたいものを追加', empty: '気になるものを、ここにメモしておきましょう。' },
     visit: { open: '訪問予定', done: '訪問済み', add: '行くところを追加', empty: '行きたい場所を追加しましょう。' }
 };
+const listTabs = [...byId('listTabs').querySelectorAll('[role="tab"]')];
+function selectList(kind) {
+    if (kind === activeKind) return;
+    activeKind = kind;
+    for (const tab of listTabs) {
+        const selected = tab.dataset.kind === kind;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        byId(tab.getAttribute('aria-controls')).hidden = !selected;
+    }
+    const filter = byId('filter');
+    filter.options[0].textContent = itemLabels[kind].open;
+    filter.options[2].textContent = itemLabels[kind].done;
+    render();
+}
+for (const tab of listTabs) tab.addEventListener('click', () => selectList(tab.dataset.kind));
+byId('listTabs').addEventListener('keydown', event => {
+    const index = listTabs.indexOf(event.target);
+    if (index < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const last = listTabs.length - 1;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? last :
+        (index + (event.key === 'ArrowRight' ? 1 : -1) + listTabs.length) % listTabs.length;
+    selectList(listTabs[next].dataset.kind);
+    listTabs[next].focus();
+});
 const scope = () => BudgetSpaces.storageUser(listsSession.userId);
 const sameAccount = () => listsSession && HubAuth.read()?.token === listsSession.token && BudgetSpaces.allowed() && !stale;
 const today = () => { const date = new Date(); return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-'); };
@@ -74,7 +101,7 @@ function setDone(value, done) {
     mutate({ type: 'itemDone', id: value.id, done });
     if (done && !value.done) lastCompletion = { id: value.id };
     completionNotice();
-    (document.querySelector('[data-id="' + value.id + '"] input') || byId(value.kind + 'Add')).focus({ preventScroll: true });
+    (byId(activeKind + 'Items').querySelector('[data-id="' + value.id + '"] input') || byId(activeKind + 'Add')).focus({ preventScroll: true });
 }
 function fillAssignees(current = '') {
     const select = byId('itemAssignee'), users = [...new Set([...(listsLocal.base.assignees || []), listsSession.userId])];
@@ -97,64 +124,65 @@ async function refreshAssignees() {
 function render() {
     if (!listsLocal) return;
     productObserver.disconnect();
-    const items = ListsLocal.view(listsLocal).items, query = byId('search').value.trim().toLocaleLowerCase(), filter = byId('filter').value;
-    for (const kind of Object.keys(itemLabels)) {
-        const labels = itemLabels[kind];
-        const all = items.filter(value => value.kind === kind), visible = all.filter(value => (filter === 'all' || value.done === (filter === 'done')) && (value.title + ' ' + value.note).toLocaleLowerCase().includes(query))
-            .sort((a, b) => Number(a.done) - Number(b.done) || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
-        byId(kind + 'Count').textContent = labels.open + ' ' + all.filter(value => !value.done).length + ' / 全' + all.length + '件';
-        const container = byId(kind + 'Items'); container.replaceChildren();
-        for (const value of visible.slice(0, limits[kind])) {
-            const card = element('article', undefined, 'list-item' + (value.done ? ' is-done' : '')); card.dataset.id = value.id;
-            const heading = element('div', undefined, 'item-heading'), check = element('input'); check.type = 'checkbox'; check.checked = value.done;
-            check.setAttribute('aria-label', value.title + 'を' + (value.done ? labels.open + 'に戻す' : labels.done + 'にする'));
-            check.addEventListener('change', () => {
-                try { setDone(value, check.checked); }
-                catch (error) { render(); message(error.message, 'error'); }
-            });
-            heading.append(check, element('h3', value.title)); card.append(heading);
-            if (kind !== 'visit') card.append(element('p', '担当：' + (value.assignee || '未指定'), 'item-assignee'));
-            if (value.dueDate) card.append(element('p', '期限 ' + value.dueDate + (!value.done && value.dueDate < today() ? '・期限を過ぎています' : ''), !value.done && value.dueDate < today() ? 'overdue' : 'muted'));
-            if (value.note) card.append(element('p', value.note, 'item-note'));
-            let productLink;
-            if (kind === 'wish' && value.url) {
-                productLink = element('a', '商品リンクを開く ↗', 'item-link');
-                productLink.href = value.url; productLink.target = '_blank'; productLink.rel = 'noopener noreferrer';
-                card.append(productLink);
-            }
-            if (kind === 'visit' && value.url) {
-                const mapLink = element('a', 'Googleマップを開く ↗', 'item-link');
-                mapLink.href = value.url; mapLink.target = '_blank'; mapLink.rel = 'noopener noreferrer';
-                card.append(mapLink);
-            }
-            const actions = element('div', undefined, 'actions');
-            if (value.done) {
-                const restore = element('button', labels.open + 'に戻す', 'quiet'); restore.type = 'button';
-                restore.addEventListener('click', () => { try { setDone(value, false); } catch (error) { message(error.message, 'error'); } }); actions.append(restore);
-            }
-            for (const [label, action] of [['編集', () => edit(value.kind, value)], ['削除', () => { if (confirm('「' + value.title + '」を削除しますか？')) mutate({ type: 'itemDelete', id: value.id }); }]]) {
-                const button = element('button', label, 'quiet'); button.type = 'button'; button.addEventListener('click', () => { try { action(); } catch (error) { message(error.message, 'error'); } }); actions.append(button);
-            }
-            card.append(actions); container.append(card);
-            if (productLink) {
-                const image = ListProductPreview.imageUrl(value.url);
-                const page = ListProductPreview.pageUrl(value.url);
-                if (image && /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i.test(image)) displayProductImage(productLink, image);
-                else if (page && productImages.has(page)) displayProductImage(productLink, productImages.get(page));
-                else if (page) {
-                    productLink.dataset.preview = page;
-                    productObserver.observe(productLink);
-                }
-            }
-        }
-        if (!visible.length) {
-            const filtered = query || filter !== 'all' && (kind !== 'visit' || all.length > 0);
-            container.append(element('p', filtered ? '条件に合う項目はありません。' : labels.empty, 'empty'));
-        }
-        byId(kind + 'More').hidden = visible.length <= limits[kind];
-        byId(kind + 'Shown').textContent = visible.length ? Math.min(visible.length, limits[kind]) + ' / ' + visible.length + '件を表示' : '';
-    }
+    renderItems(activeKind);
     completionNotice(); controls();
+}
+function renderItems(kind) {
+    const items = ListsLocal.view(listsLocal).items, query = byId('search').value.trim().toLocaleLowerCase(), filter = byId('filter').value;
+    const labels = itemLabels[kind];
+    const all = items.filter(value => value.kind === kind), visible = all.filter(value => (filter === 'all' || value.done === (filter === 'done')) && (value.title + ' ' + value.note).toLocaleLowerCase().includes(query))
+        .sort((a, b) => Number(a.done) - Number(b.done) || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+    byId(kind + 'Count').textContent = labels.open + ' ' + all.filter(value => !value.done).length + ' / 全' + all.length + '件';
+    const container = byId(kind + 'Items'); container.replaceChildren();
+    for (const value of visible.slice(0, limits[kind])) {
+        const card = element('article', undefined, 'list-item' + (value.done ? ' is-done' : '')); card.dataset.id = value.id;
+        const heading = element('div', undefined, 'item-heading'), check = element('input'); check.type = 'checkbox'; check.checked = value.done;
+        check.setAttribute('aria-label', value.title + 'を' + (value.done ? labels.open + 'に戻す' : labels.done + 'にする'));
+        check.addEventListener('change', () => {
+            try { setDone(value, check.checked); }
+            catch (error) { render(); message(error.message, 'error'); }
+        });
+        heading.append(check, element('h3', value.title)); card.append(heading);
+        if (kind !== 'visit') card.append(element('p', '担当：' + (value.assignee || '未指定'), 'item-assignee'));
+        if (value.dueDate) card.append(element('p', '期限 ' + value.dueDate + (!value.done && value.dueDate < today() ? '・期限を過ぎています' : ''), !value.done && value.dueDate < today() ? 'overdue' : 'muted'));
+        if (value.note) card.append(element('p', value.note, 'item-note'));
+        let productLink;
+        if (kind === 'wish' && value.url) {
+            productLink = element('a', '商品リンクを開く ↗', 'item-link');
+            productLink.href = value.url; productLink.target = '_blank'; productLink.rel = 'noopener noreferrer';
+            card.append(productLink);
+        }
+        if (kind === 'visit' && value.url) {
+            const mapLink = element('a', 'Googleマップを開く ↗', 'item-link');
+            mapLink.href = value.url; mapLink.target = '_blank'; mapLink.rel = 'noopener noreferrer';
+            card.append(mapLink);
+        }
+        const actions = element('div', undefined, 'actions');
+        if (value.done) {
+            const restore = element('button', labels.open + 'に戻す', 'quiet'); restore.type = 'button';
+            restore.addEventListener('click', () => { try { setDone(value, false); } catch (error) { message(error.message, 'error'); } }); actions.append(restore);
+        }
+        for (const [label, action] of [['編集', () => edit(value.kind, value)], ['削除', () => { if (confirm('「' + value.title + '」を削除しますか？')) mutate({ type: 'itemDelete', id: value.id }); }]]) {
+            const button = element('button', label, 'quiet'); button.type = 'button'; button.addEventListener('click', () => { try { action(); } catch (error) { message(error.message, 'error'); } }); actions.append(button);
+        }
+        card.append(actions); container.append(card);
+        if (productLink) {
+            const image = ListProductPreview.imageUrl(value.url);
+            const page = ListProductPreview.pageUrl(value.url);
+            if (image && /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i.test(image)) displayProductImage(productLink, image);
+            else if (page && productImages.has(page)) displayProductImage(productLink, productImages.get(page));
+            else if (page) {
+                productLink.dataset.preview = page;
+                productObserver.observe(productLink);
+            }
+        }
+    }
+    if (!visible.length) {
+        const filtered = query || filter !== 'all' && (kind !== 'visit' || all.length > 0);
+        container.append(element('p', filtered ? '条件に合う項目はありません。' : labels.empty, 'empty'));
+    }
+    byId(kind + 'More').hidden = visible.length <= limits[kind];
+    byId(kind + 'Shown').textContent = visible.length ? Math.min(visible.length, limits[kind]) + ' / ' + visible.length + '件を表示' : '';
 }
 function kindFields() {
     const kind = byId('itemKind').value;
@@ -240,11 +268,12 @@ byId('itemForm').addEventListener('submit', event => {
             mutate({ type: 'itemSave', value });
             if (value.done && !previous?.done) { lastCompletion = { id: value.id }; completionNotice(); }
         }
-        byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true });
+        selectList(value.kind);
+        byId('itemDialog').close(); byId(value.kind + 'Add').focus({ preventScroll: true });
     }
     catch (error) { byId('itemError').textContent = error.message; }
 });
-byId('itemCancel').addEventListener('click', () => { byId('itemDialog').close(); byId(byId('itemKind').value + 'Add').focus({ preventScroll: true }); });
+byId('itemCancel').addEventListener('click', () => byId('itemDialog').close());
 for (const kind of Object.keys(itemLabels)) { byId(kind + 'Add').addEventListener('click', () => edit(kind)); byId(kind + 'More').addEventListener('click', () => { limits[kind] += 50; render(); }); }
 for (const id of ['search', 'filter']) byId(id).addEventListener(id === 'search' ? 'input' : 'change', () => {
     for (const kind of Object.keys(itemLabels)) limits[kind] = 50;
