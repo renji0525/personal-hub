@@ -9,3 +9,5 @@ node_modules/
 /gas/
 # 個人環境に依存するブラウザ検証スクリプトはローカルで保持
 /tests/browser/
+# 整理時に退避した旧記録・一時ファイルは公開しない
+/TempDelete/

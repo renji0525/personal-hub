@@ -18,6 +18,7 @@
 - `tests/`：Node.js自動テスト。
 - `gas/`：GASソース・同期環境（Git対象外）。
 - `docs/README.md`：文書の移行先案内（Git対象外）。
+- `TempDelete/`：整理時の退避先（Git対象外）。元パス・ハッシュ・復元手順を同梱。
 - `savedata/`、`tests/browser/`：個人バックアップ・このPCのEdge検証（Git対象外）。
 - `D:\ObsidianLocation\CodexProject\personal-hub_wiki`：プロジェクト文書・作業履歴・過去記録・検証画像。ここを直接更新します。
 
