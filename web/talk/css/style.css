@@ -1,5 +1,6 @@
 .workspace { max-width:920px; }
-.conversation { padding:var(--panel-padding); margin-top:12px; }
+.conversation { padding:var(--panel-padding); margin-top:12px; height:clamp(240px, 52dvh, 640px); overflow-y:auto; overscroll-behavior:contain; overflow-anchor:none; scrollbar-gutter:stable; }
+.conversation:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 #messages { display:flex; flex-direction:column; gap:16px; min-height:240px; }
 .message { align-self:flex-start; max-width:85%; min-width:0; }
 .message.mine { align-self:flex-end; }

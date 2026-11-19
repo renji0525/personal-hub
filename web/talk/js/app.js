@@ -1,6 +1,7 @@
 // 送信待ち・下書き・既読は利用者とルームごとに端末へ保存する
 const byId = id => document.getElementById(id);
-let listsSession, listsBusy = false, local = null, raw = null, stale = false, limit = 100;
+let listsSession, listsBusy = false, local = null, raw = null, stale = false, limit = 10;
+let previousScrollTop = 0;
 let readState = { read: [], viewed: [] };
 const scope = () => BudgetSpaces.storageUser(listsSession.userId);
 const key = () => 'personal_hub_talk_v1:' + scope();
@@ -44,7 +45,7 @@ const observer = new IntersectionObserver(entries => {
         }
         localStorage.setItem(readKey(), JSON.stringify({ read: value.read, viewed: [...viewed] }));
     } catch (error) { byId('sendError').textContent = '既読情報を端末に保存できませんでした。'; }
-}, { threshold: 0.1, rootMargin: '-70px 0px -180px 0px' });
+}, { root: byId('conversation'), threshold: 0.1 });
 function element(tag, text, className) {
     const value = document.createElement(tag);
     if (text !== undefined) value.textContent = text;
@@ -52,11 +53,13 @@ function element(tag, text, className) {
     return value;
 }
 function atBottom() {
-    return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 240;
+    const conversation = byId('conversation');
+    return conversation.scrollHeight - conversation.clientHeight - conversation.scrollTop < 48;
 }
 function render(scroll = false) {
     if (!local || !sameAccount()) return;
     observer.disconnect();
+    const conversation = byId('conversation'), scrollTop = conversation.scrollTop;
     const container = byId('messages'), messages = TalkModel.view(local);
     const pending = new Set(local.pending.map(value => value.id)), read = new Set(readState.read);
     container.replaceChildren();
@@ -78,9 +81,10 @@ function render(scroll = false) {
     byId('moreButton').hidden = messages.length <= limit;
     controls();
     if (scroll) {
-        container.lastElementChild?.scrollIntoView({ block: 'center' });
+        conversation.scrollTop = conversation.scrollHeight;
         byId('latestButton').hidden = true;
-    }
+    } else conversation.scrollTop = scrollTop;
+    previousScrollTop = conversation.scrollTop;
 }
 function localStatus() {
     status(local.pending.length ? '端末に保存済み・送信待ち ' + local.pending.length + '件' : '同期済み', local.pending.length ? 'pending' : 'ready');
@@ -89,10 +93,10 @@ async function sync() {
     if (listsBusy || !sameAccount()) return;
     autoPush.start(); listsBusy = true; controls();
     try {
+        const follow = atBottom();
         advanceRead(); render();
         status('同期中…', 'syncing');
         const beforeIds = new Set(local ? TalkModel.view(local).map(value => value.id) : []);
-        const follow = !local || atBottom();
         // 送信中に入力したメッセージは応答後も送信待ちとして残す
         if (local?.pending.length) {
             while (local.pending.length) {
@@ -138,12 +142,21 @@ byId('messageText').addEventListener('input', () => {
 });
 byId('syncButton').addEventListener('click', sync);
 byId('reloadButton').addEventListener('click', () => location.reload());
-byId('moreButton').addEventListener('click', () => {
+function showPrevious() {
+    if (!local || !sameAccount() || byId('moreButton').hidden) return;
+    const conversation = byId('conversation');
     const first = byId('messages').firstElementChild;
     const id = first?.dataset.id, top = first?.getBoundingClientRect().top || 0;
-    limit += 100; render();
+    limit += 10; render();
     const anchor = [...byId('messages').children].find(node => node.dataset.id === id);
-    if (anchor) window.scrollBy(0, anchor.getBoundingClientRect().top - top);
+    if (anchor) conversation.scrollTop += anchor.getBoundingClientRect().top - top;
+    previousScrollTop = conversation.scrollTop;
+}
+byId('moreButton').addEventListener('click', showPrevious);
+byId('conversation').addEventListener('scroll', () => {
+    const top = byId('conversation').scrollTop, scrolledUp = top < previousScrollTop;
+    previousScrollTop = top;
+    if (scrolledUp && top <= 1) showPrevious();
 });
 byId('latestButton').addEventListener('click', () => render(true));
 byId('logoutButton').addEventListener('click', async () => { try { await HubAuth.signOut(listsSession); } catch (error) { /* 共通認証が端末を解除する */ } });
@@ -158,11 +171,6 @@ window.addEventListener('hub-auth-changed', event => {
         observer.disconnect(); document.documentElement.setAttribute('data-auth-pending', '');
     }
 });
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && local && sameAccount()) sync();
-});
-// 表示中のトークは15秒間隔で取得し、非表示中と通信中は次回へ回す
-setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine && local) sync(); }, 15000);
 (async () => {
     listsSession = await HubAuth.ready;
     if (!listsSession) return;
@@ -172,11 +180,13 @@ setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLi
     try {
         advanceRead();
         raw = localStorage.getItem(key());
-        local = raw ? JSON.parse(raw) : { revision: 0, messages: [], pending: [] };
+        const hasCache = raw !== null;
+        local = hasCache ? JSON.parse(raw) : { revision: 0, messages: [], pending: [] };
         if (!Number.isSafeInteger(local.revision) || !Array.isArray(local.messages) || !Array.isArray(local.pending)) throw new Error('端末の投稿情報を確認してください。');
         local.messages.forEach(TalkModel.message); local.pending.forEach(TalkModel.message);
         byId('messageText').value = localStorage.getItem(draftKey()) || '';
         render(true); controls();
-        await sync();
+        if (HubSync.needed(scope(), 'talk', hasCache)) await sync();
+        else { localStatus(); autoPush.schedule(); }
     } catch (error) { stale = true; controls(); status(error.message, 'error'); }
 })();

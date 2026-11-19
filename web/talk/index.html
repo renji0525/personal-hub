@@ -29,8 +29,8 @@
 <div class="page-heading"><h1><img class="heading-icon" src="../shared/icons/talk.svg" width="42" height="42" alt="">トーク</h1><div class="page-actions"><button id="syncButton" class="quiet" disabled>同期する</button><button id="reloadButton" class="quiet" hidden>画面を開き直す</button></div></div>
 <p id="status" class="sync-status" role="status" aria-live="polite">読み込み中…</p>
 <p class="muted">未読・既読はこの端末の自分用です。相手には送信されません。</p>
-<section class="conversation panel-surface" aria-label="メッセージ">
-<button id="moreButton" class="quiet" hidden>以前の100件を表示</button>
+<section id="conversation" class="conversation panel-surface" aria-label="メッセージ" tabindex="0">
+<button id="moreButton" class="quiet" hidden>以前の10件を表示</button>
 <div id="messages" role="list" aria-label="トーク履歴"></div>
 <button id="latestButton" class="quiet" hidden>新しいメッセージへ</button>
 </section>
