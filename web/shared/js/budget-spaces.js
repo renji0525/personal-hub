@@ -1,7 +1,7 @@
 // 共有先はページ表示時に固定し、通信・端末保存・同期履歴へ同じ識別情報を使う
 window.BudgetSpaces = (() => {
     let boundUser, boundSpace = null, boundPage = 'budget', denied = false, busy = false, createId = null;
-    const pages = ['budget', 'inventory', 'lists', 'notes'];
+    const pages = ['budget', 'inventory', 'lists', 'notes', 'talk'];
     const legacyKey = userId => 'personal_hub_budget_space:' + userId;
     const selectionKey = (userId, page = boundPage) => legacyKey(userId) + ':' + (pages.includes(page) ? page : 'budget');
     const tabsKey = userId => 'personal_hub_space_tabs:' + userId;
