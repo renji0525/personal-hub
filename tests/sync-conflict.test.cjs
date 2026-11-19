@@ -7,6 +7,26 @@ const conflict = require('../web/shared/js/sync-conflict.js');
 const item = { id: 'conflict_item1', kind: 'note', title: '元', note: '本文', done: false, dueDate: '', url: '', assignee: '' };
 const base = local.create({ revision: 1, items: [item] });
 
+test('階層削除は親が不変でも更新後に確認し、共有採用・キャンセル・明示削除を区別する', async () => {
+    const model = require('../web/budget/js/model.js');
+    const root = { id: 'root_category', name: '親', color: '#123456', parentId: '' };
+    const child = { id: 'child_category', name: '別端末の編集', color: '#123456', parentId: root.id };
+    const edited = { base: { revision: 1 }, pending: [{ type: 'categoryTreeDelete', id: root.id, before: root }] };
+    const latest = { revision: 2, categories: [root, child], entries: [], products: [] };
+    for (const choice of ['cancel', 'server', 'local']) {
+        let count = 0;
+        const result = await conflict.rebase(edited, latest, model.apply, async () => { count++; return choice; });
+        assert.equal(count, 1);
+        if (choice === 'cancel') assert.equal(result, null);
+        else {
+            assert.equal(result.pending.length, choice === 'local' ? 1 : 0);
+            assert.deepEqual(result.base, latest);
+        }
+    }
+    assert.equal(edited.pending.length, 1);
+    assert.equal(latest.categories.length, 2);
+});
+
 test('端末側を採用しても共有先の別フィールドと競合しない追加を保持する', async () => {
     let edited = local.edit(base, { type: 'itemSave', value: { ...item, title: '端末' } });
     edited = local.edit(edited, { type: 'itemSave', value: { ...item, id: 'conflict_item2' } });

@@ -16,7 +16,11 @@ var HubConflict = (() => {
         const pending = [];
         for (const original of local.pending) {
             let operation, next;
-            try { operation = HubMerge.merge(state, original, 'CONFLICT'); next = apply(state, operation); }
+            try {
+                // 階層削除は子孫と関連記録にも影響するため、更新後は必ず利用者に確認する。
+                if (original.type === 'categoryTreeDelete' && local.base?.revision !== latest.revision) throw new Error('カテゴリ削除前に共有先が更新されています。');
+                operation = HubMerge.merge(state, original, 'CONFLICT'); next = apply(state, operation);
+            }
             catch (error) {
                 operation = localChoice(state, original);
                 let invalid = '';
@@ -28,7 +32,6 @@ var HubConflict = (() => {
             }
             operation = { ...operation, before: HubMerge.target(state, operation) };
             // 既に同じ結果なら再送しない。購入支出などの副作用も含めて比較する。
-            next = { ...state, ...next };
             next = { ...state, ...next };
             if (JSON.stringify(state) !== JSON.stringify(next)) pending.push(operation);
             state = next;
@@ -45,7 +48,7 @@ var HubConflict = (() => {
             const show = value => value === null ? '削除済み・項目なし' : Object.entries(value).map(([key, val]) => (labels[key] || key) + '：' + (typeof val === 'object' ? JSON.stringify(val) : String(val))).join('\n');
             add('h3', '共有先の現在の内容'); add('pre', show(detail.current));
             add('h3', '端末の変更を反映する内容');
-            add('pre', detail.proposed.type.endsWith('Delete') ? 'この項目を削除する' : show(detail.proposed.value || detail.proposed));
+            add('pre', detail.proposed.type.endsWith('Delete') ? (detail.proposed.type === 'categoryTreeDelete' ? 'このカテゴリと現在の子孫カテゴリを削除し、関連記録を親カテゴリまたは未項目へ移します。共有先の更新内容を確認して選択してください。' : 'この項目を削除する') : show(detail.proposed.value || detail.proposed));
             if (detail.invalid) add('p', '現在のデータには適用できません：' + detail.invalid + '。共有先を採用してから改めて編集してください。');
             const finish = value => { dialog.close(); dialog.remove(); resolve(value); };
             for (const [value, label] of [['local', '端末の変更を採用'], ['server', '共有先を採用'], ['cancel', '変更せず閉じる']]) {
