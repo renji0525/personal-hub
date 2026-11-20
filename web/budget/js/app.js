@@ -566,31 +566,4 @@ window.addEventListener('hub-auth-changed', event => {
     else { setBusy(false); autoPush.schedule(); }
 })();
 
-// レシート機能とは確認済みの入力候補だけを受け渡す
-BudgetReceipt.mount({
-    button: byId('receiptButton'),
-    context: () => ({ entryId: byId('entryId').value, scope: budgetStorageUser(),
-        entries: budgetState.entries, categories: budgetState.categories }),
-    apply: (value, origin) => {
-        if (!sameAccount() || !byId('entryDialog').open || origin.entryId !== byId('entryId').value || origin.scope !== budgetStorageUser()) {
-            throw new Error('記録フォームを開き直して、もう一度読み取ってください。');
-        }
-        if (value.categories) {
-            const [large, middle, small] = value.categories;
-            if (!budgetState.categories.some(c => c.id === large && !c.parentId) ||
-                (middle && !budgetState.categories.some(c => c.id === middle && c.parentId === large)) ||
-                (small && !budgetState.categories.some(c => c.id === small && c.parentId === middle))) {
-                throw new Error('カテゴリが変更されています。候補を作り直してください。');
-            }
-        }
-        for (const [key, input] of [['date', 'entryDate'], ['amount', 'entryAmount'], ['shop', 'entryShop'],
-            ['productName', 'entryProduct'], ['memo', 'entryMemo']]) {
-            if (Object.hasOwn(value, key)) byId(input).value = value[key];
-        }
-        if (value.categories) fillEntryCategories(...value.categories);
-        byId('entryType').value = 'expense';
-        byId('entryStatus').textContent = 'レシートの候補を反映しました。内容を確認して記録してください。';
-    }
-});
-
 HubConflict.bind({ read: () => localBudget, save: saveLocal, load: async () => BudgetLocal.create(await budgetApi('budgetLoad', {})).base, apply: BudgetModel.apply, ready: () => !budgetBusy && sameAccount(), done: async () => { render(); await loadBudget(); }, error: error => { byId('status').textContent = error.message; } });
