@@ -14,6 +14,10 @@
         </script>
         <script>HubAuth.ready = HubAuth.protect({ local: true });</script>
         <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="receipt/style.css">
+        <script src="receipt/parser.js" defer></script>
+        <script src="receipt/scanner.js" defer></script>
+        <script src="receipt/app.js" defer></script>
         <script src="../shared/js/sync-merge.js" defer></script>
 <script src="js/model.js" defer>
         </script>
@@ -150,6 +154,7 @@
                 <h2 id="entryHeading">収支を記録</h2>
                 <button id="closeEntry" class="quiet" type="button" aria-label="記録ウィンドウを閉じる">✕</button>
             </div>
+            <button id="receiptButton" class="quiet requires-data" type="button" disabled>レシートから入力</button>
             <form id="entryForm">
                 <fieldset id="entryFields" class="entry-fields" disabled>
                     <input id="entryId" type="hidden">
