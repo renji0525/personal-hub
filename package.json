@@ -1,0 +1,12 @@
+{
+    "name": "personal-hub-web",
+    "private": true,
+    "scripts": {
+        "format": "prettier --write \"web/**/*.{html,css,js}\"",
+        "format:check": "prettier --check \"web/**/*.{html,css,js}\"",
+        "test": "node --test tests/*.test.cjs gas/tests/*.test.cjs"
+    },
+    "devDependencies": {
+        "prettier": "3.10.1"
+    }
+}

@@ -1,90 +1,162 @@
+/* 共通スタイル：レイアウトと見た目を定義する。状態の切り替えはHTMLの属性・クラスから受け取る。 */
 /* PCは上部、スマートフォンは画面下部にページ移動を揃える */
-html { scroll-padding-top:80px; }
+html {
+    scroll-padding-top: 80px;
+}
 .hub-header {
-    position:sticky;
-    top:0;
-    z-index:10;
-    display:grid;
-    grid-template-columns:1fr auto 1fr;
-    align-items:center;
-    gap:20px;
-    padding:12px var(--gutter);
-    border-bottom:1px solid var(--line);
-    background:var(--chrome);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 20px;
+    padding: 12px var(--gutter);
+    border-bottom: 1px solid var(--line);
+    background: var(--chrome);
 }
 .hub-brand {
-    display:inline-flex;
-    justify-self:start;
-    align-items:center;
-    gap:10px;
-    font-size:16px;
-    font-weight:700;
-    letter-spacing:-.025em;
-    white-space:nowrap;
+    display: inline-flex;
+    justify-self: start;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    white-space: nowrap;
 }
-.hub-brand img { width:32px; height:32px; }
+.hub-brand img {
+    width: 32px;
+    height: 32px;
+}
 .hub-nav {
-    display:flex;
-    align-items:center;
-    gap:3px;
-    padding:3px;
-    border:1px solid var(--line);
-    border-radius:14px;
-    background:var(--bg);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--bg);
 }
 .hub-nav a {
-    position:relative;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:7px;
-    min-height:44px;
-    padding:8px 12px;
-    border-radius:var(--control-radius);
-    color:var(--muted);
-    font-weight:600;
-    font-size:12px;
-    text-align:center;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: var(--control-radius);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-align: center;
 }
-.hub-nav img { display:block; width:20px; height:20px; flex-shrink:0; }
-.hub-nav a:hover { background:var(--surface-raised); color:var(--text); }
-.hub-nav a[aria-current=page] { background:var(--accent-soft); color:var(--accent); }
-.hub-nav a:focus-visible { outline-offset:-2px; }
-.hub-account { display:flex; align-items:center; justify-self:end; gap:10px; min-width:0; }
-.hub-account [data-hub-user] { max-width:12ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:12px; }
-.hub-account button { padding:8px 12px; font-size:12px; white-space:nowrap; }
-.hub-account .icon { display:block; width:18px; height:18px; }
+.hub-nav img {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.hub-nav a:hover {
+    background: var(--surface-raised);
+    color: var(--text);
+}
+.hub-nav a[aria-current='page'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.hub-nav a:focus-visible {
+    outline-offset: -2px;
+}
+.hub-account {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: 10px;
+    min-width: 0;
+}
+.hub-account [data-hub-user] {
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 12px;
+}
+.hub-account button {
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.hub-account .icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+/* 画面幅や利用環境に応じて配置を切り替える。 */
 @media (761px <= width <= 1180px) {
-    html { scroll-padding-top:135px; }
-    .hub-header { grid-template-columns:minmax(0,1fr) auto; gap:8px; }
-    .hub-nav { grid-row:2; grid-column:1/-1; justify-self:center; }
-}
-@media (max-width:760px) {
-    html { scroll-padding-top:calc(64px + env(safe-area-inset-top, 0px)); scroll-padding-bottom:var(--mobile-nav-height); }
-    body { padding-bottom:var(--mobile-nav-height); }
-    .hub-header { grid-template-columns:minmax(0,1fr) auto; gap:8px; padding-block:calc(8px + env(safe-area-inset-top, 0px)) 8px; }
-    .hub-brand { font-size:15px; }
-    .hub-account [data-hub-user] { display:none; }
-    .hub-nav {
-        position:fixed;
-        inset:auto 0 0;
-        display:grid;
-        grid-template-columns:repeat(7,minmax(0,1fr));
-        height:var(--mobile-nav-height);
-        gap:2px;
-        padding:4px max(5px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left));
-        border:0;
-        border-radius:0;
-        border-top:1px solid var(--line);
-        background:var(--chrome);
+    html {
+        scroll-padding-top: 135px;
     }
-    .hub-nav a { min-height:48px; padding:4px 1px; flex-direction:column; gap:3px; font-size:10px; line-height:1.1; }
-    .hub-nav a[aria-current=page]::after {
-        content:"";
-        position:absolute;
-        inset:0 calc(50% - 8px) auto;
-        height:2px;
-        border-radius:2px;
-        background:currentColor;
+    .hub-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+    }
+    .hub-nav {
+        grid-row: 2;
+        grid-column: 1/-1;
+        justify-self: center;
+    }
+}
+/* 画面幅や利用環境に応じて配置を切り替える。 */
+@media (max-width: 760px) {
+    html {
+        scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px));
+        scroll-padding-bottom: var(--mobile-nav-height);
+    }
+    body {
+        padding-bottom: var(--mobile-nav-height);
+    }
+    .hub-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding-block: calc(8px + env(safe-area-inset-top, 0px)) 8px;
+    }
+    .hub-brand {
+        font-size: 15px;
+    }
+    .hub-account [data-hub-user] {
+        display: none;
+    }
+    .hub-nav {
+        position: fixed;
+        inset: auto 0 0;
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        height: var(--mobile-nav-height);
+        gap: 2px;
+        padding: 4px max(5px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom))
+            max(5px, env(safe-area-inset-left));
+        border: 0;
+        border-radius: 0;
+        border-top: 1px solid var(--line);
+        background: var(--chrome);
+    }
+    .hub-nav a {
+        min-height: 48px;
+        padding: 4px 1px;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 10px;
+        line-height: 1.1;
+    }
+    .hub-nav a[aria-current='page']::after {
+        content: '';
+        position: absolute;
+        inset: 0 calc(50% - 8px) auto;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
     }
 }

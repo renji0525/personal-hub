@@ -1,14 +1,19 @@
+// RSS画面：チャンネルと動画の表示・入力を担当する。通信と再送はsync.jsにまとめる。
 /**
  * アプリケーションの全体状態（ステート）
  * チャンネル、動画リスト、設定をまとめて管理し、LocalStorageに保存する対象となります。
  */
 const publishedFormatter = new Intl.DateTimeFormat();
 let appState = {
-    channels: [],       // 登録されたチャンネル情報 {id, title}
-    videos: [],         // 取得した動画の全リスト
-    darkMode: true,     // ダークモードの設定状態
-    selectedChannel: 'all', // 現在表示しているフィルタ（'all' または チャンネルID）
-    unreadOnly: false      // 未読動画だけを表示するか
+    channels: [],
+    // 登録されたチャンネル情報 {id, title}
+    videos: [],
+    // 取得した動画の全リスト
+    darkMode: true,
+    // ダークモードの設定状態
+    selectedChannel: 'all',
+    // 現在表示しているフィルタ（'all' または チャンネルID）
+    unreadOnly: false, // 未読動画だけを表示するか
 };
 
 /**
@@ -18,7 +23,7 @@ let appState = {
  * @param {string} type - 'success'(緑), 'error'(赤), 'info'(青)
  * @param {number} waitTime - 自動で消えるまでの時間(ms)
  */
-function showNotification(message, type=`info`, waitTime=3000) {
+function showNotification(message, type = `info`, waitTime = 3000) {
     const notify = document.createElement('div');
     notify.className = 'notification-toast'; // スタイリングと重なり判定用のクラス
 
@@ -26,12 +31,13 @@ function showNotification(message, type=`info`, waitTime=3000) {
     // 既存の通知を数えて、新しい通知の「底(bottom)」の位置をずらす
     const existingNotifications = document.querySelectorAll('.notification-toast');
     const offsetGap = 60; // 1つあたりの高さ＋余白
-    const bottomPosition = 20 + (existingNotifications.length * offsetGap);
-
+    const bottomPosition = 20 + existingNotifications.length * offsetGap;
     const colors = {
-        success: '#4caf50', // 緑
-        error:   '#f04b4b', // 赤
-        info:    `#2196f3`  // 青
+        success: '#4caf50',
+        // 緑
+        error: '#f04b4b',
+        // 赤
+        info: `#2196f3`, // 青
     };
     const bgColor = colors[type] || colors.error;
 
@@ -70,7 +76,7 @@ function repositionNotifications() {
     const notifications = document.querySelectorAll('.notification-toast');
     const offsetGap = 60;
     notifications.forEach((el, index) => {
-        el.style.bottom = `${20 + (index * offsetGap)}px`;
+        el.style.bottom = `${20 + index * offsetGap}px`;
     });
 }
 
@@ -78,16 +84,33 @@ function repositionNotifications() {
  * データの永続化（保存）
  * 現在の appState を JSON文字列にして LocalStorage に書き込みます。
  */
-function preferenceKey() { return (typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final') + ':preferences'; }
+function preferenceKey() {
+    return (
+        (typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final') +
+        ':preferences'
+    );
+}
 function savePreferences() {
     try {
         const { darkMode, selectedChannel, unreadOnly } = appState;
-        localStorage.setItem(preferenceKey(), JSON.stringify({ darkMode, selectedChannel, unreadOnly }));
-    } catch (error) { showNotification('表示設定を保存できませんでした。', 'error'); }
+        localStorage.setItem(
+            preferenceKey(),
+            JSON.stringify({
+                darkMode,
+                selectedChannel,
+                unreadOnly,
+            })
+        );
+    } catch (error) {
+        showNotification('表示設定を保存できませんでした。', 'error');
+    }
 }
 function save() {
     try {
-        localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(appState));
+        localStorage.setItem(
+            typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final',
+            JSON.stringify(appState)
+        );
         localStorage.removeItem(preferenceKey());
         return true;
     } catch (error) {
@@ -95,56 +118,94 @@ function save() {
         return false;
     }
 }
-
 function safeURL(value) {
     const url = new URL(value);
     if (!['https:', 'http:'].includes(url.protocol)) throw new Error('無効なURLです');
     return url.href;
 }
-
 function videoId(value) {
     const url = new URL(safeURL(value));
     const host = url.hostname.toLowerCase();
     if (host === 'youtu.be') return url.pathname.split('/')[1];
-    if (host !== 'youtube.com' && !host.endsWith('.youtube.com')) throw new Error('YouTubeのURLではありません');
-    return url.searchParams.get('v') || (/^\/(shorts|embed|live)\//.test(url.pathname) ? url.pathname.split('/')[2] : null);
+    if (host !== 'youtube.com' && !host.endsWith('.youtube.com'))
+        throw new Error('YouTubeのURLではありません');
+    return (
+        url.searchParams.get('v') ||
+        (/^\/(shorts|embed|live)\//.test(url.pathname) ? url.pathname.split('/')[2] : null)
+    );
 }
-
 function validateState(state) {
-    const fail = () => { throw new Error('データの形式が正しくありません'); };
-    if (!state || !Array.isArray(state.channels) || !Array.isArray(state.videos) ||
-        typeof state.darkMode !== 'boolean' || typeof state.selectedChannel !== 'string') fail();
+    const fail = () => {
+        throw new Error('データの形式が正しくありません');
+    };
+    if (
+        !state ||
+        !Array.isArray(state.channels) ||
+        !Array.isArray(state.videos) ||
+        typeof state.darkMode !== 'boolean' ||
+        typeof state.selectedChannel !== 'string'
+    )
+        fail();
     if (state.unreadOnly !== undefined && typeof state.unreadOnly !== 'boolean') fail();
-    const channels = state.channels.map(c => {
+    const channels = state.channels.map((c) => {
         if (!c || typeof c.id !== 'string' || !c.id || typeof c.title !== 'string') fail();
-        return { id: c.id, title: c.title };
+        return {
+            id: c.id,
+            title: c.title,
+        };
     });
-    const channelIds = new Set(channels.map(c => c.id));
+    const channelIds = new Set(channels.map((c) => c.id));
     if (channelIds.size !== channels.length) fail();
-    const videos = state.videos.map(v => {
-        if (!v || !['channelId', 'channelName', 'title', 'thumb', 'url', 'published'].every(k => typeof v[k] === 'string') ||
-            typeof v.watched !== 'boolean' || !Number.isFinite(Date.parse(v.published)) ||
-            !channelIds.has(v.channelId)) fail();
+    const videos = state.videos.map((v) => {
+        if (
+            !v ||
+            !['channelId', 'channelName', 'title', 'thumb', 'url', 'published'].every(
+                (k) => typeof v[k] === 'string'
+            ) ||
+            typeof v.watched !== 'boolean' ||
+            !Number.isFinite(Date.parse(v.published)) ||
+            !channelIds.has(v.channelId)
+        )
+            fail();
         const urlId = videoId(v.url);
         if (!urlId) fail();
         // 旧バックアップではShortsの動画IDが欠けるため、URLから補完する
         const id = v.id === undefined || v.id === null || v.id === '' ? urlId : v.id;
         if (typeof id !== 'string') fail();
         safeURL(v.thumb);
-        return { id, channelId: v.channelId, channelName: v.channelName, title: v.title,
-            thumb: v.thumb, url: v.url, published: v.published, watched: v.watched };
+        return {
+            id,
+            channelId: v.channelId,
+            channelName: v.channelName,
+            title: v.title,
+            thumb: v.thumb,
+            url: v.url,
+            published: v.published,
+            watched: v.watched,
+        };
     });
-    return { channels, videos, darkMode: state.darkMode, unreadOnly: state.unreadOnly ?? false,
-        selectedChannel: channels.some(c => c.id === state.selectedChannel) ? state.selectedChannel : 'all' };
+    return {
+        channels,
+        videos,
+        darkMode: state.darkMode,
+        unreadOnly: state.unreadOnly ?? false,
+        selectedChannel: channels.some((c) => c.id === state.selectedChannel)
+            ? state.selectedChannel
+            : 'all',
+    };
 }
-
 let busy = false;
 async function withBusy(action) {
     if (busy) return;
     busy = true;
-    try { await action(); }
-    catch (error) { showNotification(error.message, 'error'); }
-    finally { busy = false; if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish(); }
+    try {
+        await action();
+    } catch (error) {
+        showNotification(error.message, 'error');
+    } finally {
+        busy = false;
+        if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish();
+    }
 }
 
 /**
@@ -153,13 +214,20 @@ async function withBusy(action) {
  */
 function load() {
     try {
-        const data = localStorage.getItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
+        const data = localStorage.getItem(
+            typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final'
+        );
         if (data) appState = validateState(JSON.parse(data));
         const preferences = JSON.parse(localStorage.getItem(preferenceKey()) || 'null');
         if (preferences) {
             if (typeof preferences.darkMode === 'boolean') appState.darkMode = preferences.darkMode;
-            if (typeof preferences.unreadOnly === 'boolean') appState.unreadOnly = preferences.unreadOnly;
-            if (preferences.selectedChannel === 'all' || appState.channels.some(c => c.id === preferences.selectedChannel)) appState.selectedChannel = preferences.selectedChannel;
+            if (typeof preferences.unreadOnly === 'boolean')
+                appState.unreadOnly = preferences.unreadOnly;
+            if (
+                preferences.selectedChannel === 'all' ||
+                appState.channels.some((c) => c.id === preferences.selectedChannel)
+            )
+                appState.selectedChannel = preferences.selectedChannel;
         }
     } catch (error) {
         showNotification('保存データを読み込めません。バックアップから復元してください。', 'error');
@@ -175,23 +243,29 @@ function load() {
  * @param {string} inChannelName - ログ表示用のチャンネル名
  * @param {string} addText - 進行状況などの追加テキスト
  */
-async function fetchFeed(channelId, inChannelName="None", addText="", quiet=false, refresh=false) {
+async function fetchFeed(
+    channelId,
+    inChannelName = 'None',
+    addText = '',
+    quiet = false,
+    refresh = false
+) {
     const signedIn = typeof authSession !== 'undefined' && authSession;
     if (!signedIn) {
         if (!quiet) showNotification('トップページからログインしてください。', 'error');
         return null;
     }
-
-    if(!quiet && addText !== '') showNotification(addText);
-
+    if (!quiet && addText !== '') showNotification(addText);
     try {
-        const data = await accountApi('feed', { channelId, refresh });
-        
+        const data = await accountApi('feed', {
+            channelId,
+            refresh,
+        });
         if (data.status === 'ok') {
             // 取得したデータをアプリ内の共通フォーマットに変換
             const result = {
                 name: data.feed.title,
-                items: data.items.map(item => ({
+                items: data.items.map((item) => ({
                     id: videoId(item.link),
                     channelId: channelId,
                     channelName: data.feed.title,
@@ -199,18 +273,27 @@ async function fetchFeed(channelId, inChannelName="None", addText="", quiet=fals
                     thumb: item.thumbnail,
                     url: item.link,
                     published: item.pubDate,
-                    watched: false // デフォルトは未読
-                }))
+                    watched: false, // デフォルトは未読
+                })),
             };
-            validateState({ channels: [{ id: channelId, title: result.name }], videos: result.items,
-                darkMode: true, selectedChannel: 'all' });
+            validateState({
+                channels: [
+                    {
+                        id: channelId,
+                        title: result.name,
+                    },
+                ],
+                videos: result.items,
+                darkMode: true,
+                selectedChannel: 'all',
+            });
             if (!quiet) showNotification('チャンネルを取得しました：' + result.name, 'success');
             return result;
         } else {
-            throw new Error(data.message || "取得失敗");
+            throw new Error(data.message || '取得失敗');
         }
     } catch (e) {
-        if (!quiet) showNotification(`エラー [${channelId}]: ${e.message}`, "error");
+        if (!quiet) showNotification(`エラー [${channelId}]: ${e.message}`, 'error');
         return null;
     }
 }
@@ -227,12 +310,19 @@ async function addNewChannel() {
         let { channelId } = YouTubeChannelInput.parse(input);
         if (!channelId) {
             showNotification('チャンネルURLからIDを確認しています…');
-            const resolved = await accountApi('resolveChannel', { input }, session);
-            if (!YouTubeChannelInput.validId(resolved.channelId)) throw new Error('チャンネルIDを取得できませんでした。');
+            const resolved = await accountApi(
+                'resolveChannel',
+                {
+                    input,
+                },
+                session
+            );
+            if (!YouTubeChannelInput.validId(resolved.channelId))
+                throw new Error('チャンネルIDを取得できませんでした。');
             channelId = resolved.channelId;
         }
         if (session && authSession !== session) return;
-        if (appState.channels.some(channel => channel.id === channelId)) {
+        if (appState.channels.some((channel) => channel.id === channelId)) {
             showNotification('このチャンネルは登録済みです。');
             return;
         }
@@ -241,15 +331,23 @@ async function addNewChannel() {
             appState = applyPendingChannels(appState);
         } else {
             const result = await fetchFeed(channelId);
-            appState.channels.push({ id: channelId, title: result?.name || 'Channel(' + channelId.slice(0, 6) + ')' });
+            appState.channels.push({
+                id: channelId,
+                title: result?.name || 'Channel(' + channelId.slice(0, 6) + ')',
+            });
             if (result) mergeVideos(result.items);
         }
         if (field.value.trim() === input) field.value = '';
-        save(); renderChannels(); renderVideos();
+        save();
+        renderChannels();
+        renderVideos();
     };
     if (!session) return withBusy(add);
-    try { await add(); }
-    catch (error) { showNotification(error.message, 'error'); }
+    try {
+        await add();
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
 }
 
 /**
@@ -257,25 +355,25 @@ async function addNewChannel() {
  */
 async function removeChannel(cid, event) {
     event.stopPropagation(); // 親要素のクリックイベント（フィルタ切り替え）を阻止
-    if (!confirm("チャンネルと動画データを削除しますか？")) return;
+    if (!confirm('チャンネルと動画データを削除しますか？')) return;
     if (typeof authSession !== 'undefined' && authSession) {
         try {
             queueChannel(cid, false);
+        } catch (error) {
+            showNotification(error.message, 'error');
+            return;
         }
-        catch (error) { showNotification(error.message, 'error'); return; }
     }
-    
+
     // チャンネルリストと動画リストの両方から削除
-    appState.channels = appState.channels.filter(c => c.id !== cid);
-    appState.videos = appState.videos.filter(v => v.channelId !== cid);
-    
+    appState.channels = appState.channels.filter((c) => c.id !== cid);
+    appState.videos = appState.videos.filter((v) => v.channelId !== cid);
+
     // 削除したチャンネルを表示中だった場合は「すべて」に戻す
     if (appState.selectedChannel === cid) appState.selectedChannel = 'all';
-    
     save();
     renderChannels();
     renderVideos();
-
 }
 
 /**
@@ -283,39 +381,50 @@ async function removeChannel(cid, event) {
  */
 async function refreshAll() {
     return withBusy(async () => {
-    if (typeof librarySync !== 'undefined' && librarySync) await librarySync.promise;
-    const channels = [...appState.channels];
-    const panel = document.getElementById('refreshProgress');
-    const label = document.getElementById('refreshProgressText');
-    const bar = document.getElementById('refreshProgressBar');
-    const button = document.getElementById('refreshButton');
-    panel.hidden = false;
-    button.disabled = true;
-    bar.max = Math.max(channels.length, 1);
-    bar.value = 0;
-    const failures = [];
-    try {
-        for (const [index, ch] of channels.entries()) {
-            label.textContent = `${index + 1} / ${channels.length} 件を更新中：${ch.title}`;
-            const result = await fetchFeed(ch.id, ch.title, '', true, true);
-            if (result && appState.channels.some(channel => channel.id === ch.id)) {
-                if (ch.title.startsWith('Channel(')) ch.title = result.name;
-                mergeVideos(result.items, false);
-            } else if (!result) failures.push(ch.title);
-            bar.value = index + 1;
+        if (typeof librarySync !== 'undefined' && librarySync) await librarySync.promise;
+        const channels = [...appState.channels];
+        const panel = document.getElementById('refreshProgress');
+        const label = document.getElementById('refreshProgressText');
+        const bar = document.getElementById('refreshProgressBar');
+        const button = document.getElementById('refreshButton');
+        panel.hidden = false;
+        button.disabled = true;
+        bar.max = Math.max(channels.length, 1);
+        bar.value = 0;
+        const failures = [];
+        try {
+            for (const [index, ch] of channels.entries()) {
+                label.textContent = `${index + 1} / ${channels.length} 件を更新中：${ch.title}`;
+                const result = await fetchFeed(ch.id, ch.title, '', true, true);
+                if (result && appState.channels.some((channel) => channel.id === ch.id)) {
+                    if (ch.title.startsWith('Channel(')) ch.title = result.name;
+                    mergeVideos(result.items, false);
+                } else if (!result) failures.push(ch.title);
+                bar.value = index + 1;
+            }
+            appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
+            save();
+            renderChannels();
+            renderVideos();
+            let synced = true;
+            if (typeof authSession !== 'undefined' && authSession) {
+                label.textContent = 'チャンネルの取得が終了しました。シートと同期中…';
+                resetLibraryPager();
+                synced = await reloadLibrary();
+            }
+            label.textContent = channels.length
+                ? `更新完了：${channels.length - failures.length} / ${channels.length} 件成功`
+                : '登録チャンネルはありません。';
+            if (failures.length)
+                label.textContent += `（失敗：${failures.join('、')}。ログイン状態・チャンネルIDを確認してください）`;
+            if (!synced)
+                label.textContent +=
+                    ' シートとの同期に失敗しました。ローカルの情報を表示しています。';
+        } catch (error) {
+            label.textContent = '更新を中断しました：' + error.message;
+        } finally {
+            button.disabled = false;
         }
-        appState.videos.sort((a, b) => new Date(b.published) - new Date(a.published));
-        save(); renderChannels(); renderVideos();
-        let synced = true;
-        if (typeof authSession !== 'undefined' && authSession) {
-            label.textContent = 'チャンネルの取得が終了しました。シートと同期中…';
-            resetLibraryPager(); synced = await reloadLibrary();
-        }
-        label.textContent = channels.length ? `更新完了：${channels.length - failures.length} / ${channels.length} 件成功` : '登録チャンネルはありません。';
-        if (failures.length) label.textContent += `（失敗：${failures.join('、')}。ログイン状態・チャンネルIDを確認してください）`;
-        if (!synced) label.textContent += ' シートとの同期に失敗しました。ローカルの情報を表示しています。';
-    } catch (error) { label.textContent = '更新を中断しました：' + error.message; }
-    finally { button.disabled = false; }
     });
 }
 
@@ -323,8 +432,8 @@ async function refreshAll() {
  * 重複を避けて動画リストを統合する
  */
 function mergeVideos(newVideos, sort = true) {
-    const ids = new Set(appState.videos.map(v => v.id));
-    newVideos.forEach(nv => {
+    const ids = new Set(appState.videos.map((v) => v.id));
+    newVideos.forEach((nv) => {
         // すでに存在するID（動画）は追加しない
         if (!ids.has(nv.id)) {
             appState.videos.push(nv);
@@ -340,7 +449,13 @@ function mergeVideos(newVideos, sort = true) {
 function renderChannels() {
     const list = document.getElementById('channel-list');
     list.replaceChildren();
-    [{ id: 'all', title: 'すべて表示' }, ...appState.channels].forEach(ch => {
+    [
+        {
+            id: 'all',
+            title: 'すべて表示',
+        },
+        ...appState.channels,
+    ].forEach((ch) => {
         const item = document.createElement('div');
         item.className = `channel-item-container ${ch.id === 'all' ? 'all-view' : ''} ${appState.selectedChannel === ch.id ? 'active' : ''}`;
         const link = document.createElement('button');
@@ -354,7 +469,7 @@ function renderChannels() {
             remove.title = '削除';
             remove.setAttribute('aria-label', ch.title + 'を削除');
             remove.textContent = '✕';
-            remove.addEventListener('click', event => removeChannel(ch.id, event));
+            remove.addEventListener('click', (event) => removeChannel(ch.id, event));
             item.appendChild(remove);
         }
         list.appendChild(item);
@@ -369,20 +484,23 @@ function renderVideos(append = false) {
     const start = append ? container.querySelectorAll('.video-card').length : 0;
     if (append) container.querySelector('.load-more')?.remove();
     else container.replaceChildren();
-    
     document.getElementById('unreadOnlyInput').checked = appState.unreadOnly;
     const all = getDisplayVideos();
     const count = document.getElementById('videoCount');
     if (count) count.textContent = all.length + '本';
-    const displayList = all.slice(start, typeof libraryPager !== 'undefined' ? libraryPager.limit : 50);
+    const displayList = all.slice(
+        start,
+        typeof libraryPager !== 'undefined' ? libraryPager.limit : 50
+    );
     if (!start && displayList.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'empty-message';
-        empty.textContent = appState.unreadOnly ? '未読の動画はありません。' : '表示する動画はありません。';
+        empty.textContent = appState.unreadOnly
+            ? '未読の動画はありません。'
+            : '表示する動画はありません。';
         container.appendChild(empty);
     }
-
-    displayList.forEach(v => {
+    displayList.forEach((v) => {
         const card = document.createElement('div');
         card.dataset.videoId = v.id;
         card.className = `video-card ${v.watched ? 'watched' : ''}`; // 既読なら薄くするCSSを適用
@@ -408,7 +526,9 @@ function renderVideos(append = false) {
         title.textContent = v.title;
         title.title = v.title;
         card.querySelector('.channel-name').textContent = v.channelName;
-        card.querySelector('.meta-row span').textContent = publishedFormatter.format(new Date(v.published));
+        card.querySelector('.meta-row span').textContent = publishedFormatter.format(
+            new Date(v.published)
+        );
         const checkbox = card.querySelector('input');
         checkbox.checked = v.watched;
         checkbox.addEventListener('change', () => setWatched(v.id, checkbox.checked));
@@ -421,7 +541,7 @@ function renderVideos(append = false) {
  * 動画の既読/未読状態を切り替える
  */
 function setWatched(vid, watched) {
-    const video = appState.videos.find(v => v.id === vid);
+    const video = appState.videos.find((v) => v.id === vid);
     if (video) {
         const previous = video.watched;
         if (watched === previous) return;
@@ -431,23 +551,26 @@ function setWatched(vid, watched) {
         save();
         if (appState.unreadOnly) renderVideos();
         else {
-            const cards = document.getElementById('video-container').querySelectorAll?.('.video-card') || [];
-            for (const card of cards) if (card.dataset.videoId === vid) {
-                card.classList.toggle('watched', video.watched);
-                card.querySelector('input').checked = video.watched;
-            }
+            const cards =
+                document.getElementById('video-container').querySelectorAll?.('.video-card') || [];
+            for (const card of cards)
+                if (card.dataset.videoId === vid) {
+                    card.classList.toggle('watched', video.watched);
+                    card.querySelector('input').checked = video.watched;
+                }
         }
     }
 }
 
 // チャンネルと未読条件を組み合わせて表示対象を選ぶ
 function getDisplayVideos() {
-    return appState.videos.filter(v =>
-        !/^https?:\/\/(?:[a-z0-9-]+\.)?youtube\.com\/shorts\/[\w-]+(?:[/?#]|$)/i.test(v.url) &&
-        (appState.selectedChannel === 'all' || v.channelId === appState.selectedChannel) &&
-        (!appState.unreadOnly || !v.watched));
+    return appState.videos.filter(
+        (v) =>
+            !/^https?:\/\/(?:[a-z0-9-]+\.)?youtube\.com\/shorts\/[\w-]+(?:[/?#]|$)/i.test(v.url) &&
+            (appState.selectedChannel === 'all' || v.channelId === appState.selectedChannel) &&
+            (!appState.unreadOnly || !v.watched)
+    );
 }
-
 function setUnreadOnly(enabled) {
     if (appState.unreadOnly === enabled) return;
     appState.unreadOnly = enabled;
@@ -482,10 +605,12 @@ function toggleTheme() {
  */
 async function exportJSON() {
     const state = appState;
-    const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(state, null, 2)], {
+        type: 'application/json',
+    });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `yt_rss_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `yt_rss_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -502,7 +627,9 @@ async function importJSON(e) {
     if (!file) return;
     busy = true;
     const status = document.getElementById('importStatus');
-    const report = message => { if (status) status.textContent = message; };
+    const report = (message) => {
+        if (status) status.textContent = message;
+    };
     let uploading = false;
     try {
         report('ファイルを確認中…');
@@ -510,22 +637,44 @@ async function importJSON(e) {
         if (typeof authSession !== 'undefined' && authSession) {
             uploading = true;
             await restoreAccount(restored, report);
-            appState = { ...restored, videos: [] };
+            appState = {
+                ...restored,
+                videos: [],
+            };
             savePreferences();
             document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
             const loaded = await reloadLibrary();
-            report(loaded ? 'スプレッドシートへの復元が完了しました。' : 'シートへの保存は完了しました。一覧の読み込みを再試行してください。');
+            report(
+                loaded
+                    ? 'スプレッドシートへの復元が完了しました。'
+                    : 'シートへの保存は完了しました。一覧の読み込みを再試行してください。'
+            );
         } else {
-            localStorage.setItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final', JSON.stringify(restored));
+            localStorage.setItem(
+                typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final',
+                JSON.stringify(restored)
+            );
             appState = restored;
             savePreferences();
             document.body.setAttribute('data-theme', appState.darkMode ? 'dark' : 'light');
-            renderChannels(); renderVideos();
-            report('このブラウザに復元しました。シートへの保存にはトップページでログインして復元してください。');
+            renderChannels();
+            renderVideos();
+            report(
+                'このブラウザに復元しました。シートへの保存にはトップページでログインして復元してください。'
+            );
         }
     } catch (error) {
-        report(uploading ? 'シートへの復元が中断しました。一部が保存済みの可能性があります。同じJSONで再実行できます。' + error.message : '復元できません。ファイルの形式・内容・保存容量を確認してください。');
-    } finally { busy = false; e.target.value = ''; if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish(); }
+        report(
+            uploading
+                ? 'シートへの復元が中断しました。一部が保存済みの可能性があります。同じJSONで再実行できます。' +
+                      error.message
+                : '復元できません。ファイルの形式・内容・保存容量を確認してください。'
+        );
+    } finally {
+        busy = false;
+        e.target.value = '';
+        if (typeof rssAutoPush !== 'undefined') rssAutoPush?.finish();
+    }
 }
 
 /**
@@ -533,13 +682,17 @@ async function importJSON(e) {
  */
 function resetAll() {
     if (busy) return showNotification('取得が終わってから初期化してください。');
-    if (confirm("このブラウザに保存した設定と既読情報を削除しますか？")) {
+    if (confirm('このブラウザに保存した設定と既読情報を削除しますか？')) {
         try {
             localStorage.removeItem('yt_rss_api_key');
-            localStorage.removeItem(typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final');
+            localStorage.removeItem(
+                typeof accountStorageKey === 'function' ? accountStorageKey() : 'yt_v5_final'
+            );
             localStorage.removeItem(preferenceKey());
             location.reload();
-        } catch (error) { showNotification('保存データを削除できません。', 'error'); }
+        } catch (error) {
+            showNotification('保存データを削除できません。', 'error');
+        }
     }
 }
 
@@ -549,18 +702,32 @@ function resetAll() {
 async function startApp() {
     if (typeof initAccount === 'function' && !(await initAccount())) return;
     // 廃止した認証キーを、このブラウザから削除する
-    try { localStorage.removeItem('yt_rss_api_key'); } catch (error) { /* 保存領域が利用不可でも画面は起動する */ }
+    try {
+        localStorage.removeItem('yt_rss_api_key');
+    } catch (error) {
+        /* 保存領域が利用不可でも画面は起動する */
+    }
     load(); // ストレージからデータを読み込む
     if (typeof authSession !== 'undefined' && authSession) {
         appState = applyPendingChannels(appState);
-        renderChannels(); renderVideos();
+        renderChannels();
+        renderVideos();
     }
     document.documentElement.removeAttribute('data-auth-pending');
-    if (typeof authSession !== 'undefined' && authSession &&
-        (!window.HubSync || HubSync.needed(authSession.userId, 'rss', !!localStorage.getItem(accountStorageKey())))) reloadLibrary();
+    if (
+        typeof authSession !== 'undefined' &&
+        authSession &&
+        (!window.HubSync ||
+            HubSync.needed(authSession.userId, 'rss', !!localStorage.getItem(accountStorageKey())))
+    )
+        reloadLibrary();
     else if (typeof authSession !== 'undefined' && authSession) {
-        updateRssSyncStatus(); rssAutoPush?.schedule();
+        updateRssSyncStatus();
+        rssAutoPush?.schedule();
     }
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startApp, { once: true });
+if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', startApp, {
+        once: true,
+    });
 else startApp();

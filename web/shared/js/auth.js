@@ -1,23 +1,27 @@
+// 共通基盤：認証セッション、GAS通信、同期の時間帯と送信待機を管理する。
 // Personal Hub全体で認証セッションとGAS通信を共有する
 window.HubAuth = (() => {
-	const API_URL = 'https://script.google.com/macros/s/AKfycbx33oLMfb7HEsyi4uCHIm4N3Y53l2sBEasBnKpagNU8lAMwzSUiyg0sfes9niiLuSOC/exec';
+    const API_URL =
+        'https://script.google.com/macros/s/AKfycbx33oLMfb7HEsyi4uCHIm4N3Y53l2sBEasBnKpagNU8lAMwzSUiyg0sfes9niiLuSOC/exec';
     const KEY = 'personal_hub_session';
     let expiryTimer;
     const verifications = new Map();
-
     function valid(session) {
-        return session && typeof session.userId === 'string' && /^[a-zA-Z0-9_-]{3,32}$/.test(session.userId) &&
-            typeof session.token === 'string' && /^[a-f0-9]{64}$/.test(session.token) &&
-            Number.isFinite(session.expiresAt) && session.expiresAt > Date.now();
+        return (
+            session &&
+            typeof session.userId === 'string' &&
+            /^[a-zA-Z0-9_-]{3,32}$/.test(session.userId) &&
+            typeof session.token === 'string' &&
+            /^[a-f0-9]{64}$/.test(session.token) &&
+            Number.isFinite(session.expiresAt) &&
+            session.expiresAt > Date.now()
+        );
     }
-
     const MIGRATED_KEY = 'personal_hub_auth_migrated';
-
     function removeLegacy() {
         sessionStorage.removeItem(KEY);
         sessionStorage.removeItem('yt_rss_session');
     }
-
     function read() {
         try {
             const raw = localStorage.getItem(KEY);
@@ -27,30 +31,38 @@ window.HubAuth = (() => {
             }
             // 一度移行・ログアウトした端末では古いタブのセッションを復活させない
             if (localStorage.getItem(MIGRATED_KEY)) return null;
-            const previous = JSON.parse(sessionStorage.getItem(KEY) || sessionStorage.getItem('yt_rss_session') || 'null');
+            const previous = JSON.parse(
+                sessionStorage.getItem(KEY) || sessionStorage.getItem('yt_rss_session') || 'null'
+            );
             if (!valid(previous)) return null;
             localStorage.setItem(KEY, JSON.stringify(previous));
             localStorage.setItem(MIGRATED_KEY, '1');
             removeLegacy();
             return previous;
-        } catch (error) { return null; }
+        } catch (error) {
+            return null;
+        }
     }
-
     function scheduleExpiry(session) {
         clearTimeout(expiryTimer);
         if (!session) return;
         // 30日はタイマー上限を超えるため、短い区間で期限を再確認する
-        expiryTimer = setTimeout(() => {
-            if (session.expiresAt <= Date.now()) clear(session);
-            else scheduleExpiry(session);
-        }, Math.min(Math.max(0, session.expiresAt - Date.now()), 24 * 60 * 60 * 1000));
+        expiryTimer = setTimeout(
+            () => {
+                if (session.expiresAt <= Date.now()) clear(session);
+                else scheduleExpiry(session);
+            },
+            Math.min(Math.max(0, session.expiresAt - Date.now()), 24 * 60 * 60 * 1000)
+        );
     }
-
     function notify(session) {
         scheduleExpiry(session);
-        window.dispatchEvent(new CustomEvent('hub-auth-changed', { detail: session }));
+        window.dispatchEvent(
+            new CustomEvent('hub-auth-changed', {
+                detail: session,
+            })
+        );
     }
-
     function clear(expected) {
         const current = read();
         if (expected && current && current.token !== expected.token) return;
@@ -59,18 +71,18 @@ window.HubAuth = (() => {
         removeLegacy();
         notify(null);
     }
-
-    window.addEventListener('storage', event => {
+    window.addEventListener('storage', (event) => {
         if (event.storageArea === localStorage && (event.key === KEY || event.key === null)) {
             removeLegacy();
             notify(read());
         }
     });
-
     function randomToken() {
-        return Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
+        return Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
+            byte.toString(16).padStart(2, '0')
+        ).join('');
     }
-
+    // 通信の認証・待機上限・エラー処理を集約する。タイムアウトは保存取消を意味しない。
     async function api(action, params = {}, session = read()) {
         const controller = new AbortController();
         // GASの1実行の上限（6分）に合わせる
@@ -79,20 +91,53 @@ window.HubAuth = (() => {
         const timeout = setTimeout(() => controller.abort(), wait);
         try {
             // ロック未取得は保存処理が始まっていないため、同じ本文で最大2回だけ再試行する
-            const retryable = ['budgetLoad', 'budgetSync', 'listsLoad', 'listsSync', 'notesLoad', 'notesSync', 'listsMembers', 'talkLoad', 'talkSend'].includes(action);
+            const retryable = [
+                'budgetLoad',
+                'budgetSync',
+                'listsLoad',
+                'listsSync',
+                'notesLoad',
+                'notesSync',
+                'listsMembers',
+                'talkLoad',
+                'talkSend',
+            ].includes(action);
             for (let attempt = 0; ; attempt++) {
                 // GASへのプリフライトを避け、認証情報をURLに含めない
                 const response = await fetch(API_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ ...params, action, requestId, token: session ? session.token : undefined }),
-                    keepalive: action === 'logout', credentials: 'omit', redirect: 'follow', signal: controller.signal
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    body: JSON.stringify({
+                        ...params,
+                        action,
+                        requestId,
+                        token: session ? session.token : undefined,
+                    }),
+                    keepalive: action === 'logout',
+                    credentials: 'omit',
+                    redirect: 'follow',
+                    signal: controller.signal,
                 });
                 if (!response.ok) throw new Error('サーバーに接続できませんでした。');
                 const result = await response.json();
                 if (result.status !== 'ok') {
-                    if (result.code === 'LOCK_TIMEOUT' && retryable && attempt < 2 && !controller.signal.aborted && (!session || read()?.token === session.token)) continue;
+                    if (
+                        result.code === 'LOCK_TIMEOUT' &&
+                        retryable &&
+                        attempt < 2 &&
+                        !controller.signal.aborted &&
+                        (!session || read()?.token === session.token)
+                    )
+                        continue;
                     if (result.code === 'AUTH_EXPIRED' && session) clear(session);
-                    const error = new Error((result.message || '処理に失敗しました。') + '（問い合わせID: ' + requestId + '）');
+                    const error = new Error(
+                        (result.message || '処理に失敗しました。') +
+                            '（問い合わせID: ' +
+                            requestId +
+                            '）'
+                    );
                     error.requestId = requestId;
                     error.code = result.code;
                     throw error;
@@ -101,7 +146,11 @@ window.HubAuth = (() => {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-                const timeoutError = new Error('6分以内に応答を受信できませんでした。サーバーでは保存済みの場合があります。未同期内容を消さずに同期を再実行してください。（問い合わせID: ' + requestId + '）');
+                const timeoutError = new Error(
+                    '6分以内に応答を受信できませんでした。サーバーでは保存済みの場合があります。未同期内容を消さずに同期を再実行してください。（問い合わせID: ' +
+                        requestId +
+                        '）'
+                );
                 timeoutError.code = 'REQUEST_TIMEOUT';
                 timeoutError.requestId = requestId;
                 throw timeoutError;
@@ -111,9 +160,10 @@ window.HubAuth = (() => {
                 error.message += '（問い合わせID: ' + requestId + '）';
             }
             throw error;
-        } finally { clearTimeout(timeout); }
+        } finally {
+            clearTimeout(timeout);
+        }
     }
-
     function verify(session = read()) {
         if (!session) return Promise.resolve(null);
         const key = session.userId + ':' + session.token;
@@ -133,11 +183,24 @@ window.HubAuth = (() => {
         verifications.set(key, promise);
         return promise;
     }
-
+    // 入力を確認して認証し、成功・失敗に応じてセッションと表示を更新する。
     async function signIn(action, userId, password) {
         const token = randomToken();
-        const result = await api(action, { userId, password, newToken: token, salt: randomToken().slice(0, 32) }, null);
-        const session = { userId: result.userId, token, expiresAt: result.expiresAt };
+        const result = await api(
+            action,
+            {
+                userId,
+                password,
+                newToken: token,
+                salt: randomToken().slice(0, 32),
+            },
+            null
+        );
+        const session = {
+            userId: result.userId,
+            token,
+            expiresAt: result.expiresAt,
+        };
         if (!valid(session)) throw new Error('ログイン情報が正しくありません。');
         localStorage.setItem(KEY, JSON.stringify(session));
         localStorage.setItem(MIGRATED_KEY, '1');
@@ -145,61 +208,96 @@ window.HubAuth = (() => {
         notify(session);
         return session;
     }
-
     async function temporarySignIn(userId, password) {
         const token = randomToken();
-        const result = await api('temporaryLogin', { userId, password, newToken: token }, null);
-        if (result.resetRequired !== true) throw new Error('再設定用のログイン情報が正しくありません。');
-        const session = { userId: result.userId, token, expiresAt: result.expiresAt };
+        const result = await api(
+            'temporaryLogin',
+            {
+                userId,
+                password,
+                newToken: token,
+            },
+            null
+        );
+        if (result.resetRequired !== true)
+            throw new Error('再設定用のログイン情報が正しくありません。');
+        const session = {
+            userId: result.userId,
+            token,
+            expiresAt: result.expiresAt,
+        };
         if (!valid(session)) throw new Error('再設定用のログイン情報が正しくありません。');
         // 再設定専用トークンは端末へ永続保存せず、通常ログインとして通知しない
         return session;
     }
-
     async function resetPassword(session, password) {
-        return api('resetPassword', { password, salt: randomToken().slice(0, 32) }, session);
+        return api(
+            'resetPassword',
+            {
+                password,
+                salt: randomToken().slice(0, 32),
+            },
+            session
+        );
     }
-
     async function signOut(session = read()) {
         // 端末を先に解除し、ページ遷移後もサーバー無効化の送信を継続する
         const pending = session ? api('logout', {}, session) : Promise.resolve();
         clear(session);
         await pending;
     }
-
     function toTop(reason = 'login') {
         document.documentElement.setAttribute('data-auth-pending', '');
         location.replace('../top/index.html?reason=' + encodeURIComponent(reason));
     }
-
     function protect(options = {}) {
         let protectedToken = null;
         const check = async () => {
             document.documentElement.setAttribute('data-auth-pending', '');
-            if (!read()) { toTop(); return null; }
+            if (!read()) {
+                toTop();
+                return null;
+            }
             try {
                 const session = options.local ? read() : await verify();
-                if (!session) { toTop(); return null; }
+                if (!session) {
+                    toTop();
+                    return null;
+                }
                 protectedToken = session.token;
                 notify(session);
                 return session;
-            } catch (error) { toTop(error.code === 'AUTH_EXPIRED' ? 'expired' : 'connection'); return null; }
+            } catch (error) {
+                toTop(error.code === 'AUTH_EXPIRED' ? 'expired' : 'connection');
+                return null;
+            }
         };
-        window.addEventListener('hub-auth-changed', event => {
-            if (!event.detail || protectedToken && event.detail.token !== protectedToken) toTop('expired');
+        window.addEventListener('hub-auth-changed', (event) => {
+            if (!event.detail || (protectedToken && event.detail.token !== protectedToken))
+                toTop('expired');
         });
-        window.addEventListener('pageshow', async event => {
-            if (event.persisted && await check()) document.documentElement.removeAttribute('data-auth-pending');
+        window.addEventListener('pageshow', async (event) => {
+            if (event.persisted && (await check()))
+                document.documentElement.removeAttribute('data-auth-pending');
         });
         return check();
     }
-
     function resume() {
         const session = read();
         scheduleExpiry(session);
         return session;
     }
-    return { read, resume, api, verify, signIn, temporarySignIn, resetPassword, signOut, protect };
+    return {
+        read,
+        resume,
+        api,
+        verify,
+        signIn,
+        temporarySignIn,
+        resetPassword,
+        signOut,
+        protect,
+    };
 })();
 
 // 日本時間の日付・時間帯ごとに、ユーザー別の同期成功を端末に記録する
@@ -209,28 +307,56 @@ window.HubSync = (() => {
         const hour = date.getUTCHours();
         return date.toISOString().slice(0, 10) + ':' + (hour < 13 ? 0 : hour < 19 ? 1 : 2);
     }
-    function key(userId, resource) { return 'personal_hub_sync_slot:' + resource + ':' + userId; }
+    function key(userId, resource) {
+        return 'personal_hub_sync_slot:' + resource + ':' + userId;
+    }
     function needed(userId, resource, hasCache) {
-        try { return !hasCache || localStorage.getItem(key(userId, resource)) !== slot(); }
-        catch (error) { return true; }
+        try {
+            return !hasCache || localStorage.getItem(key(userId, resource)) !== slot();
+        } catch (error) {
+            return true;
+        }
     }
     function mark(userId, resource, startedAt) {
-        try { localStorage.setItem(key(userId, resource), slot(startedAt)); }
-        catch (error) { /* 保存できない場合は次回も同期する */ }
+        try {
+            localStorage.setItem(key(userId, resource), slot(startedAt));
+        } catch (error) {
+            /* 保存できない場合は次回も同期する */
+        }
     }
     function autoPush(run, ready) {
-        let timer, due = 0;
+        let timer,
+            due = 0;
         function arm() {
             clearTimeout(timer);
             if (!due || !ready() || navigator.onLine === false) return;
-            timer = setTimeout(() => {
-                if (ready() && navigator.onLine !== false) run();
-            }, Math.max(0, due - Date.now()));
+            timer = setTimeout(
+                () => {
+                    if (ready() && navigator.onLine !== false) run();
+                },
+                Math.max(0, due - Date.now())
+            );
         }
-        function schedule() { due = Date.now() + 3000; arm(); }
-        function start() { due = 0; clearTimeout(timer); }
+        function schedule() {
+            due = Date.now() + 3000;
+            arm();
+        }
+        function start() {
+            due = 0;
+            clearTimeout(timer);
+        }
         window.addEventListener('online', schedule);
-        return { schedule, start, finish: arm, waiting: () => due !== 0 };
+        return {
+            schedule,
+            start,
+            finish: arm,
+            waiting: () => due !== 0,
+        };
     }
-    return { slot, needed, mark, autoPush };
+    return {
+        slot,
+        needed,
+        mark,
+        autoPush,
+    };
 })();

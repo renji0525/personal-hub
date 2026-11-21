@@ -1,82 +1,222 @@
+// 家計簿モデル：DOMや通信に依存せず、入力を検証して操作後の状態を返す。GASの生成元でもある。
 // 家計簿の入力検証・編集・集計をブラウザとGASで共有する
 var BudgetModel = (() => {
     const defaults = [
-        ['cat_food', '食費', '#f5b86b'], ['cat_daily', '日用品', '#83cdbb'],
-        ['cat_home', '住まい', '#94b9f4'], ['cat_travel', '交通費', '#b6a3ec'],
-        ['cat_hobby', '趣味', '#ed9bac'], ['cat_salary', '給与', '#77cf98']
-    ].map(([id, name, color]) => ({ id, name, color }));
+        ['cat_food', '食費', '#f5b86b'],
+        ['cat_daily', '日用品', '#83cdbb'],
+        ['cat_home', '住まい', '#94b9f4'],
+        ['cat_travel', '交通費', '#b6a3ec'],
+        ['cat_hobby', '趣味', '#ed9bac'],
+        ['cat_salary', '給与', '#77cf98'],
+    ].map(([id, name, color]) => ({
+        id,
+        name,
+        color,
+    }));
     function id(value) {
-        if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(value)) throw new Error('識別情報が正しくありません。');
+        if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{8,64}$/.test(value))
+            throw new Error('識別情報が正しくありません。');
         return value;
     }
     function category(value) {
-        if (!value || typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 40 ||
-            typeof value.color !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(value.color)) throw new Error('カテゴリ名と色を確認してください。');
-        return { id: id(value.id), name: value.name.trim(), color: value.color.toLowerCase(),
-            ...(value.parentId ? { parentId: id(value.parentId) } : {}) };
+        if (
+            !value ||
+            typeof value.name !== 'string' ||
+            !value.name.trim() ||
+            value.name.trim().length > 40 ||
+            typeof value.color !== 'string' ||
+            !/^#[a-fA-F0-9]{6}$/.test(value.color)
+        )
+            throw new Error('カテゴリ名と色を確認してください。');
+        return {
+            id: id(value.id),
+            name: value.name.trim(),
+            color: value.color.toLowerCase(),
+            ...(value.parentId
+                ? {
+                      parentId: id(value.parentId),
+                  }
+                : {}),
+        };
     }
     function entry(value, categories) {
-        if (!value || typeof value.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.date) ||
-            !Number.isFinite(Date.parse(value.date + 'T00:00:00Z')) || new Date(value.date + 'T00:00:00Z').toISOString().slice(0, 10) !== value.date)
+        if (
+            !value ||
+            typeof value.date !== 'string' ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(value.date) ||
+            !Number.isFinite(Date.parse(value.date + 'T00:00:00Z')) ||
+            new Date(value.date + 'T00:00:00Z').toISOString().slice(0, 10) !== value.date
+        )
             throw new Error('日付を確認してください。');
-        if (!['income', 'expense'].includes(value.type) || !Number.isSafeInteger(value.amount) || value.amount < 1 || value.amount > 999999999999)
+        if (
+            !['income', 'expense'].includes(value.type) ||
+            !Number.isSafeInteger(value.amount) ||
+            value.amount < 1 ||
+            value.amount > 999999999999
+        )
             throw new Error('金額は1〜999,999,999,999円の整数で入力してください。');
-        if ((value.categoryId !== '' && !categories.some(c => c.id === value.categoryId && !c.parentId)) ||
-            (value.categoryMiddleId && (!value.categoryId || !categories.some(c => c.id === value.categoryMiddleId && c.parentId === value.categoryId))) ||
-            (value.categorySmallId && (!value.categoryMiddleId || !categories.some(c => c.id === value.categorySmallId && c.parentId === value.categoryMiddleId)))) {
+        if (
+            (value.categoryId !== '' &&
+                !categories.some((c) => c.id === value.categoryId && !c.parentId)) ||
+            (value.categoryMiddleId &&
+                (!value.categoryId ||
+                    !categories.some(
+                        (c) => c.id === value.categoryMiddleId && c.parentId === value.categoryId
+                    ))) ||
+            (value.categorySmallId &&
+                (!value.categoryMiddleId ||
+                    !categories.some(
+                        (c) =>
+                            c.id === value.categorySmallId && c.parentId === value.categoryMiddleId
+                    )))
+        ) {
             throw new Error('カテゴリを選び直してください。');
         }
-        if (typeof value.memo !== 'string' || value.memo.length > 200) throw new Error('メモは200文字以内で入力してください。');
-        const result = { id: id(value.id), date: value.date, type: value.type, categoryId: value.categoryId, amount: value.amount, memo: value.memo.trim() };
-        for (const key of ['categoryMiddleId', 'categorySmallId']) if (value[key]) result[key] = value[key];
-        for (const [key, label] of [['shop', '店舗名'], ['productName', '商品名']]) {
+        if (typeof value.memo !== 'string' || value.memo.length > 200)
+            throw new Error('メモは200文字以内で入力してください。');
+        const result = {
+            id: id(value.id),
+            date: value.date,
+            type: value.type,
+            categoryId: value.categoryId,
+            amount: value.amount,
+            memo: value.memo.trim(),
+        };
+        for (const key of ['categoryMiddleId', 'categorySmallId'])
+            if (value[key]) result[key] = value[key];
+        for (const [key, label] of [
+            ['shop', '店舗名'],
+            ['productName', '商品名'],
+        ]) {
             if (value[key] === undefined) continue;
-            if (typeof value[key] !== 'string' || value[key].length > 80) throw new Error(label + 'は80文字以内で入力してください。');
+            if (typeof value[key] !== 'string' || value[key].length > 80)
+                throw new Error(label + 'は80文字以内で入力してください。');
             if (value[key].trim()) result[key] = value[key].trim();
         }
         if (value.attribution !== undefined) {
             const attribution = value.attribution;
-            if (attribution?.kind === 'group') result.attribution = { kind: 'group' };
-            else if (attribution?.kind === 'person' && typeof attribution.name === 'string' && attribution.name.trim() && attribution.name.length <= 80 &&
-                (attribution.userId === undefined || (typeof attribution.userId === 'string' && /^[a-z0-9_-]{3,32}$/.test(attribution.userId) && attribution.userId === attribution.name)))
-                result.attribution = { kind: 'person', name: attribution.name.trim(),
-                    ...(attribution.userId ? { userId: attribution.userId } : {}) };
+            if (attribution?.kind === 'group')
+                result.attribution = {
+                    kind: 'group',
+                };
+            else if (
+                attribution?.kind === 'person' &&
+                typeof attribution.name === 'string' &&
+                attribution.name.trim() &&
+                attribution.name.length <= 80 &&
+                (attribution.userId === undefined ||
+                    (typeof attribution.userId === 'string' &&
+                        /^[a-z0-9_-]{3,32}$/.test(attribution.userId) &&
+                        attribution.userId === attribution.name))
+            )
+                result.attribution = {
+                    kind: 'person',
+                    name: attribution.name.trim(),
+                    ...(attribution.userId
+                        ? {
+                              userId: attribution.userId,
+                          }
+                        : {}),
+                };
             else throw new Error('対象を選び、個人の場合は名前を80文字以内で入力してください。');
         }
         return result;
     }
     function date(value) {
-        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value + 'T00:00:00Z')) || new Date(value + 'T00:00:00Z').toISOString().slice(0,10) !== value) throw new Error('購入日を確認してください。');
+        if (
+            typeof value !== 'string' ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+            !Number.isFinite(Date.parse(value + 'T00:00:00Z')) ||
+            new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) !== value
+        )
+            throw new Error('購入日を確認してください。');
         return value;
     }
     function product(value, categories) {
-        if (!value || typeof value.name !== 'string' || !value.name.trim() || value.name.trim().length > 80) throw new Error('商品名は1〜80文字で入力してください。');
-        if (!Number.isInteger(value.intervalDays) || value.intervalDays < 1 || value.intervalDays > 3650 || !Number.isInteger(value.leadDays) || value.leadDays < 0 || value.leadDays > value.intervalDays) throw new Error('補充間隔は1〜3650日、お知らせは0〜補充間隔の日数で入力してください。');
-        if (value.categoryId !== '' && !categories.some(c => c.id === value.categoryId && !c.parentId)) throw new Error('カテゴリを選び直してください。');
-        return { id: id(value.id), name: value.name.trim(), purchasedAt: date(value.purchasedAt), intervalDays: value.intervalDays, leadDays: value.leadDays, categoryId: value.categoryId };
+        if (
+            !value ||
+            typeof value.name !== 'string' ||
+            !value.name.trim() ||
+            value.name.trim().length > 80
+        )
+            throw new Error('商品名は1〜80文字で入力してください。');
+        if (
+            !Number.isInteger(value.intervalDays) ||
+            value.intervalDays < 1 ||
+            value.intervalDays > 3650 ||
+            !Number.isInteger(value.leadDays) ||
+            value.leadDays < 0 ||
+            value.leadDays > value.intervalDays
+        )
+            throw new Error('補充間隔は1〜3650日、お知らせは0〜補充間隔の日数で入力してください。');
+        if (
+            value.categoryId !== '' &&
+            !categories.some((c) => c.id === value.categoryId && !c.parentId)
+        )
+            throw new Error('カテゴリを選び直してください。');
+        return {
+            id: id(value.id),
+            name: value.name.trim(),
+            purchasedAt: date(value.purchasedAt),
+            intervalDays: value.intervalDays,
+            leadDays: value.leadDays,
+            categoryId: value.categoryId,
+        };
     }
     function due(product, today) {
         const day = 86400000;
-        const target = Date.parse(date(product.purchasedAt) + 'T00:00:00Z') + product.intervalDays * day;
+        const target =
+            Date.parse(date(product.purchasedAt) + 'T00:00:00Z') + product.intervalDays * day;
         const remaining = Math.round((target - Date.parse(date(today) + 'T00:00:00Z')) / day);
-        return { date: new Date(target).toISOString().slice(0,10), remaining, soon: remaining <= product.leadDays };
+        return {
+            date: new Date(target).toISOString().slice(0, 10),
+            remaining,
+            soon: remaining <= product.leadDays,
+        };
     }
+    // 元の状態から操作後の状態を作る。入力の業務ルールをここで検証する。
     function apply(state, operation) {
-        const next = { categories: state.categories.map(c => ({ ...c })), entries: state.entries.map(e => ({ ...e })), products: (state.products || []).map(p => ({ ...p })) };
-        if (!operation || typeof operation !== 'object') throw new Error('操作が正しくありません。');
+        const next = {
+            categories: state.categories.map((c) => ({
+                ...c,
+            })),
+            entries: state.entries.map((e) => ({
+                ...e,
+            })),
+            products: (state.products || []).map((p) => ({
+                ...p,
+            })),
+        };
+        if (!operation || typeof operation !== 'object')
+            throw new Error('操作が正しくありません。');
         if (operation.type === 'categorySave' || operation.type === 'categoryTreeSave') {
-            const index = next.categories.findIndex(c => c.id === operation.value?.id);
+            const index = next.categories.findIndex((c) => c.id === operation.value?.id);
             const previous = next.categories[index];
-            const value = category({ parentId: previous?.parentId, ...operation.value });
-            if (previous && previous.parentId !== value.parentId) throw new Error('編集中のカテゴリの親項目は変更できません。');
+            const value = category({
+                parentId: previous?.parentId,
+                ...operation.value,
+            });
+            if (previous && previous.parentId !== value.parentId)
+                throw new Error('編集中のカテゴリの親項目は変更できません。');
             if (value.parentId) {
-                const parent = next.categories.find(c => c.id === value.parentId);
-                if (!parent || parent.id === value.id || (parent.parentId && next.categories.find(c => c.id === parent.parentId)?.parentId))
+                const parent = next.categories.find((c) => c.id === value.parentId);
+                if (
+                    !parent ||
+                    parent.id === value.id ||
+                    (parent.parentId &&
+                        next.categories.find((c) => c.id === parent.parentId)?.parentId)
+                )
                     throw new Error('親カテゴリを選び直してください。');
             }
-            if (next.categories.some(c => c.id !== value.id && c.name === value.name && c.parentId === value.parentId))
+            if (
+                next.categories.some(
+                    (c) =>
+                        c.id !== value.id && c.name === value.name && c.parentId === value.parentId
+                )
+            )
                 throw new Error('同じ名前のカテゴリがあります。');
-            if (index < 0) next.categories.push(value); else next.categories[index] = value;
+            if (index < 0) next.categories.push(value);
+            else next.categories[index] = value;
         } else if (operation.type === 'categoryTreeDelete') {
             const key = id(operation.id);
             const removed = new Set([key]);
@@ -84,7 +224,7 @@ var BudgetModel = (() => {
             for (let level = 0; level < 2; level++) {
                 for (const c of next.categories) if (removed.has(c.parentId)) removed.add(c.id);
             }
-            next.categories = next.categories.filter(c => !removed.has(c.id));
+            next.categories = next.categories.filter((c) => !removed.has(c.id));
             for (const e of next.entries) {
                 if (removed.has(e.categoryId)) e.categoryId = '';
                 if (removed.has(e.categoryMiddleId)) delete e.categoryMiddleId;
@@ -93,36 +233,72 @@ var BudgetModel = (() => {
             for (const p of next.products) if (removed.has(p.categoryId)) p.categoryId = '';
         } else if (operation.type === 'categoryDelete') {
             const key = id(operation.id);
-            if (next.categories.some(c => c.parentId === key) || next.entries.some(e => [e.categoryId, e.categoryMiddleId, e.categorySmallId].includes(key)) ||
-                next.products.some(p => p.categoryId === key)) throw new Error('使用中のカテゴリです。記録・商品のカテゴリを変更してから削除してください。');
-            next.categories = next.categories.filter(c => c.id !== key);
+            if (
+                next.categories.some((c) => c.parentId === key) ||
+                next.entries.some((e) =>
+                    [e.categoryId, e.categoryMiddleId, e.categorySmallId].includes(key)
+                ) ||
+                next.products.some((p) => p.categoryId === key)
+            )
+                throw new Error(
+                    '使用中のカテゴリです。記録・商品のカテゴリを変更してから削除してください。'
+                );
+            next.categories = next.categories.filter((c) => c.id !== key);
         } else if (['entrySave', 'entryDetailsSave', 'entryRecordSave'].includes(operation.type)) {
-            if (operation.type === 'entryRecordSave' && !operation.value?.attribution) throw new Error('使用者を選び直してください。');
-            const index = next.entries.findIndex(e => e.id === operation.value?.id);
+            if (operation.type === 'entryRecordSave' && !operation.value?.attribution)
+                throw new Error('使用者を選び直してください。');
+            const index = next.entries.findIndex((e) => e.id === operation.value?.id);
             // 旧画面からの編集では送信されない追加項目を引き継ぐ
-            const { shop, productName, attribution, categoryId, categoryMiddleId, categorySmallId } = next.entries[index] || {};
-            const subcategories = categoryId === operation.value?.categoryId ? { categoryMiddleId, categorySmallId } : {};
-            const value = entry({ shop, productName, attribution, ...subcategories, ...operation.value }, next.categories);
-            if (index < 0) next.entries.push(value); else next.entries[index] = value;
+            const {
+                shop,
+                productName,
+                attribution,
+                categoryId,
+                categoryMiddleId,
+                categorySmallId,
+            } = next.entries[index] || {};
+            const subcategories =
+                categoryId === operation.value?.categoryId
+                    ? {
+                          categoryMiddleId,
+                          categorySmallId,
+                      }
+                    : {};
+            const value = entry(
+                {
+                    shop,
+                    productName,
+                    attribution,
+                    ...subcategories,
+                    ...operation.value,
+                },
+                next.categories
+            );
+            if (index < 0) next.entries.push(value);
+            else next.entries[index] = value;
         } else if (operation.type === 'entryDelete') {
             const key = id(operation.id);
-            next.entries = next.entries.filter(e => e.id !== key);
+            next.entries = next.entries.filter((e) => e.id !== key);
         } else if (operation.type === 'productSave') {
             const value = product(operation.value, next.categories);
-            const index = next.products.findIndex(p => p.id === value.id);
-            if (index < 0) next.products.push(value); else next.products[index] = value;
+            const index = next.products.findIndex((p) => p.id === value.id);
+            if (index < 0) next.products.push(value);
+            else next.products[index] = value;
         } else if (operation.type === 'productDelete') {
             const key = id(operation.id);
-            next.products = next.products.filter(p => p.id !== key);
+            next.products = next.products.filter((p) => p.id !== key);
         } else if (operation.type === 'productPurchase') {
-            const target = next.products.find(p => p.id === id(operation.id));
+            const target = next.products.find((p) => p.id === id(operation.id));
             if (!target) throw new Error('商品が見つかりません。');
             const purchasedAt = date(operation.date);
-            if (purchasedAt < target.purchasedAt) throw new Error('前回購入日以降の日付を指定してください。');
+            if (purchasedAt < target.purchasedAt)
+                throw new Error('前回購入日以降の日付を指定してください。');
             if (operation.entry) {
-                if (operation.entry.date !== purchasedAt || operation.entry.type !== 'expense') throw new Error('購入記録を確認してください。');
+                if (operation.entry.date !== purchasedAt || operation.entry.type !== 'expense')
+                    throw new Error('購入記録を確認してください。');
                 const value = entry(operation.entry, next.categories);
-                if (next.entries.some(e => e.id === value.id)) throw new Error('同じ購入記録が既に存在します。');
+                if (next.entries.some((e) => e.id === value.id))
+                    throw new Error('同じ購入記録が既に存在します。');
                 next.entries.push(value);
             }
             target.purchasedAt = purchasedAt;
@@ -130,15 +306,33 @@ var BudgetModel = (() => {
         return next;
     }
     function summarize(entries) {
-        let income = 0, expense = 0;
+        let income = 0,
+            expense = 0;
         const categories = new Map();
-        entries.forEach(e => {
+        entries.forEach((e) => {
             if (e.type === 'income') income += e.amount;
-            else { expense += e.amount; categories.set(e.categoryId, (categories.get(e.categoryId) || 0) + e.amount); }
+            else {
+                expense += e.amount;
+                categories.set(e.categoryId, (categories.get(e.categoryId) || 0) + e.amount);
+            }
         });
-        if (!Number.isSafeInteger(income) || !Number.isSafeInteger(expense)) throw new Error('集計金額が上限を超えています。');
-        return { income, expense, balance: income - expense, categories };
+        if (!Number.isSafeInteger(income) || !Number.isSafeInteger(expense))
+            throw new Error('集計金額が上限を超えています。');
+        return {
+            income,
+            expense,
+            balance: income - expense,
+            categories,
+        };
     }
-    return { defaults, category, entry, product, due, apply, summarize };
+    return {
+        defaults,
+        category,
+        entry,
+        product,
+        due,
+        apply,
+        summarize,
+    };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = BudgetModel;

@@ -1,14 +1,106 @@
-h2 { font-size:17px; }
-.actions,.filters { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.toolbar { margin-bottom:12px; }
-.text-link { color:var(--accent); padding:10px; }
-.notice { margin:var(--section-gap) 0; padding:var(--panel-padding); border-inline-start:3px solid var(--caution); }.notice p { margin:4px 0; }
-.notice small { color:var(--muted); }.filters { margin-bottom:24px; align-items:end; }.filters label { flex:1 1 130px; min-width:0; max-width:340px; }.filters span { color:var(--muted); }
-label { display:grid; gap:7px; font-size:13px; } form label { margin:16px 0; }.pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.products { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:var(--section-gap); }
-.product { padding:var(--panel-padding); background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow-wrap:anywhere; }.product.due { border-color:var(--caution); }
-.product h2 { margin:8px 0; }.product p { color:var(--muted); font-size:13px; }.badge { color:var(--caution); font-size:12px; }.product .actions { margin-top:20px; }.product .actions button { font-size:12px; padding:8px 12px; }
-.error { color:var(--danger); }.empty { grid-column:1/-1; text-align:center; padding:40px 16px; color:var(--muted); }
-#moreButton { margin:24px auto; }
+/* ページ固有のスタイル：レイアウトと見た目を定義する。状態の切り替えはHTMLの属性・クラスから受け取る。 */
+h2 {
+    font-size: 17px;
+}
+.actions,
+.filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.toolbar {
+    margin-bottom: 12px;
+}
+.text-link {
+    color: var(--accent);
+    padding: 10px;
+}
+.notice {
+    margin: var(--section-gap) 0;
+    padding: var(--panel-padding);
+    border-inline-start: 3px solid var(--caution);
+}
+.notice p {
+    margin: 4px 0;
+}
+.notice small {
+    color: var(--muted);
+}
+.filters {
+    margin-bottom: 24px;
+    align-items: end;
+}
+.filters label {
+    flex: 1 1 130px;
+    min-width: 0;
+    max-width: 340px;
+}
+.filters span {
+    color: var(--muted);
+}
+label {
+    display: grid;
+    gap: 7px;
+    font-size: 13px;
+}
+form label {
+    margin: 16px 0;
+}
+.pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.products {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+    gap: var(--section-gap);
+}
+.product {
+    padding: var(--panel-padding);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow-wrap: anywhere;
+}
+.product.due {
+    border-color: var(--caution);
+}
+.product h2 {
+    margin: 8px 0;
+}
+.product p {
+    color: var(--muted);
+    font-size: 13px;
+}
+.badge {
+    color: var(--caution);
+    font-size: 12px;
+}
+.product .actions {
+    margin-top: 20px;
+}
+.product .actions button {
+    font-size: 12px;
+    padding: 8px 12px;
+}
+.error {
+    color: var(--danger);
+}
+.empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 40px 16px;
+    color: var(--muted);
+}
+#moreButton {
+    margin: 24px auto;
+}
 
-@media(max-width:480px) { form .pair label { margin-block:8px; } }
+/* 画面幅や利用環境に応じて配置を切り替える。 */
+@media (max-width: 480px) {
+    form .pair label {
+        margin-block: 8px;
+    }
+}

@@ -1,102 +1,275 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-        <meta name="description" content="動画と家計簿。毎日のツールをまとめるPersonal Hub。">
+        <!-- ページ情報と依存ファイル。スクリプトの順序は共通処理からページ処理へ揃える。 -->
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="description" content="動画と家計簿。毎日のツールをまとめるPersonal Hub。" />
         <title>Personal Hub</title>
-        <meta name="theme-color" content="#141e27">
-        <link rel="icon" href="../shared/icons/hub-32.png" type="image/png" sizes="32x32">
-        <link rel="icon" href="../shared/icons/hub.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="../shared/icons/hub-180.png">
-        <link rel="stylesheet" href="../shared/css/base.css">
-        <link rel="stylesheet" href="css/style.css">
-        <script src="../shared/js/auth.js" defer>
-        </script>
-        <script src="js/app.js" defer>
-        </script>
-    <script src="../shared/js/sync-merge.js" defer></script><script src="../budget/js/model.js" defer></script><script src="../budget/js/store.js" defer></script><script src="../shared/js/budget-spaces.js" defer></script><script src="../shared/js/inventory-reminders.js" defer></script>
-    <link rel="stylesheet" href="../shared/css/navigation.css">
-    <script src="../shared/js/navigation.js" defer></script>
-</head>
+        <meta name="theme-color" content="#141e27" />
+        <link rel="icon" href="../shared/icons/hub-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="../shared/icons/hub.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="../shared/icons/hub-180.png" />
+        <link rel="stylesheet" href="../shared/css/base.css" />
+        <link rel="stylesheet" href="css/style.css" />
+        <script src="../shared/js/auth.js" defer></script>
+        <script src="js/app.js" defer></script>
+        <script src="../shared/js/sync-merge.js" defer></script
+        ><script src="../budget/js/model.js" defer></script
+        ><script src="../budget/js/store.js" defer></script
+        ><script src="../shared/js/budget-spaces.js" defer></script
+        ><script src="../shared/js/inventory-reminders.js" defer></script>
+        <link rel="stylesheet" href="../shared/css/navigation.css" />
+        <script src="../shared/js/navigation.js" defer></script>
+    </head>
     <body>
         <a class="skip-link" href="#main">本文へ移動</a>
-    <header class="hub-header">
-        <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"><img src="../shared/icons/hub.svg" width="32" height="32" alt=""><span>Personal Hub</span></a>
-        <nav class="hub-nav" aria-label="ページ移動">
-            <a href="../top/index.html" aria-current="page"><img src="../shared/icons/hub.svg" width="22" height="22" alt=""><span>ホーム</span></a>
-            <a href="../youtube-rss/index.html"><img src="../shared/icons/youtube.svg" width="22" height="22" alt=""><span>YouTube RSS</span></a>
-            <a href="../budget/index.html"><img src="../shared/icons/budget.svg" width="22" height="22" alt=""><span>家計簿</span></a>
-            <a href="../inventory/index.html"><img src="../shared/icons/inventory.svg" width="22" height="22" alt=""><span>在庫管理</span></a>
-            <a href="../lists/index.html"><img src="../shared/icons/lists.svg" width="22" height="22" alt=""><span>リスト</span></a>
-            <a href="../notes/index.html"><img src="../shared/icons/notes.svg" width="22" height="22" alt=""><span>メモ</span></a>
-            <a href="../talk/index.html"><img src="../shared/icons/talk.svg" width="22" height="22" alt=""><span>トーク</span></a>
-        </nav>
-        <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
-    </header>
+        <header class="hub-header">
+            <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"
+                ><img src="../shared/icons/hub.svg" width="32" height="32" alt="" /><span
+                    >Personal Hub</span
+                ></a
+            >
+            <!-- 共通のページ移動。現在のページはaria-currentで示す。 -->
+            <nav class="hub-nav" aria-label="ページ移動">
+                <a href="../top/index.html" aria-current="page"
+                    ><img src="../shared/icons/hub.svg" width="22" height="22" alt="" /><span
+                        >ホーム</span
+                    ></a
+                >
+                <a href="../youtube-rss/index.html"
+                    ><img src="../shared/icons/youtube.svg" width="22" height="22" alt="" /><span
+                        >YouTube RSS</span
+                    ></a
+                >
+                <a href="../budget/index.html"
+                    ><img src="../shared/icons/budget.svg" width="22" height="22" alt="" /><span
+                        >家計簿</span
+                    ></a
+                >
+                <a href="../inventory/index.html"
+                    ><img src="../shared/icons/inventory.svg" width="22" height="22" alt="" /><span
+                        >在庫管理</span
+                    ></a
+                >
+                <a href="../lists/index.html"
+                    ><img src="../shared/icons/lists.svg" width="22" height="22" alt="" /><span
+                        >リスト</span
+                    ></a
+                >
+                <a href="../notes/index.html"
+                    ><img src="../shared/icons/notes.svg" width="22" height="22" alt="" /><span
+                        >メモ</span
+                    ></a
+                >
+                <a href="../talk/index.html"
+                    ><img src="../shared/icons/talk.svg" width="22" height="22" alt="" /><span
+                        >トーク</span
+                    ></a
+                >
+            </nav>
+            <div class="hub-account"
+                ><span id="currentUser" data-hub-user></span
+                ><button id="logoutButton" class="quiet" type="button" hidden
+                    ><svg
+                        class="icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10" /></svg
+                    ><span>ログアウト</span></button
+                ></div
+            >
+        </header>
 
+        <!-- このページ固有の表示と操作。各idはJavaScriptから参照する。 -->
         <main id="main" class="workspace">
-<a id="inventoryReminder" class="inventory-reminder" href="../inventory/index.html" role="status" hidden></a>
+            <a
+                id="inventoryReminder"
+                class="inventory-reminder"
+                href="../inventory/index.html"
+                role="status"
+                hidden
+            ></a>
             <div class="welcome"><h1>ホーム</h1></div>
             <section class="account-panel" aria-label="共通アカウント">
                 <div class="account-heading">
                     <p id="accountStatus" role="status" aria-live="polite">ログイン情報を確認中…</p>
-
                 </div>
                 <form id="accountForm" hidden>
                     <h2 id="accountTitle">ログイン</h2>
                     <p class="muted" id="accountHelp"></p>
                     <label for="userIdInput">ユーザーID</label>
-                    <input id="userIdInput" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]{3,32}" placeholder="ユーザーIDを入力" required>
+                    <input
+                        id="userIdInput"
+                        autocomplete="username"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        minlength="3"
+                        maxlength="32"
+                        pattern="[a-zA-Z0-9_-]{3,32}"
+                        placeholder="ユーザーIDを入力"
+                        required
+                    />
                     <label for="passwordInput" id="passwordLabel">パスワード</label>
-                    <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="8文字以上のパスワード" required>
+                    <input
+                        id="passwordInput"
+                        type="password"
+                        autocomplete="current-password"
+                        minlength="8"
+                        maxlength="128"
+                        placeholder="8文字以上のパスワード"
+                        required
+                    />
                     <div class="account-actions">
-                        <button type="submit"><span id="submitLabel">ログイン</span> <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M5 12h14m-6-6 6 6-6 6"/>
+                        <button type="submit"
+                            ><span id="submitLabel">ログイン</span>
+                            <svg
+                                class="icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.7"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M5 12h14m-6-6 6 6-6 6" />
                             </svg>
                         </button>
                         <button type="button" id="registerButton" class="quiet">新規登録</button>
                     </div>
-                    <button type="button" id="forgotPasswordButton" class="quiet">パスワードを忘れた方</button>
-                    <button type="button" id="backToLoginButton" class="quiet" hidden>ログイン画面に戻る</button>
+                    <button type="button" id="forgotPasswordButton" class="quiet"
+                        >パスワードを忘れた方</button
+                    >
+                    <button type="button" id="backToLoginButton" class="quiet" hidden
+                        >ログイン画面に戻る</button
+                    >
                     <small>ひとつのアカウントで、すべてのツールを使えます。</small>
                 </form>
                 <form id="resetPasswordForm" hidden>
                     <h2>新しいパスワードを設定</h2>
-                    <p class="muted"><span id="resetUser"></span> のパスワードを再設定します。一時パスワードとは異なる8〜128文字で入力してください。</p>
+                    <p class="muted"
+                        ><span id="resetUser"></span>
+                        のパスワードを再設定します。一時パスワードとは異なる8〜128文字で入力してください。</p
+                    >
                     <label for="newPasswordInput">新しいパスワード</label>
-                    <input id="newPasswordInput" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+                    <input
+                        id="newPasswordInput"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        maxlength="128"
+                        required
+                    />
                     <label for="confirmPasswordInput">新しいパスワード（確認）</label>
-                    <input id="confirmPasswordInput" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
-                    <div class="account-actions"><button type="submit">パスワードを再設定</button></div>
-                    <button type="button" id="cancelResetButton" class="quiet">ログイン画面に戻る</button>
-                    <small>一時ログインは15分間有効です。再設定後、新しいパスワードでログインしてください。</small>
+                    <input
+                        id="confirmPasswordInput"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        maxlength="128"
+                        required
+                    />
+                    <div class="account-actions"
+                        ><button type="submit">パスワードを再設定</button></div
+                    >
+                    <button type="button" id="cancelResetButton" class="quiet"
+                        >ログイン画面に戻る</button
+                    >
+                    <small
+                        >一時ログインは15分間有効です。再設定後、新しいパスワードでログインしてください。</small
+                    >
                 </form>
             </section>
             <nav id="tools" aria-label="ツール一覧" hidden>
-                <a class="tool-link video-tool" href="../youtube-rss/index.html" aria-label="YouTube RSSを開く">
-                    <img class="tool-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">
+                <a
+                    class="tool-link video-tool"
+                    href="../youtube-rss/index.html"
+                    aria-label="YouTube RSSを開く"
+                >
+                    <img
+                        class="tool-icon"
+                        src="../shared/icons/youtube.svg"
+                        alt=""
+                        width="40"
+                        height="40"
+                    />
                     <span class="tool-copy">
-
                         <strong>YouTube RSS</strong>
                         <span>登録チャンネルの新着と未読動画</span>
                     </span>
                     <span class="tool-open" aria-hidden="true">→</span>
                 </a>
-                <a class="tool-link budget-tool" href="../budget/index.html" aria-label="家計簿を開く">
-                    <img class="tool-icon" src="../shared/icons/budget.svg" alt="" width="40" height="40">
+                <a
+                    class="tool-link budget-tool"
+                    href="../budget/index.html"
+                    aria-label="家計簿を開く"
+                >
+                    <img
+                        class="tool-icon"
+                        src="../shared/icons/budget.svg"
+                        alt=""
+                        width="40"
+                        height="40"
+                    />
                     <span class="tool-copy">
-
                         <strong>家計簿</strong>
                         <span>収支の記録と月・週の集計</span>
                     </span>
                     <span class="tool-open" aria-hidden="true">→</span>
                 </a>
-            <a class="tool-link" href="../inventory/index.html" aria-label="在庫管理を開く"><img class="tool-icon" src="../shared/icons/inventory.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>在庫管理</strong><span>購入日と次の補充目安</span></span><span class="tool-open" aria-hidden="true">→</span></a>
-<a class="tool-link" href="../lists/index.html" aria-label="リストを開く"><img class="tool-icon" src="../shared/icons/lists.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>リスト</strong><span>やる事・買いたいもの・行く予定</span></span><span class="tool-open" aria-hidden="true">→</span></a>
-<a class="tool-link" href="../notes/index.html" aria-label="メモを開く"><img class="tool-icon" src="../shared/icons/notes.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>メモ</strong><span>個人用・共有スペースのメモ</span></span><span class="tool-open" aria-hidden="true">→</span></a>
-<a class="tool-link" href="../talk/index.html" aria-label="トークを開く"><img class="tool-icon" src="../shared/icons/talk.svg" width="40" height="40" alt=""><span class="tool-copy"><strong>トーク</strong><span>個人ルーム・共有グループのメッセージ</span></span><span class="tool-open" aria-hidden="true">→</span></a>
-</nav>
+                <a class="tool-link" href="../inventory/index.html" aria-label="在庫管理を開く"
+                    ><img
+                        class="tool-icon"
+                        src="../shared/icons/inventory.svg"
+                        width="40"
+                        height="40"
+                        alt=""
+                    /><span class="tool-copy"
+                        ><strong>在庫管理</strong><span>購入日と次の補充目安</span></span
+                    ><span class="tool-open" aria-hidden="true">→</span></a
+                >
+                <a class="tool-link" href="../lists/index.html" aria-label="リストを開く"
+                    ><img
+                        class="tool-icon"
+                        src="../shared/icons/lists.svg"
+                        width="40"
+                        height="40"
+                        alt=""
+                    /><span class="tool-copy"
+                        ><strong>リスト</strong><span>やる事・買いたいもの・行く予定</span></span
+                    ><span class="tool-open" aria-hidden="true">→</span></a
+                >
+                <a class="tool-link" href="../notes/index.html" aria-label="メモを開く"
+                    ><img
+                        class="tool-icon"
+                        src="../shared/icons/notes.svg"
+                        width="40"
+                        height="40"
+                        alt=""
+                    /><span class="tool-copy"
+                        ><strong>メモ</strong><span>個人用・共有スペースのメモ</span></span
+                    ><span class="tool-open" aria-hidden="true">→</span></a
+                >
+                <a class="tool-link" href="../talk/index.html" aria-label="トークを開く"
+                    ><img
+                        class="tool-icon"
+                        src="../shared/icons/talk.svg"
+                        width="40"
+                        height="40"
+                        alt=""
+                    /><span class="tool-copy"
+                        ><strong>トーク</strong
+                        ><span>個人ルーム・共有グループのメッセージ</span></span
+                    ><span class="tool-open" aria-hidden="true">→</span></a
+                >
+            </nav>
         </main>
     </body>
 </html>

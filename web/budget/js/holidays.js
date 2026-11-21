@@ -1,3 +1,4 @@
+// 祝日表示：日付の計算と表示に使う年別データ。データの内容を整形目的では変更しない。
 // 内閣府「国民の祝日」CSVの日付を年別の月日（MMDD）に変換。
 // https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv
 const budgetHolidays = {

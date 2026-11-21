@@ -1,21 +1,50 @@
+// 家計簿画面：入力・カレンダー描画・同期をつなぐ。業務ルールはmodel.js、端末保存はstore.jsに分ける。
 // 編集は端末へ保存し、3秒後の自動送信・時間帯の初回表示・手動同期で通信する
-const byId = id => document.getElementById(id);
-const budgetStorageUser = () => window.BudgetSpaces ? BudgetSpaces.storageUser(budgetSession.userId) : budgetSession.userId;
-const budgetApi = (action, params) => window.BudgetSpaces ? BudgetSpaces.api(action, params, budgetSession) : HubAuth.api(action, params, budgetSession);
+const getElementById = (id) => document.getElementById(id);
+const budgetStorageUser = () =>
+    window.BudgetSpaces ? BudgetSpaces.storageUser(budgetSession.userId) : budgetSession.userId;
+const budgetApi = (action, params) =>
+    window.BudgetSpaces
+        ? BudgetSpaces.api(action, params, budgetSession)
+        : HubAuth.api(action, params, budgetSession);
 let budgetSession = null;
-let budgetState = { revision: 0, categories: [], entries: [] };
-const autoPush = HubSync.autoPush(loadBudget, () => !budgetBusy && !!localBudget?.pending.length && sameAccount());
-let budgetBusy = false, budgetLoaded = false;
-let recordLimit = 50, recordFilter = null, summaryPeriod = null;
-let periodView = 'month', selectedDay = '';
+let budgetState = {
+    revision: 0,
+    categories: [],
+    entries: [],
+};
+const autoPush = HubSync.autoPush(
+    loadBudget,
+    () => !budgetBusy && !!localBudget?.pending.length && sameAccount()
+);
+let budgetBusy = false,
+    budgetLoaded = false;
+let recordLimit = 50,
+    recordFilter = null,
+    summaryPeriod = null;
+let periodView = 'month',
+    selectedDay = '';
 let quickCategory = false;
-let calendarState = null, calendarMonth = '', calendarDate = '';
-let localBudget = null, savedRaw = null;
-let categoryIndex = new Map(), indexedState = null, months = new Map();
-let entryUsers = [], loadingEntryUsers = null;
+let calendarState = null,
+    calendarMonth = '',
+    calendarDate = '';
+let localBudget = null,
+    savedRaw = null;
+let categoryIndex = new Map(),
+    indexedState = null,
+    months = new Map();
+let entryUsers = [],
+    loadingEntryUsers = null;
 const yenFormatter = new Intl.NumberFormat('ja-JP');
-const yen = value => yenFormatter.format(value) + '円';
-const today = () => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'); };
+const yen = (value) => yenFormatter.format(value) + '円';
+const today = () => {
+    const d = new Date();
+    return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+};
 function node(tag, className, text) {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -25,23 +54,41 @@ function node(tag, className, text) {
 function setBusy(value) {
     budgetBusy = value;
     const locked = !sameAccount();
-    byId('entryFields').disabled = locked || !budgetLoaded;
-    byId('categoryFields').disabled = locked || !budgetLoaded;
-    document.querySelectorAll('.requires-data').forEach(el => { el.disabled = locked || !budgetLoaded; });
-    byId('refreshButton').disabled = value;
-    byId('logoutButton').disabled = locked;
-    byId('refreshButton').setAttribute('aria-busy', String(value));
+    getElementById('entryFields').disabled = locked || !budgetLoaded;
+    getElementById('categoryFields').disabled = locked || !budgetLoaded;
+    document.querySelectorAll('.requires-data').forEach((el) => {
+        el.disabled = locked || !budgetLoaded;
+    });
+    getElementById('refreshButton').disabled = value;
+    getElementById('logoutButton').disabled = locked;
+    getElementById('refreshButton').setAttribute('aria-busy', String(value));
 }
-function sameAccount() { return HubAuth.read()?.token === budgetSession?.token && (!window.BudgetSpaces || BudgetSpaces.allowed()); }
-function categoryInfo(id) { return categoryIndex.get(id) || { name: '未項目', color: '#9eacb9' }; }
+function sameAccount() {
+    return (
+        HubAuth.read()?.token === budgetSession?.token &&
+        (!window.BudgetSpaces || BudgetSpaces.allowed())
+    );
+}
+function categoryInfo(id) {
+    return (
+        categoryIndex.get(id) || {
+            name: '未項目',
+            color: '#9eacb9',
+        }
+    );
+}
 function categoryPath(id) {
     const c = categoryInfo(id);
     return c.parentId ? categoryPath(c.parentId) + ' / ' + c.name : c.name;
 }
 function categoryLabel(id) {
-    const c = categoryInfo(id), label = node('span', 'category-name');
-    const dot = node('span', 'swatch'); dot.style.backgroundColor = c.color; dot.setAttribute('aria-hidden', 'true');
-    label.append(dot, node('span', '', categoryPath(id))); return label;
+    const c = categoryInfo(id),
+        label = node('span', 'category-name');
+    const dot = node('span', 'swatch');
+    dot.style.backgroundColor = c.color;
+    dot.setAttribute('aria-hidden', 'true');
+    label.append(dot, node('span', '', categoryPath(id)));
+    return label;
 }
 function fillCategoryChoices(select, parentId, selected, emptyLabel) {
     select.replaceChildren(new Option(emptyLabel, ''));
@@ -50,23 +97,29 @@ function fillCategoryChoices(select, parentId, selected, emptyLabel) {
             if ((c.parentId || '') === parentId) select.add(new Option(c.name, c.id));
         }
     }
-    select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+    select.value = [...select.options].some((option) => option.value === selected) ? selected : '';
 }
-function fillEntryCategories(large = byId('entryCategory').value, middle = byId('entryCategoryMiddle').value, small = byId('entryCategorySmall').value) {
-    const root = byId('entryCategory'), child = byId('entryCategoryMiddle'), leaf = byId('entryCategorySmall');
+function fillEntryCategories(
+    large = getElementById('entryCategory').value,
+    middle = getElementById('entryCategoryMiddle').value,
+    small = getElementById('entryCategorySmall').value
+) {
+    const root = getElementById('entryCategory'),
+        child = getElementById('entryCategoryMiddle'),
+        leaf = getElementById('entryCategorySmall');
     fillCategoryChoices(root, '', large, '未項目');
     fillCategoryChoices(child, root.value || null, middle, '選択なし');
     fillCategoryChoices(leaf, child.value || null, small, '選択なし');
-    child.disabled = byId('addEntryCategoryMiddle').disabled = !root.value;
-    leaf.disabled = byId('addEntryCategorySmall').disabled = !child.value;
+    child.disabled = getElementById('addEntryCategoryMiddle').disabled = !root.value;
+    leaf.disabled = getElementById('addEntryCategorySmall').disabled = !child.value;
 }
 function fillCategoryFilter() {
-    const select = byId('categoryFilter');
+    const select = getElementById('categoryFilter');
     const selected = select.value || (select.options.length ? '' : 'all');
     select.replaceChildren();
     select.append(new Option('すべてのカテゴリ', 'all'), new Option('未項目', ''));
-    budgetState.categories.forEach(c => select.append(new Option(categoryPath(c.id), c.id)));
-    if ([...select.options].some(o => o.value === selected)) select.value = selected;
+    budgetState.categories.forEach((c) => select.append(new Option(categoryPath(c.id), c.id)));
+    if ([...select.options].some((o) => o.value === selected)) select.value = selected;
 }
 const weekdays = ['月', '火', '水', '木', '金', '土', '日'];
 function dayLabel(date) {
@@ -78,7 +131,9 @@ function shiftDay(date, offset) {
     day.setUTCDate(day.getUTCDate() + offset);
     return day.toISOString().split('T')[0];
 }
-function weekday(date) { return (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7; }
+function weekday(date) {
+    return (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7;
+}
 function styleDay(element, date, index) {
     const [year, month, day] = date.split('-');
     const holiday = budgetHolidays[year]?.includes(month + day);
@@ -88,22 +143,29 @@ function styleDay(element, date, index) {
 }
 function fillSuggestions(id, values) {
     const unique = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
-    byId(id).replaceChildren(...unique.map(value => new Option(value, value)));
+    getElementById(id).replaceChildren(...unique.map((value) => new Option(value, value)));
 }
 function renderCalendar(month, entries) {
-    const first = month + '-01', start = weekday(first), currentDate = today();
-    const calendar = byId('calendarDays');
+    const first = month + '-01',
+        start = weekday(first),
+        currentDate = today();
+    const calendar = getElementById('calendarDays');
     // データ・表示月・当日が同じなら日別集計とボタンを再生成しない
     if (calendarState === budgetState && calendarMonth === month && calendarDate === currentDate) {
         for (const cell of calendar.querySelectorAll('button')) {
             const pressed = String(cell.dataset.date === selectedDay);
-            if (cell.getAttribute('aria-pressed') !== pressed) cell.setAttribute('aria-pressed', pressed);
+            if (cell.getAttribute('aria-pressed') !== pressed)
+                cell.setAttribute('aria-pressed', pressed);
         }
         return;
     }
     const totals = new Map();
     for (const entry of entries) {
-        if (!totals.has(entry.date)) totals.set(entry.date, { expense: 0, income: 0 });
+        if (!totals.has(entry.date))
+            totals.set(entry.date, {
+                expense: 0,
+                income: 0,
+            });
         totals.get(entry.date)[entry.type] += entry.amount;
     }
     calendar.replaceChildren();
@@ -114,7 +176,8 @@ function renderCalendar(month, entries) {
         const cell = node('button', 'calendar-day requires-data');
         cell.type = 'button';
         cell.dataset.date = date;
-        const index = weekday(date), holiday = styleDay(cell, date, index);
+        const index = weekday(date),
+            holiday = styleDay(cell, date, index);
         const label = [dayLabel(date), weekdays[index] + '曜日'];
         if (holiday) label.push('祝日');
         cell.append(node('strong', 'day-number', String(Number(date.slice(8)))));
@@ -137,68 +200,100 @@ function renderCalendar(month, entries) {
         calendar.append(cell);
     }
     while (calendar.childElementCount % 7) calendar.append(node('span', 'calendar-blank'));
-    calendarState = budgetState; calendarMonth = month; calendarDate = currentDate;
+    calendarState = budgetState;
+    calendarMonth = month;
+    calendarDate = currentDate;
 }
+// 現在の状態を画面へ反映する。保存や通信とは分けて呼び出す。
 function render(append = false) {
     append = append === true;
     if (!budgetLoaded) return;
     const dataChanged = indexedState !== budgetState;
     if (dataChanged) {
         indexedState = budgetState;
-        categoryIndex = new Map(budgetState.categories.map(c => [c.id, c]));
+        categoryIndex = new Map(budgetState.categories.map((c) => [c.id, c]));
         months = new Map();
         for (const entry of budgetState.entries) {
             const month = entry.date.slice(0, 7);
             if (!months.has(month)) months.set(month, []);
             months.get(month).push(entry);
         }
-        for (const entries of months.values()) entries.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+        for (const entries of months.values())
+            entries.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
         fillEntryCategories();
         fillCategoryFilter();
-        fillSuggestions('shopSuggestions', budgetState.entries.map(entry => entry.shop));
-        fillSuggestions('productSuggestions', budgetState.entries.map(entry => entry.productName));
-        if (byId('categoryDialog').open && !byId('categoryParent').disabled) fillCategoryParents(byId('categoryParent').value);
+        fillSuggestions(
+            'shopSuggestions',
+            budgetState.entries.map((entry) => entry.shop)
+        );
+        fillSuggestions(
+            'productSuggestions',
+            budgetState.entries.map((entry) => entry.productName)
+        );
+        if (getElementById('categoryDialog').open && !getElementById('categoryParent').disabled)
+            fillCategoryParents(getElementById('categoryParent').value);
     }
-    const month = byId('monthInput').value || today().slice(0, 7);
+    const month = getElementById('monthInput').value || today().slice(0, 7);
     const weekly = periodView === 'week';
-    const anchor = byId('weekDate').value || today();
+    const anchor = getElementById('weekDate').value || today();
     const monday = weekly ? shiftDay(anchor, -weekday(anchor)) : '';
     const days = weekly ? weekdays.map((_, index) => shiftDay(monday, index)) : [];
     const period = weekly ? monday : month;
-    const entries = weekly ? [...new Set(days.map(date => date.slice(0, 7)))]
-        .flatMap(key => months.get(key) || []).filter(entry => days.includes(entry.date)) : months.get(month) || [];
-    byId('monthCalendar').hidden = weekly;
+    const entries = weekly
+        ? [...new Set(days.map((date) => date.slice(0, 7)))]
+              .flatMap((key) => months.get(key) || [])
+              .filter((entry) => days.includes(entry.date))
+        : months.get(month) || [];
+    getElementById('monthCalendar').hidden = weekly;
     if (!weekly && !append) renderCalendar(month, entries);
     if (dataChanged || summaryPeriod !== period) {
         const summary = BudgetModel.summarize(entries);
-        byId('incomeTotal').textContent = yen(summary.income);
-        byId('expenseTotal').textContent = yen(summary.expense);
-        byId('balanceTotal').textContent = yen(summary.balance);
-        const bars = byId('categorySummary'); bars.replaceChildren();
+        getElementById('incomeTotal').textContent = yen(summary.income);
+        getElementById('expenseTotal').textContent = yen(summary.expense);
+        getElementById('balanceTotal').textContent = yen(summary.balance);
+        const bars = getElementById('categorySummary');
+        bars.replaceChildren();
         const groups = [...summary.categories].sort((a, b) => b[1] - a[1]);
         if (!groups.length) bars.append(node('p', 'empty', 'この期間の支出はまだありません。'));
         groups.forEach(([id, amount]) => {
-            const row = node('div', 'bar-row'), heading = node('div', 'bar-heading');
+            const row = node('div', 'bar-row'),
+                heading = node('div', 'bar-heading');
             heading.append(categoryLabel(id), node('span', '', yen(amount)));
-            const track = node('div', 'bar-track'), fill = node('div', 'bar-fill');
-            fill.style.width = (amount / summary.expense * 100) + '%'; fill.style.backgroundColor = categoryInfo(id).color;
-            track.append(fill); row.append(heading, track); bars.append(row);
+            const track = node('div', 'bar-track'),
+                fill = node('div', 'bar-fill');
+            fill.style.width = (amount / summary.expense) * 100 + '%';
+            fill.style.backgroundColor = categoryInfo(id).color;
+            track.append(fill);
+            row.append(heading, track);
+            bars.append(row);
         });
         summaryPeriod = period;
     }
-    const typeFilter = byId('typeFilter').value, categoryFilter = byId('categoryFilter').value;
-    const filtered = entries.filter(e => (weekly || !selectedDay || e.date === selectedDay) &&
-        (typeFilter === 'all' || e.type === typeFilter) &&
-        (categoryFilter === 'all' || [e.categoryId, e.categoryMiddleId, e.categorySmallId].includes(categoryFilter)));
+    const typeFilter = getElementById('typeFilter').value,
+        categoryFilter = getElementById('categoryFilter').value;
+    const filtered = entries.filter(
+        (e) =>
+            (weekly || !selectedDay || e.date === selectedDay) &&
+            (typeFilter === 'all' || e.type === typeFilter) &&
+            (categoryFilter === 'all' ||
+                [e.categoryId, e.categoryMiddleId, e.categorySmallId].includes(categoryFilter))
+    );
     const filter = [period, selectedDay, typeFilter, categoryFilter].join(':');
-    if (dataChanged || recordFilter !== filter) { recordLimit = 50; recordFilter = filter; append = false; }
-    byId('recordsTitle').textContent = weekly ? dayLabel(days[0]) + '〜' + dayLabel(days[6]) + 'の記録' :
-        selectedDay ? dayLabel(selectedDay) + 'の記録' : '記録一覧';
-    byId('clearDay').hidden = weekly || !selectedDay;
-    byId('entryCount').textContent = filtered.length + '件';
-    const list = byId('entries');
+    if (dataChanged || recordFilter !== filter) {
+        recordLimit = 50;
+        recordFilter = filter;
+        append = false;
+    }
+    getElementById('recordsTitle').textContent = weekly
+        ? dayLabel(days[0]) + '〜' + dayLabel(days[6]) + 'の記録'
+        : selectedDay
+          ? dayLabel(selectedDay) + 'の記録'
+          : '記録一覧';
+    getElementById('clearDay').hidden = weekly || !selectedDay;
+    getElementById('entryCount').textContent = filtered.length + '件';
+    const list = getElementById('entries');
     if (!append) list.replaceChildren();
-    byId('moreEntries').hidden = filtered.length <= recordLimit;
+    getElementById('moreEntries').hidden = filtered.length <= recordLimit;
     if (weekly) {
         let remaining = recordLimit;
         days.forEach((date, index) => {
@@ -206,100 +301,176 @@ function render(append = false) {
             if (!append) {
                 const holiday = styleDay(day, date, index);
                 const heading = node('h3');
-                const button = node('button', 'week-date quiet requires-data', dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）');
+                const button = node(
+                    'button',
+                    'week-date quiet requires-data',
+                    dayLabel(date) + '（' + weekdays[index] + (holiday ? '・祝' : '') + '）'
+                );
                 button.type = 'button';
                 button.addEventListener('click', () => openDayRecords(date));
-                heading.append(button); day.append(heading);
+                heading.append(button);
+                day.append(heading);
             }
-            const records = filtered.filter(entry => entry.date === date);
+            const records = filtered.filter((entry) => entry.date === date);
             if (!records.length && !append) day.append(node('p', 'empty', '記録なし'));
             else {
                 const start = append ? day.querySelectorAll('.record').length : 0;
-                records.slice(start, remaining).forEach(entry => renderEntry(entry, day));
+                records.slice(start, remaining).forEach((entry) => renderEntry(entry, day));
                 remaining = Math.max(0, remaining - records.length);
             }
             if (!append) list.append(day);
         });
     } else {
-        if (!filtered.length) list.append(node('p', 'empty', 'この期間に条件に合う記録がありません。'));
-        filtered.slice(append ? list.childElementCount : 0, recordLimit).forEach(entry => renderEntry(entry, list));
+        if (!filtered.length)
+            list.append(node('p', 'empty', 'この期間に条件に合う記録がありません。'));
+        filtered
+            .slice(append ? list.childElementCount : 0, recordLimit)
+            .forEach((entry) => renderEntry(entry, list));
     }
-    if (dataChanged && byId('dayRecordsDialog').open) renderDayRecords();
-    if (dataChanged && byId('categoryDialog').open && !quickCategory) renderCategoryList();
+    if (dataChanged && getElementById('dayRecordsDialog').open) renderDayRecords();
+    if (dataChanged && getElementById('categoryDialog').open && !quickCategory)
+        renderCategoryList();
     setBusy(budgetBusy);
 }
 function renderEntry(entry, target, errorId = 'categoryStatus') {
-    const row = node('article', 'record'), left = node('div'), meta = node('div', 'record-meta');
-    meta.append(node('time', '', entry.date), categoryLabel(entry.categorySmallId || entry.categoryMiddleId || entry.categoryId));
-    left.append(meta, node('p', 'record-memo', entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')));
-    const details = [entry.shop, entry.attribution?.name || '全体',
-        entry.productName && entry.memo].filter(Boolean);
+    const row = node('article', 'record'),
+        left = node('div'),
+        meta = node('div', 'record-meta');
+    meta.append(
+        node('time', '', entry.date),
+        categoryLabel(entry.categorySmallId || entry.categoryMiddleId || entry.categoryId)
+    );
+    left.append(
+        meta,
+        node(
+            'p',
+            'record-memo',
+            entry.productName || entry.memo || (entry.type === 'income' ? '収入' : '支出')
+        )
+    );
+    const details = [
+        entry.shop,
+        entry.attribution?.name || '全体',
+        entry.productName && entry.memo,
+    ].filter(Boolean);
     if (details.length) left.append(node('p', 'record-details', details.join(' ・ ')));
     const right = node('div', 'record-right');
-    right.append(node('strong', 'record-amount ' + entry.type, (entry.type === 'income' ? '+' : '−') + yen(entry.amount)));
+    right.append(
+        node(
+            'strong',
+            'record-amount ' + entry.type,
+            (entry.type === 'income' ? '+' : '−') + yen(entry.amount)
+        )
+    );
     const actions = node('div', 'record-actions');
-    const edit = node('button', 'requires-data', '編集'), remove = node('button', 'requires-data', '削除');
+    const edit = node('button', 'requires-data', '編集'),
+        remove = node('button', 'requires-data', '削除');
     edit.type = remove.type = 'button';
-    edit.setAttribute('aria-label', entry.date + 'の記録を編集'); remove.setAttribute('aria-label', entry.date + 'の記録を削除');
+    edit.setAttribute('aria-label', entry.date + 'の記録を編集');
+    remove.setAttribute('aria-label', entry.date + 'の記録を削除');
     edit.addEventListener('click', () => editEntry(entry));
     remove.addEventListener('click', async () => {
         if (confirm(entry.date + 'の' + yen(entry.amount) + 'の記録を削除しますか？')) {
-            if (await mutate({ type: 'entryDelete', id: entry.id }, true, errorId)) { if (byId('entryId').value === entry.id) resetEntry(); }
+            if (
+                await mutate(
+                    {
+                        type: 'entryDelete',
+                        id: entry.id,
+                    },
+                    true,
+                    errorId
+                )
+            ) {
+                if (getElementById('entryId').value === entry.id) resetEntry();
+            }
         }
     });
-    actions.append(edit, remove); right.append(actions); row.append(left, right); target.append(row);
+    actions.append(edit, remove);
+    right.append(actions);
+    row.append(left, right);
+    target.append(row);
 }
 function renderDayRecords() {
-    const date = byId('dayRecordsDialog').dataset.date;
-    const list = byId('dayRecords');
-    const entries = (months.get(date.slice(0, 7)) || []).filter(entry => entry.date === date);
+    const date = getElementById('dayRecordsDialog').dataset.date;
+    const list = getElementById('dayRecords');
+    const entries = (months.get(date.slice(0, 7)) || []).filter((entry) => entry.date === date);
     list.replaceChildren();
     if (!entries.length) list.append(node('p', 'empty', 'この日の記録はありません。'));
-    entries.forEach(entry => renderEntry(entry, list, 'dayRecordsStatus'));
+    entries.forEach((entry) => renderEntry(entry, list, 'dayRecordsStatus'));
 }
 function openDayRecords(date) {
-    const dialog = byId('dayRecordsDialog');
+    const dialog = getElementById('dayRecordsDialog');
     dialog.dataset.date = date;
-    byId('dayRecordsHeading').textContent = dayLabel(date) + 'の記録';
-    byId('dayRecordsStatus').textContent = '';
+    getElementById('dayRecordsHeading').textContent = dayLabel(date) + 'の記録';
+    getElementById('dayRecordsStatus').textContent = '';
     renderDayRecords();
     setBusy(budgetBusy);
     dialog.showModal();
 }
 function renderCategoryList() {
-    const list = byId('categories'); list.replaceChildren();
-    const sorted = [...budgetState.categories].sort((a, b) => categoryPath(a.id).localeCompare(categoryPath(b.id), 'ja'));
-    sorted.forEach(c => {
-        const row = node('div', 'category-row'), actions = node('div', 'category-actions');
+    const list = getElementById('categories');
+    list.replaceChildren();
+    const sorted = [...budgetState.categories].sort((a, b) =>
+        categoryPath(a.id).localeCompare(categoryPath(b.id), 'ja')
+    );
+    sorted.forEach((c) => {
+        const row = node('div', 'category-row'),
+            actions = node('div', 'category-actions');
         row.append(categoryLabel(c.id));
-        const edit = node('button', 'requires-data', '編集'), remove = node('button', 'requires-data', '削除');
+        const edit = node('button', 'requires-data', '編集'),
+            remove = node('button', 'requires-data', '削除');
         edit.type = remove.type = 'button';
         const path = categoryPath(c.id);
-        edit.setAttribute('aria-label', path + 'を編集'); remove.setAttribute('aria-label', path + 'を削除');
+        edit.setAttribute('aria-label', path + 'を編集');
+        remove.setAttribute('aria-label', path + 'を削除');
         edit.addEventListener('click', () => {
-            byId('categoryId').value = c.id; byId('categoryName').value = c.name; byId('categoryColor').value = c.color;
-            byId('categoryParent').value = c.parentId || ''; byId('categoryParent').disabled = true;
-            byId('saveCategory').textContent = '変更を保存'; byId('cancelCategory').hidden = false; byId('categoryName').focus();
+            getElementById('categoryId').value = c.id;
+            getElementById('categoryName').value = c.name;
+            getElementById('categoryColor').value = c.color;
+            getElementById('categoryParent').value = c.parentId || '';
+            getElementById('categoryParent').disabled = true;
+            getElementById('saveCategory').textContent = '変更を保存';
+            getElementById('cancelCategory').hidden = false;
+            getElementById('categoryName').focus();
         });
         remove.addEventListener('click', async () => {
-            if (confirm('「' + path + '」と配下のカテゴリを削除しますか？記録は残っている親カテゴリに移ります。') &&
-                await mutate({ type: 'categoryTreeDelete', id: c.id })) resetCategory();
+            if (
+                confirm(
+                    '「' +
+                        path +
+                        '」と配下のカテゴリを削除しますか？記録は残っている親カテゴリに移ります。'
+                ) &&
+                (await mutate({
+                    type: 'categoryTreeDelete',
+                    id: c.id,
+                }))
+            )
+                resetCategory();
         });
-        actions.append(edit, remove); row.append(actions); list.append(row);
+        actions.append(edit, remove);
+        row.append(actions);
+        list.append(row);
     });
-    if (!budgetState.categories.length) list.append(node('p', 'empty', 'カテゴリを追加してください。カテゴリなしでも記録できます。'));
+    if (!budgetState.categories.length)
+        list.append(
+            node('p', 'empty', 'カテゴリを追加してください。カテゴリなしでも記録できます。')
+        );
 }
 function resetEntry(date = today()) {
-    byId('entryForm').reset(); byId('entryId').value = '';
-    byId('entryDate').value = date || today();
+    getElementById('entryForm').reset();
+    getElementById('entryId').value = '';
+    getElementById('entryDate').value = date || today();
     fillEntryCategories('', '', '');
     setEntryAttribution();
-    byId('entryHeading').textContent = '収支を記録'; byId('saveEntry').textContent = '記録する';
-    byId('entryStatus').textContent = '';
+    getElementById('entryHeading').textContent = '収支を記録';
+    getElementById('saveEntry').textContent = '記録する';
+    getElementById('entryStatus').textContent = '';
 }
 function showEntry() {
-    byId('entryDialog').showModal();
-    byId('entryAmount').focus({ preventScroll: true });
+    getElementById('entryDialog').showModal();
+    getElementById('entryAmount').focus({
+        preventScroll: true,
+    });
     refreshEntryUsers();
 }
 function openEntry(date) {
@@ -307,88 +478,130 @@ function openEntry(date) {
     showEntry();
 }
 function setEntryAttribution(attribution, selected) {
-    const select = byId('entryAttribution');
+    const select = getElementById('entryAttribution');
     select.replaceChildren(new Option('全体', 'group'));
     for (const user of new Set([budgetSession?.userId, ...entryUsers].filter(Boolean))) {
-        select.add(new Option(user === budgetSession?.userId ? user + '（自分）' : user, 'user:' + user));
+        select.add(
+            new Option(user === budgetSession?.userId ? user + '（自分）' : user, 'user:' + user)
+        );
     }
     const saved = attribution?.kind === 'person' ? 'saved' : 'group';
     if (saved === 'saved') select.add(new Option(attribution.name + '（保存済み）', saved));
     const preferred = selected ?? (attribution?.userId ? 'user:' + attribution.userId : saved);
-    select.value = [...select.options].some(option => option.value === preferred) ? preferred : saved;
+    select.value = [...select.options].some((option) => option.value === preferred)
+        ? preferred
+        : saved;
 }
 function refreshEntryUsers() {
-    if (!window.BudgetSpaces?.selected(budgetSession.userId, 'budget')?.id || loadingEntryUsers) return;
-    const status = byId('entryUsersStatus');
-    status.hidden = false; status.textContent = '使用者の候補を取得中…';
-    loadingEntryUsers = budgetApi('listsMembers', {}).then(result => {
-        if (!sameAccount()) return;
-        entryUsers = result.assignees;
-        if (byId('entryDialog').open) {
-            const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
-            setEntryAttribution(existing?.attribution, byId('entryAttribution').value === 'saved' ? undefined : byId('entryAttribution').value);
-        }
-        status.hidden = true;
-    }).catch(error => {
-        window.BudgetSpaces?.handleError(error);
-        status.textContent = '使用者の候補を取得できませんでした。記録を開き直すと再取得できます。';
-    }).finally(() => { loadingEntryUsers = null; });
+    if (!window.BudgetSpaces?.selected(budgetSession.userId, 'budget')?.id || loadingEntryUsers)
+        return;
+    const status = getElementById('entryUsersStatus');
+    status.hidden = false;
+    status.textContent = '使用者の候補を取得中…';
+    loadingEntryUsers = budgetApi('listsMembers', {})
+        .then((result) => {
+            if (!sameAccount()) return;
+            entryUsers = result.assignees;
+            if (getElementById('entryDialog').open) {
+                const existing = budgetState.entries.find(
+                    (entry) => entry.id === getElementById('entryId').value
+                );
+                setEntryAttribution(
+                    existing?.attribution,
+                    getElementById('entryAttribution').value === 'saved'
+                        ? undefined
+                        : getElementById('entryAttribution').value
+                );
+            }
+            status.hidden = true;
+        })
+        .catch((error) => {
+            window.BudgetSpaces?.handleError(error);
+            status.textContent =
+                '使用者の候補を取得できませんでした。記録を開き直すと再取得できます。';
+        })
+        .finally(() => {
+            loadingEntryUsers = null;
+        });
 }
 function editEntry(entry) {
     resetEntry(entry.date);
-    byId('entryId').value = entry.id; byId('entryType').value = entry.type; byId('entryDate').value = entry.date;
-    byId('entryAmount').value = entry.amount; byId('entryMemo').value = entry.memo;
-    fillEntryCategories(entry.categoryId, entry.categoryMiddleId || '', entry.categorySmallId || '');
-    byId('entryShop').value = entry.shop || ''; byId('entryProduct').value = entry.productName || '';
+    getElementById('entryId').value = entry.id;
+    getElementById('entryType').value = entry.type;
+    getElementById('entryDate').value = entry.date;
+    getElementById('entryAmount').value = entry.amount;
+    getElementById('entryMemo').value = entry.memo;
+    fillEntryCategories(
+        entry.categoryId,
+        entry.categoryMiddleId || '',
+        entry.categorySmallId || ''
+    );
+    getElementById('entryShop').value = entry.shop || '';
+    getElementById('entryProduct').value = entry.productName || '';
     setEntryAttribution(entry.attribution);
-    byId('entryHeading').textContent = '記録を編集'; byId('saveEntry').textContent = '変更を保存';
+    getElementById('entryHeading').textContent = '記録を編集';
+    getElementById('saveEntry').textContent = '変更を保存';
     showEntry();
 }
 function fillCategoryParents(selected = '') {
-    const parent = byId('categoryParent');
+    const parent = getElementById('categoryParent');
     parent.replaceChildren(new Option('なし（大項目として追加）', ''));
     for (const c of budgetState.categories) {
-        if (!categoryIndex.get(c.parentId)?.parentId) parent.add(new Option(categoryPath(c.id), c.id));
+        if (!categoryIndex.get(c.parentId)?.parentId)
+            parent.add(new Option(categoryPath(c.id), c.id));
     }
-    parent.value = [...parent.options].some(option => option.value === selected) ? selected : '';
+    parent.value = [...parent.options].some((option) => option.value === selected) ? selected : '';
 }
 function resetCategory() {
-    byId('categoryForm').reset(); byId('categoryId').value = ''; byId('saveCategory').textContent = '追加する'; byId('cancelCategory').hidden = true;
-    byId('categoryParent').disabled = false; fillCategoryParents();
+    getElementById('categoryForm').reset();
+    getElementById('categoryId').value = '';
+    getElementById('saveCategory').textContent = '追加する';
+    getElementById('cancelCategory').hidden = true;
+    getElementById('categoryParent').disabled = false;
+    fillCategoryParents();
 }
 function openCategories(level = '', parentId = '') {
     resetCategory();
     quickCategory = Boolean(level);
     if (quickCategory) {
-        byId('categoryParent').value = parentId;
-        byId('categoryParent').disabled = true;
+        getElementById('categoryParent').value = parentId;
+        getElementById('categoryParent').disabled = true;
     }
-    byId('categoryHeading').textContent = quickCategory ? level + 'を追加' : 'カテゴリを管理';
-    byId('categoryHint').hidden = quickCategory;
-    byId('categories').hidden = quickCategory;
-    byId('categoryStatus').textContent = '';
+    getElementById('categoryHeading').textContent = quickCategory
+        ? level + 'を追加'
+        : 'カテゴリを管理';
+    getElementById('categoryHint').hidden = quickCategory;
+    getElementById('categories').hidden = quickCategory;
+    getElementById('categoryStatus').textContent = '';
     if (!quickCategory) renderCategoryList();
-    byId('categoryDialog').showModal();
-    if (quickCategory) byId('categoryName').focus();
+    getElementById('categoryDialog').showModal();
+    if (quickCategory) getElementById('categoryName').focus();
 }
 function localStatus() {
-    byId('status').dataset.state = localBudget.pending.length ? 'pending' : 'ready';
-    byId('status').textContent = localBudget.pending.length ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件' : '同期済み';
+    getElementById('status').dataset.state = localBudget.pending.length ? 'pending' : 'ready';
+    getElementById('status').textContent = localBudget.pending.length
+        ? '端末に保存済み・未同期 ' + localBudget.pending.length + '件'
+        : '同期済み';
 }
 function saveLocal(value) {
     if (localStorage.getItem(BudgetLocal.key(budgetStorageUser())) !== savedRaw) {
         throw new Error('別タブで変更されました。この画面を開き直してください。');
     }
     savedRaw = BudgetLocal.write(localStorage, budgetStorageUser(), value);
-    localBudget = value; budgetState = BudgetLocal.view(value); budgetLoaded = true;
+    localBudget = value;
+    budgetState = BudgetLocal.view(value);
+    budgetLoaded = true;
     window.dispatchEvent(new Event('budget-local-changed'));
 }
+// 家計簿の送信と取得をまとめ、待機中の追加編集を残したまま応答を反映する。
 async function loadBudget() {
     if (HubConflict.busy()) return;
     if (budgetBusy || !budgetSession || !sameAccount()) return;
     autoPush.start();
     const syncStartedAt = Date.now();
-    setBusy(true); byId('status').dataset.state = 'syncing'; byId('status').textContent = '同期中…';
+    setBusy(true);
+    getElementById('status').dataset.state = 'syncing';
+    getElementById('status').textContent = '同期中…';
     try {
         if (localBudget?.pending.length) {
             while (localBudget.pending.length) {
@@ -402,168 +615,369 @@ async function loadBudget() {
             }
         } else {
             const before = localBudget;
-            const result = await budgetApi('budgetLoad', Array.isArray(before?.base.products) ? { knownRevision: before.base.revision } : {});
+            const result = await budgetApi(
+                'budgetLoad',
+                Array.isArray(before?.base.products)
+                    ? {
+                          knownRevision: before.base.revision,
+                      }
+                    : {}
+            );
             if (!sameAccount()) return;
             // 読込中の端末編集を応答で上書きしない
             if (localBudget !== before && localBudget?.pending.length) {
                 if (result.revision !== localBudget.base.revision) {
-                    const error = new Error('別の端末でも変更されています。端末の編集をバックアップして確認してください。');
-                    error.code = 'BUDGET_CONFLICT'; throw error;
+                    const error = new Error(
+                        '別の端末でも変更されています。端末の編集をバックアップして確認してください。'
+                    );
+                    error.code = 'BUDGET_CONFLICT';
+                    throw error;
                 }
             } else if (!result.unchanged) saveLocal(BudgetLocal.create(result));
         }
         window.HubSync?.mark(budgetStorageUser(), 'budget', syncStartedAt);
-        byId('discardButton').hidden = true; render(); localStatus();
+        getElementById('discardButton').hidden = true;
+        render();
+        localStatus();
     } catch (error) {
         window.BudgetSpaces?.handleError(error);
-        byId('status').dataset.state = 'error';
-        byId('status').textContent = '同期できませんでした。端末の変更は保持しています。' + error.message;
-        byId('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
-    } finally { setBusy(false); autoPush.finish(); }
+        getElementById('status').dataset.state = 'error';
+        getElementById('status').textContent =
+            '同期できませんでした。端末の変更は保持しています。' + error.message;
+        getElementById('discardButton').hidden = error.code !== 'BUDGET_CONFLICT';
+    } finally {
+        setBusy(false);
+        autoPush.finish();
+    }
 }
+// 入力を操作として検証し、端末への保存ができてから画面を更新する。
 async function mutate(operation, refresh = true, errorId = 'categoryStatus') {
     if (!budgetLoaded || !sameAccount()) return false;
     try {
         saveLocal(BudgetLocal.edit(localBudget, operation));
         autoPush.schedule();
         if (refresh) render();
-        localStatus(); byId(errorId).textContent = ''; return true;
+        localStatus();
+        getElementById(errorId).textContent = '';
+        return true;
     } catch (error) {
-        byId('status').textContent = byId(errorId).textContent = '端末に保存できませんでした。' + error.message;
+        getElementById('status').textContent = getElementById(errorId).textContent =
+            '端末に保存できませんでした。' + error.message;
         return false;
     }
 }
-byId('discardButton').addEventListener('click', async () => {
-    if (budgetBusy || !confirm('未同期の変更を破棄します。必要なら先にバックアップしてください。続けますか？')) return;
-    try { saveLocal(BudgetLocal.create(localBudget.base)); await loadBudget(); }
-    catch (error) { byId('status').textContent = error.message; }
+getElementById('discardButton').addEventListener('click', async () => {
+    if (
+        budgetBusy ||
+        !confirm('未同期の変更を破棄します。必要なら先にバックアップしてください。続けますか？')
+    )
+        return;
+    try {
+        saveLocal(BudgetLocal.create(localBudget.base));
+        await loadBudget();
+    } catch (error) {
+        getElementById('status').textContent = error.message;
+    }
 });
-window.addEventListener('storage', event => {
-    if (budgetSession && (event.key === BudgetLocal.key(budgetStorageUser()) || event.key === null)) location.reload();
+window.addEventListener('storage', (event) => {
+    if (budgetSession && (event.key === BudgetLocal.key(budgetStorageUser()) || event.key === null))
+        location.reload();
 });
-byId('entryForm').addEventListener('submit', async event => {
+getElementById('entryForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!byId('entryId').value) byId('entryId').value = crypto.randomUUID();
-    const existing = budgetState.entries.find(entry => entry.id === byId('entryId').value);
-    const user = byId('entryAttribution').value;
-    const attribution = user === 'saved' ? existing?.attribution : user === 'group' ? { kind: 'group' } :
-        { kind: 'person', name: user.slice(5), userId: user.slice(5) };
-    if (!attribution) { byId('entryStatus').textContent = '使用者を選び直してください。'; return; }
-    const value = { id: byId('entryId').value, type: byId('entryType').value, date: byId('entryDate').value,
-        amount: Number(byId('entryAmount').value), categoryId: byId('entryCategory').value, memo: byId('entryMemo').value, attribution };
-    for (const [key, input] of [['shop', 'entryShop'], ['productName', 'entryProduct'],
-        ['categoryMiddleId', 'entryCategoryMiddle'], ['categorySmallId', 'entryCategorySmall']]) {
-        const text = byId(input).value.trim();
+    if (!getElementById('entryId').value) getElementById('entryId').value = crypto.randomUUID();
+    const existing = budgetState.entries.find(
+        (entry) => entry.id === getElementById('entryId').value
+    );
+    const user = getElementById('entryAttribution').value;
+    const attribution =
+        user === 'saved'
+            ? existing?.attribution
+            : user === 'group'
+              ? {
+                    kind: 'group',
+                }
+              : {
+                    kind: 'person',
+                    name: user.slice(5),
+                    userId: user.slice(5),
+                };
+    if (!attribution) {
+        getElementById('entryStatus').textContent = '使用者を選び直してください。';
+        return;
+    }
+    const value = {
+        id: getElementById('entryId').value,
+        type: getElementById('entryType').value,
+        date: getElementById('entryDate').value,
+        amount: Number(getElementById('entryAmount').value),
+        categoryId: getElementById('entryCategory').value,
+        memo: getElementById('entryMemo').value,
+        attribution,
+    };
+    for (const [key, input] of [
+        ['shop', 'entryShop'],
+        ['productName', 'entryProduct'],
+        ['categoryMiddleId', 'entryCategoryMiddle'],
+        ['categorySmallId', 'entryCategorySmall'],
+    ]) {
+        const text = getElementById(input).value.trim();
         if (text || existing?.[key]) value[key] = text;
     }
     // 旧版GASでは追加項目を落として保存せず、未対応操作として同期を止める
-    if (await mutate({ type: 'entryRecordSave', value }, false, 'entryStatus')) {
-        byId('monthInput').value = value.date.slice(0, 7); byId('weekDate').value = value.date;
+    if (
+        await mutate(
+            {
+                type: 'entryRecordSave',
+                value,
+            },
+            false,
+            'entryStatus'
+        )
+    ) {
+        getElementById('monthInput').value = value.date.slice(0, 7);
+        getElementById('weekDate').value = value.date;
         if (selectedDay) selectedDay = value.date;
-        byId('typeFilter').value = 'all'; byId('categoryFilter').value = 'all';
-        byId('entryDialog').close(); resetEntry(); render();
-        if (byId('dayRecordsDialog').open) byId('addDayRecord').focus({ preventScroll: true });
+        getElementById('typeFilter').value = 'all';
+        getElementById('categoryFilter').value = 'all';
+        getElementById('entryDialog').close();
+        resetEntry();
+        render();
+        if (getElementById('dayRecordsDialog').open)
+            getElementById('addDayRecord').focus({
+                preventScroll: true,
+            });
     }
 });
-byId('categoryForm').addEventListener('submit', async event => {
+getElementById('categoryForm').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!byId('categoryId').value) byId('categoryId').value = crypto.randomUUID();
-    byId('cancelCategory').hidden = quickCategory;
-    const value = { id: byId('categoryId').value, name: byId('categoryName').value, color: byId('categoryColor').value, parentId: byId('categoryParent').value };
-    if (await mutate({ type: 'categoryTreeSave', value })) {
+    if (!getElementById('categoryId').value)
+        getElementById('categoryId').value = crypto.randomUUID();
+    getElementById('cancelCategory').hidden = quickCategory;
+    const value = {
+        id: getElementById('categoryId').value,
+        name: getElementById('categoryName').value,
+        color: getElementById('categoryColor').value,
+        parentId: getElementById('categoryParent').value,
+    };
+    if (
+        await mutate({
+            type: 'categoryTreeSave',
+            value,
+        })
+    ) {
         resetCategory();
         if (quickCategory) {
             const parent = categoryIndex.get(value.parentId);
             if (parent?.parentId) fillEntryCategories(parent.parentId, parent.id, value.id);
             else if (parent) fillEntryCategories(parent.id, value.id, '');
             else fillEntryCategories(value.id, '', '');
-            byId('categoryDialog').close();
-            byId(parent?.parentId ? 'entryCategorySmall' : parent ? 'entryCategoryMiddle' : 'entryCategory').focus();
+            getElementById('categoryDialog').close();
+            getElementById(
+                parent?.parentId
+                    ? 'entryCategorySmall'
+                    : parent
+                      ? 'entryCategoryMiddle'
+                      : 'entryCategory'
+            ).focus();
         }
     }
 });
-byId('categoryButton').addEventListener('click', () => openCategories());
-byId('addEntryCategory').addEventListener('click', () => openCategories('大項目'));
-byId('addEntryCategoryMiddle').addEventListener('click', () => openCategories('中項目', byId('entryCategory').value));
-byId('addEntryCategorySmall').addEventListener('click', () => openCategories('小項目', byId('entryCategoryMiddle').value));
-byId('closeCategories').addEventListener('click', () => byId('categoryDialog').close());
-byId('newEntry').addEventListener('click', () => openEntry());
-byId('addDayRecord').addEventListener('click', () => openEntry(byId('dayRecordsDialog').dataset.date));
-byId('closeDayRecords').addEventListener('click', () => byId('dayRecordsDialog').close());
-for (const id of ['cancelEntry', 'closeEntry']) byId(id).addEventListener('click', () => byId('entryDialog').close());
-byId('cancelCategory').addEventListener('click', resetCategory);
-byId('entryCategory').addEventListener('change', () => fillEntryCategories(byId('entryCategory').value, '', ''));
-byId('entryCategoryMiddle').addEventListener('change', () => fillEntryCategories(byId('entryCategory').value, byId('entryCategoryMiddle').value, ''));
-byId('clearDay').addEventListener('click', () => { selectedDay = ''; render(); });
-['typeFilter', 'categoryFilter'].forEach(id => byId(id).addEventListener('change', render));
-byId('monthInput').addEventListener('change', () => {
-    if (!/^\d{4}-\d{2}$/.test(byId('monthInput').value) || !byId('monthInput').validity.valid) byId('monthInput').value = today().slice(0, 7);
-    selectedDay = ''; render();
+getElementById('categoryButton').addEventListener('click', () => openCategories());
+getElementById('addEntryCategory').addEventListener('click', () => openCategories('大項目'));
+getElementById('addEntryCategoryMiddle').addEventListener('click', () =>
+    openCategories('中項目', getElementById('entryCategory').value)
+);
+getElementById('addEntryCategorySmall').addEventListener('click', () =>
+    openCategories('小項目', getElementById('entryCategoryMiddle').value)
+);
+getElementById('closeCategories').addEventListener('click', () =>
+    getElementById('categoryDialog').close()
+);
+getElementById('newEntry').addEventListener('click', () => openEntry());
+getElementById('addDayRecord').addEventListener('click', () =>
+    openEntry(getElementById('dayRecordsDialog').dataset.date)
+);
+getElementById('closeDayRecords').addEventListener('click', () =>
+    getElementById('dayRecordsDialog').close()
+);
+for (const id of ['cancelEntry', 'closeEntry'])
+    getElementById(id).addEventListener('click', () => getElementById('entryDialog').close());
+getElementById('cancelCategory').addEventListener('click', resetCategory);
+getElementById('entryCategory').addEventListener('change', () =>
+    fillEntryCategories(getElementById('entryCategory').value, '', '')
+);
+getElementById('entryCategoryMiddle').addEventListener('change', () =>
+    fillEntryCategories(
+        getElementById('entryCategory').value,
+        getElementById('entryCategoryMiddle').value,
+        ''
+    )
+);
+getElementById('clearDay').addEventListener('click', () => {
+    selectedDay = '';
+    render();
 });
-byId('weekDate').addEventListener('change', () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(byId('weekDate').value) || !byId('weekDate').validity.valid) byId('weekDate').value = today();
+['typeFilter', 'categoryFilter'].forEach((id) =>
+    getElementById(id).addEventListener('change', render)
+);
+getElementById('monthInput').addEventListener('change', () => {
+    if (
+        !/^\d{4}-\d{2}$/.test(getElementById('monthInput').value) ||
+        !getElementById('monthInput').validity.valid
+    )
+        getElementById('monthInput').value = today().slice(0, 7);
+    selectedDay = '';
+    render();
+});
+getElementById('weekDate').addEventListener('change', () => {
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(getElementById('weekDate').value) ||
+        !getElementById('weekDate').validity.valid
+    )
+        getElementById('weekDate').value = today();
     render();
 });
 function setPeriodView(view) {
     if (periodView === view) return;
     const weekly = view === 'week';
     if (weekly) {
-        const month = byId('monthInput').value || today().slice(0, 7);
-        byId('weekDate').value = selectedDay || (today().startsWith(month) ? today() : month + '-01');
-    } else byId('monthInput').value = (byId('weekDate').value || today()).slice(0, 7);
-    periodView = view; selectedDay = '';
-    byId('monthInput').hidden = weekly; byId('weekDate').hidden = !weekly;
-    byId('monthView').setAttribute('aria-pressed', String(!weekly));
-    byId('weekView').setAttribute('aria-pressed', String(weekly));
-    byId('previousMonth').setAttribute('aria-label', weekly ? '前の週' : '前の月');
-    byId('nextMonth').setAttribute('aria-label', weekly ? '次の週' : '次の月');
+        const month = getElementById('monthInput').value || today().slice(0, 7);
+        getElementById('weekDate').value =
+            selectedDay || (today().startsWith(month) ? today() : month + '-01');
+    } else
+        getElementById('monthInput').value = (getElementById('weekDate').value || today()).slice(
+            0,
+            7
+        );
+    periodView = view;
+    selectedDay = '';
+    getElementById('monthInput').hidden = weekly;
+    getElementById('weekDate').hidden = !weekly;
+    getElementById('monthView').setAttribute('aria-pressed', String(!weekly));
+    getElementById('weekView').setAttribute('aria-pressed', String(weekly));
+    getElementById('previousMonth').setAttribute('aria-label', weekly ? '前の週' : '前の月');
+    getElementById('nextMonth').setAttribute('aria-label', weekly ? '次の週' : '次の月');
     render();
 }
 function movePeriod(offset) {
     if (periodView === 'week') {
-        const date = shiftDay(byId('weekDate').value || today(), offset * 7);
-        if (date.length === 10 && !date.startsWith('0000')) byId('weekDate').value = date;
+        const date = shiftDay(getElementById('weekDate').value || today(), offset * 7);
+        if (date.length === 10 && !date.startsWith('0000')) getElementById('weekDate').value = date;
     } else {
-        const month = byId('monthInput').value || today().slice(0, 7);
+        const month = getElementById('monthInput').value || today().slice(0, 7);
         const date = new Date(month + '-01T00:00:00Z');
         date.setUTCMonth(date.getUTCMonth() + offset);
-        if (date.getUTCFullYear() >= 1 && date.getUTCFullYear() <= 9999) byId('monthInput').value = date.toISOString().slice(0, 7);
+        if (date.getUTCFullYear() >= 1 && date.getUTCFullYear() <= 9999)
+            getElementById('monthInput').value = date.toISOString().slice(0, 7);
         selectedDay = '';
     }
     render();
 }
-byId('monthView').addEventListener('click', () => setPeriodView('month')); byId('weekView').addEventListener('click', () => setPeriodView('week'));
-byId('previousMonth').addEventListener('click', () => movePeriod(-1)); byId('nextMonth').addEventListener('click', () => movePeriod(1));
-byId('refreshButton').addEventListener('click', loadBudget);
-byId('moreEntries').addEventListener('click', () => { recordLimit += 50; render(true); });
-byId('logoutButton').addEventListener('click', async () => { try { await HubAuth.signOut(budgetSession); } catch (error) { /* 共通認証が端末側を解除する */ } });
-byId('exportButton').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), categories: budgetState.categories, entries: budgetState.entries, products: budgetState.products || [] }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob), link = node('a'); link.href = url; link.download = 'personal-hub-budget-' + today() + '.json';
-    document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+getElementById('monthView').addEventListener('click', () => setPeriodView('month'));
+getElementById('weekView').addEventListener('click', () => setPeriodView('week'));
+getElementById('previousMonth').addEventListener('click', () => movePeriod(-1));
+getElementById('nextMonth').addEventListener('click', () => movePeriod(1));
+getElementById('refreshButton').addEventListener('click', loadBudget);
+getElementById('moreEntries').addEventListener('click', () => {
+    recordLimit += 50;
+    render(true);
 });
-window.addEventListener('hub-auth-changed', event => {
+getElementById('logoutButton').addEventListener('click', async () => {
+    try {
+        await HubAuth.signOut(budgetSession);
+    } catch (error) {
+        /* 共通認証が端末側を解除する */
+    }
+});
+getElementById('exportButton').addEventListener('click', () => {
+    const blob = new Blob(
+        [
+            JSON.stringify(
+                {
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    categories: budgetState.categories,
+                    entries: budgetState.entries,
+                    products: budgetState.products || [],
+                },
+                null,
+                2
+            ),
+        ],
+        {
+            type: 'application/json',
+        }
+    );
+    const url = URL.createObjectURL(blob),
+        link = node('a');
+    link.href = url;
+    link.download = 'personal-hub-budget-' + today() + '.json';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+window.addEventListener('hub-auth-changed', (event) => {
     if (budgetSession && (!event.detail || event.detail.token !== budgetSession.token)) {
-        budgetState = { revision: 0, categories: [], entries: [] }; budgetLoaded = false;
+        budgetState = {
+            revision: 0,
+            categories: [],
+            entries: [],
+        };
+        budgetLoaded = false;
         document.documentElement.setAttribute('data-auth-pending', '');
     }
 });
 (async () => {
-    byId('monthInput').value = today().slice(0, 7); byId('weekDate').value = today(); resetEntry();
+    getElementById('monthInput').value = today().slice(0, 7);
+    getElementById('weekDate').value = today();
+    resetEntry();
     budgetSession = await HubAuth.ready;
     if (!budgetSession) return;
-    if (window.BudgetSpaces) { BudgetSpaces.bind(budgetSession, 'budget'); BudgetSpaces.mount(budgetSession); }
+    if (window.BudgetSpaces) {
+        BudgetSpaces.bind(budgetSession, 'budget');
+        BudgetSpaces.mount(budgetSession);
+    }
     setEntryAttribution();
-    byId('currentUser').textContent = budgetSession.userId;
+    getElementById('currentUser').textContent = budgetSession.userId;
     document.documentElement.removeAttribute('data-auth-pending');
-    if (window.BudgetSpaces && !BudgetSpaces.allowed()) { setBusy(false); return; }
+    if (window.BudgetSpaces && !BudgetSpaces.allowed()) {
+        setBusy(false);
+        return;
+    }
     try {
         localBudget = BudgetLocal.read(localStorage, budgetStorageUser());
         savedRaw = localStorage.getItem(BudgetLocal.key(budgetStorageUser()));
-        if (localBudget) { budgetState = BudgetLocal.view(localBudget); budgetLoaded = true; render(); localStatus(); }
-    } catch (error) { byId('status').textContent = error.message; setBusy(false); return; }
-    if (!window.HubSync || HubSync.needed(budgetStorageUser(), 'budget', !!localBudget)) await loadBudget();
-    else { setBusy(false); autoPush.schedule(); }
+        if (localBudget) {
+            budgetState = BudgetLocal.view(localBudget);
+            budgetLoaded = true;
+            render();
+            localStatus();
+        }
+    } catch (error) {
+        getElementById('status').textContent = error.message;
+        setBusy(false);
+        return;
+    }
+    if (!window.HubSync || HubSync.needed(budgetStorageUser(), 'budget', !!localBudget))
+        await loadBudget();
+    else {
+        setBusy(false);
+        autoPush.schedule();
+    }
 })();
-
-HubConflict.bind({ read: () => localBudget, save: saveLocal, load: async () => BudgetLocal.create(await budgetApi('budgetLoad', {})).base, apply: BudgetModel.apply, ready: () => !budgetBusy && sameAccount(), done: async () => { render(); await loadBudget(); }, error: error => { byId('status').textContent = error.message; } });
+HubConflict.bind({
+    read: () => localBudget,
+    save: saveLocal,
+    load: async () => BudgetLocal.create(await budgetApi('budgetLoad', {})).base,
+    apply: BudgetModel.apply,
+    ready: () => !budgetBusy && sameAccount(),
+    done: async () => {
+        render();
+        await loadBudget();
+    },
+    error: (error) => {
+        getElementById('status').textContent = error.message;
+    },
+});

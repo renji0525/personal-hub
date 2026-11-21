@@ -1,20 +1,177 @@
-.filters,.actions,.panel-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
-.toolbar { margin-bottom:12px; }.filters { align-items:end; margin:16px 0 20px; }.filters label { flex:1; min-width:0; max-width:360px; }
-label { display:grid; gap:7px; font-size:13px; }
-.list-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
-.list-tabs button { display:block; min-height:44px; padding:8px 4px; white-space:normal; text-wrap:balance; line-break:strict; font-size:clamp(12px, 3.6vw, 14px); color:var(--muted); background:transparent; border:1px solid transparent; border-radius:8px; }
-.list-tabs button[aria-selected=true] { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }
-.list-panel { padding:var(--panel-padding); }
-.panel-heading { justify-content:space-between; margin-bottom:18px; }.panel-heading small { color:var(--muted); }
-.list-item { padding:16px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
-.item-heading { display:flex; align-items:flex-start; gap:12px; }.item-heading input { margin:5px 0 0; width:20px; height:20px; flex-shrink:0; }.item-heading h3 { margin:0; font-size:16px; white-space:pre-wrap; }
-.list-item.is-done h3 { color:var(--muted); text-decoration:line-through; }.list-item p { font-size:13px; margin:10px 0; }.item-note { white-space:pre-wrap; color:var(--muted); }
-.item-link { display:inline-block; color:var(--accent); font-size:13px; padding:8px 0; }.overdue,.error { color:var(--danger); }
-.item-preview { display:block; width:144px; max-width:100%; height:112px; object-fit:contain; background:var(--surface-raised); border:1px solid var(--line); border-radius:8px; margin-bottom:6px; }
-.list-item .actions { margin-top:8px; }.list-item button { font-size:12px; padding:7px 12px; }
-.empty { padding:28px 0; color:var(--muted); font-size:14px; }.shown { font-size:12px; color:var(--muted); }
-#itemDialog { width:min(540px,calc(100% - 2rem)); }#itemDialog h2 { margin-top:0; }#itemDialog label { margin:16px 0; }
-.done-field { display:flex; align-items:center; gap:10px; }.done-field input { width:20px; height:20px; }
-.item-assignee { color:var(--accent); }.undo-notice { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; margin:12px 0; border:1px solid var(--accent); border-radius:12px; background:var(--accent-soft); overflow-wrap:anywhere; }
-#assigneeStatus { display:block; margin-top:8px; }
-@media(max-width:480px) { .filters label { flex:1 1 120px; } }
+/* ページ固有のスタイル：レイアウトと見た目を定義する。状態の切り替えはHTMLの属性・クラスから受け取る。 */
+.filters,
+.actions,
+.panel-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.toolbar {
+    margin-bottom: 12px;
+}
+.filters {
+    align-items: end;
+    margin: 16px 0 20px;
+}
+.filters label {
+    flex: 1;
+    min-width: 0;
+    max-width: 360px;
+}
+label {
+    display: grid;
+    gap: 7px;
+    font-size: 13px;
+}
+/* リストの種類を切り替えるタブ。選択状態は属性に応じて表示する。 */
+.list-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+.list-tabs button {
+    display: block;
+    min-height: 44px;
+    padding: 8px 4px;
+    white-space: normal;
+    text-wrap: balance;
+    line-break: strict;
+    font-size: clamp(12px, 3.6vw, 14px);
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+.list-tabs button[aria-selected='true'] {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+.list-panel {
+    padding: var(--panel-padding);
+}
+.panel-heading {
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+.panel-heading small {
+    color: var(--muted);
+}
+.list-item {
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+    overflow-wrap: anywhere;
+}
+.item-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.item-heading input {
+    margin: 5px 0 0;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+.item-heading h3 {
+    margin: 0;
+    font-size: 16px;
+    white-space: pre-wrap;
+}
+.list-item.is-done h3 {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+.list-item p {
+    font-size: 13px;
+    margin: 10px 0;
+}
+.item-note {
+    white-space: pre-wrap;
+    color: var(--muted);
+}
+.item-link {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 13px;
+    padding: 8px 0;
+}
+.overdue,
+.error {
+    color: var(--danger);
+}
+.item-preview {
+    display: block;
+    width: 144px;
+    max-width: 100%;
+    height: 112px;
+    object-fit: contain;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+.list-item .actions {
+    margin-top: 8px;
+}
+.list-item button {
+    font-size: 12px;
+    padding: 7px 12px;
+}
+.empty {
+    padding: 28px 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+.shown {
+    font-size: 12px;
+    color: var(--muted);
+}
+#itemDialog {
+    width: min(540px, calc(100% - 2rem));
+}
+#itemDialog h2 {
+    margin-top: 0;
+}
+#itemDialog label {
+    margin: 16px 0;
+}
+.done-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.done-field input {
+    width: 20px;
+    height: 20px;
+}
+.item-assignee {
+    color: var(--accent);
+}
+.undo-notice {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    background: var(--accent-soft);
+    overflow-wrap: anywhere;
+}
+#assigneeStatus {
+    display: block;
+    margin-top: 8px;
+}
+/* 画面幅や利用環境に応じて配置を切り替える。 */
+@media (max-width: 480px) {
+    .filters label {
+        flex: 1 1 120px;
+    }
+}

@@ -1,53 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja" data-auth-pending>
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-        <meta name="description" content="お気に入りのYouTubeチャンネルと動画の既読をまとめて管理。">
+        <!-- ページ情報と依存ファイル。スクリプトの順序は共通処理からページ処理へ揃える。 -->
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta
+            name="description"
+            content="お気に入りのYouTubeチャンネルと動画の既読をまとめて管理。"
+        />
         <title>YouTube RSS | Personal Hub</title>
-        <meta name="theme-color" content="#141e27">
-        <link rel="icon" href="../shared/icons/youtube-32.png" type="image/png" sizes="32x32">
-        <link rel="icon" href="../shared/icons/youtube.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="../shared/icons/youtube-180.png">
-        <link rel="stylesheet" href="../shared/css/base.css">
-        <script src="../shared/js/auth.js">
+        <meta name="theme-color" content="#141e27" />
+        <link rel="icon" href="../shared/icons/youtube-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="../shared/icons/youtube.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="../shared/icons/youtube-180.png" />
+        <link rel="stylesheet" href="../shared/css/base.css" />
+        <script src="../shared/js/auth.js"></script>
+        <script>
+            HubAuth.ready = HubAuth.protect({ local: true });
         </script>
-        <script>HubAuth.ready = HubAuth.protect({ local: true });</script>
-        <link rel="stylesheet" href="css/style.css">
-        <link rel="stylesheet" href="../shared/css/navigation.css">
-    <script src="../shared/js/navigation.js" defer></script>
-</head>
+        <link rel="stylesheet" href="css/style.css" />
+        <link rel="stylesheet" href="../shared/css/navigation.css" />
+        <script src="../shared/js/navigation.js" defer></script>
+    </head>
     <body data-theme="dark">
         <a class="skip-link" href="#main">本文へ移動</a>
-    <header class="hub-header">
-        <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"><img src="../shared/icons/hub.svg" width="32" height="32" alt=""><span>Personal Hub</span></a>
-        <nav class="hub-nav" aria-label="ページ移動">
-            <a href="../top/index.html"><img src="../shared/icons/hub.svg" width="22" height="22" alt=""><span>ホーム</span></a>
-            <a href="../youtube-rss/index.html" aria-current="page"><img src="../shared/icons/youtube.svg" width="22" height="22" alt=""><span>YouTube RSS</span></a>
-            <a href="../budget/index.html"><img src="../shared/icons/budget.svg" width="22" height="22" alt=""><span>家計簿</span></a>
-            <a href="../inventory/index.html"><img src="../shared/icons/inventory.svg" width="22" height="22" alt=""><span>在庫管理</span></a>
-            <a href="../lists/index.html"><img src="../shared/icons/lists.svg" width="22" height="22" alt=""><span>リスト</span></a>
-            <a href="../notes/index.html"><img src="../shared/icons/notes.svg" width="22" height="22" alt=""><span>メモ</span></a>
-            <a href="../talk/index.html"><img src="../shared/icons/talk.svg" width="22" height="22" alt=""><span>トーク</span></a>
-        </nav>
-        <div class="hub-account"><span id="currentUser" data-hub-user></span><button id="logoutButton" class="quiet" type="button" onclick="signOut()"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10"/></svg><span>ログアウト</span></button></div>
-    </header>
+        <header class="hub-header">
+            <a class="hub-brand back-link" href="../top/index.html" aria-label="トップへ戻る"
+                ><img src="../shared/icons/hub.svg" width="32" height="32" alt="" /><span
+                    >Personal Hub</span
+                ></a
+            >
+            <!-- 共通のページ移動。現在のページはaria-currentで示す。 -->
+            <nav class="hub-nav" aria-label="ページ移動">
+                <a href="../top/index.html"
+                    ><img src="../shared/icons/hub.svg" width="22" height="22" alt="" /><span
+                        >ホーム</span
+                    ></a
+                >
+                <a href="../youtube-rss/index.html" aria-current="page"
+                    ><img src="../shared/icons/youtube.svg" width="22" height="22" alt="" /><span
+                        >YouTube RSS</span
+                    ></a
+                >
+                <a href="../budget/index.html"
+                    ><img src="../shared/icons/budget.svg" width="22" height="22" alt="" /><span
+                        >家計簿</span
+                    ></a
+                >
+                <a href="../inventory/index.html"
+                    ><img src="../shared/icons/inventory.svg" width="22" height="22" alt="" /><span
+                        >在庫管理</span
+                    ></a
+                >
+                <a href="../lists/index.html"
+                    ><img src="../shared/icons/lists.svg" width="22" height="22" alt="" /><span
+                        >リスト</span
+                    ></a
+                >
+                <a href="../notes/index.html"
+                    ><img src="../shared/icons/notes.svg" width="22" height="22" alt="" /><span
+                        >メモ</span
+                    ></a
+                >
+                <a href="../talk/index.html"
+                    ><img src="../shared/icons/talk.svg" width="22" height="22" alt="" /><span
+                        >トーク</span
+                    ></a
+                >
+            </nav>
+            <div class="hub-account"
+                ><span id="currentUser" data-hub-user></span
+                ><button id="logoutButton" class="quiet" type="button" onclick="signOut()"
+                    ><svg
+                        class="icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M9 5H5v14h4m5-11 4 4-4 4m-5-4h10" /></svg
+                    ><span>ログアウト</span></button
+                ></div
+            >
+        </header>
         <aside class="sidebar">
-
             <div class="sidebar-top">
                 <div class="section-title">登録チャンネル</div>
-                <div id="channel-list">
-                </div>
+                <div id="channel-list"> </div>
             </div>
             <div class="sidebar-bottom">
-                <button class="btn-utility" onclick="document.getElementById('settingsDialog').showModal()">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M4 7h16M4 17h16"/>
-                        <circle cx="9" cy="7" r="3"/>
-                        <circle cx="15" cy="17" r="3"/>
-                    </svg> 設定</button>
+                <button
+                    class="btn-utility"
+                    onclick="document.getElementById('settingsDialog').showModal()"
+                >
+                    <svg
+                        class="icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                    >
+                        <path d="M4 7h16M4 17h16" />
+                        <circle cx="9" cy="7" r="3" />
+                        <circle cx="15" cy="17" r="3" />
+                    </svg>
+                    設定</button
+                >
             </div>
         </aside>
+        <!-- 入力用ダイアログ。入力値の検証と保存はページのJavaScriptで行う。 -->
         <dialog id="settingsDialog" aria-labelledby="settingsTitle">
             <div class="settings-heading">
                 <h2 id="settingsTitle">設定</h2>
@@ -59,55 +126,127 @@
                 <p class="muted">表示と保存データを管理します。</p>
                 <div class="settings-actions">
                     <button class="btn-utility" onclick="exportJSON()">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5"/>
-                        </svg> バックアップ(JSON)</button>
-                    <button class="btn-utility" onclick="document.getElementById('importFile').click()">データを復元</button>
-                    <input type="file" id="importFile" hidden accept=".json" onchange="importJSON(event)">
-                    <small id="importStatus" role="status" aria-live="polite">
-                    </small>
+                        <svg
+                            class="icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.7"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M12 3v12m-4-4 4 4 4-4M5 16v5h14v-5" />
+                        </svg>
+                        バックアップ(JSON)</button
+                    >
+                    <button
+                        class="btn-utility"
+                        onclick="document.getElementById('importFile').click()"
+                        >データを復元</button
+                    >
+                    <input
+                        type="file"
+                        id="importFile"
+                        hidden
+                        accept=".json"
+                        onchange="importJSON(event)"
+                    />
+                    <small id="importStatus" role="status" aria-live="polite"> </small>
                     <button class="btn-utility" onclick="toggleTheme()">テーマを切り替え</button>
-                    <button class="btn-danger" onclick="resetAll()">この端末のデータをリセット</button>
+                    <button class="btn-danger" onclick="resetAll()"
+                        >この端末のデータをリセット</button
+                    >
                 </div>
-
             </div>
         </dialog>
+        <!-- このページ固有の表示と操作。各idはJavaScriptから参照する。 -->
         <main id="main">
-            <div class="page-heading"><h1><img class="heading-icon" src="../shared/icons/youtube.svg" alt="" width="40" height="40">YouTube RSS <span id="videoCount" class="count"></span></h1></div>
+            <div class="page-heading"
+                ><h1
+                    ><img
+                        class="heading-icon"
+                        src="../shared/icons/youtube.svg"
+                        alt=""
+                        width="40"
+                        height="40" />YouTube RSS <span id="videoCount" class="count"></span></h1
+            ></div>
             <header class="library-toolbar">
-                <form class="channel-add" onsubmit="event.preventDefault(); addNewChannel()">
-                    <label class="sr-only" for="channelIdInput">追加するチャンネルURL・ハンドル・ID</label>
-                    <input id="channelIdInput" class="input-bar" placeholder="URL / @ハンドル / UC…" maxlength="1000" autocomplete="off">
+                <form
+                    class="channel-add"
+                    onsubmit="
+                        event.preventDefault();
+                        addNewChannel();
+                    "
+                >
+                    <label class="sr-only" for="channelIdInput"
+                        >追加するチャンネルURL・ハンドル・ID</label
+                    >
+                    <input
+                        id="channelIdInput"
+                        class="input-bar"
+                        placeholder="URL / @ハンドル / UC…"
+                        maxlength="1000"
+                        autocomplete="off"
+                    />
                     <button class="btn-add" type="submit">追加</button>
                 </form>
                 <div class="video-actions">
-                    <button id="refreshButton" class="btn-utility" onclick="refreshAll()" title="各チャンネルの新着動画を取得">
-                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M20 7v5h-5M4 17v-5h5"/>
-                            <path d="M6 7a7 7 0 0 1 11-1l3 3M4 15l3 3a7 7 0 0 0 11-1"/>
-                        </svg> 更新</button>
-                    <button id="syncButton" class="btn-utility" onclick="manualSync()" title="保存済みの動画と既読状態を同期">同期</button>
+                    <button
+                        id="refreshButton"
+                        class="btn-utility"
+                        onclick="refreshAll()"
+                        title="各チャンネルの新着動画を取得"
+                    >
+                        <svg
+                            class="icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.7"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M20 7v5h-5M4 17v-5h5" />
+                            <path d="M6 7a7 7 0 0 1 11-1l3 3M4 15l3 3a7 7 0 0 0 11-1" />
+                        </svg>
+                        更新</button
+                    >
+                    <button
+                        id="syncButton"
+                        class="btn-utility"
+                        onclick="manualSync()"
+                        title="保存済みの動画と既読状態を同期"
+                        >同期</button
+                    >
                     <label class="unread-filter">
-                        <input type="checkbox" id="unreadOnlyInput" onchange="setUnreadOnly(this.checked)">未読のみ</label>
+                        <input
+                            type="checkbox"
+                            id="unreadOnlyInput"
+                            onchange="setUnreadOnly(this.checked)"
+                        />未読のみ</label
+                    >
                 </div>
             </header>
             <div class="activity-area">
                 <small id="syncStatus" class="sync-status" role="status" aria-live="polite">
                 </small>
                 <div id="refreshProgress" hidden>
-                    <div id="refreshProgressText" role="status" aria-live="polite">
-                    </div>
-                    <progress id="refreshProgressBar" value="0" max="1" aria-label="全チャンネルの更新進捗">
+                    <div id="refreshProgressText" role="status" aria-live="polite"> </div>
+                    <progress
+                        id="refreshProgressBar"
+                        value="0"
+                        max="1"
+                        aria-label="全チャンネルの更新進捗"
+                    >
                     </progress>
                 </div>
             </div>
-            <div id="video-container">
-            </div>
+            <div id="video-container"> </div>
         </main>
         <script src="js/channel-input.js"></script>
-        <script src="js/app.js">
-        </script>
-        <script src="js/sync.js">
-        </script>
+        <script src="js/app.js"></script>
+        <script src="js/sync.js"></script>
     </body>
 </html>

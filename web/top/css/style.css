@@ -1,50 +1,118 @@
-.welcome { margin-bottom:10px; }
-.account-panel { margin-bottom:var(--section-gap); }
-#accountStatus { margin:0; color:var(--muted); font-size:13px; }
-#accountForm, #resetPasswordForm {
-    max-width:440px;
-    margin-top:16px;
-    padding:var(--panel-padding);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--surface);
+/* ページ固有のスタイル：レイアウトと見た目を定義する。状態の切り替えはHTMLの属性・クラスから受け取る。 */
+.welcome {
+    margin-bottom: 10px;
 }
-form h2 { font-size:21px; }
-form .muted { margin:6px 0 20px; }
-form .muted:empty { display:none; }
-label { display:block; font-size:13px; margin:16px 0 7px; }
-.account-actions { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0 12px; }
-.account-actions button:first-child { flex:1; }
-small { display:block; color:var(--muted); font-size:12px; }
-#forgotPasswordButton, #backToLoginButton, #cancelResetButton { margin-bottom:12px; }
+.account-panel {
+    margin-bottom: var(--section-gap);
+}
+#accountStatus {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+#accountForm,
+#resetPasswordForm {
+    max-width: 440px;
+    margin-top: 16px;
+    padding: var(--panel-padding);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+form h2 {
+    font-size: 21px;
+}
+form .muted {
+    margin: 6px 0 20px;
+}
+form .muted:empty {
+    display: none;
+}
+label {
+    display: block;
+    font-size: 13px;
+    margin: 16px 0 7px;
+}
+.account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0 12px;
+}
+.account-actions button:first-child {
+    flex: 1;
+}
+small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+}
+#forgotPasswordButton,
+#backToLoginButton,
+#cancelResetButton {
+    margin-bottom: 12px;
+}
 #tools {
-    display:grid;
-    grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:var(--section-gap);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--section-gap);
 }
 .tool-link {
-    display:grid;
-    grid-template-columns:auto minmax(0,1fr) auto;
-    align-items:center;
-    gap:14px;
-    min-height:108px;
-    padding:var(--panel-padding);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--surface);
-    transition:background .18s,border-color .18s;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 108px;
+    padding: var(--panel-padding);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    transition:
+        background 0.18s,
+        border-color 0.18s;
 }
-.tool-link:hover { background:var(--surface-raised); border-color:var(--accent); }
-.tool-icon { width:44px; height:44px; }
-.tool-copy { display:grid; gap:4px; overflow-wrap:anywhere; }
-.tool-copy strong { font-size:17px; }
-.tool-copy>span { font-size:12px; color:var(--muted); }
-.tool-open { color:var(--accent); font-size:19px; }
-@media (max-width:900px) {
-    #tools { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.tool-link:hover {
+    background: var(--surface-raised);
+    border-color: var(--accent);
 }
-@media (max-width:550px) {
-    #tools { grid-template-columns:1fr; gap:10px; }
-    .tool-link { min-height:80px; gap:12px; }
-    .tool-icon { width:38px; height:38px; }
+.tool-icon {
+    width: 44px;
+    height: 44px;
+}
+.tool-copy {
+    display: grid;
+    gap: 4px;
+    overflow-wrap: anywhere;
+}
+.tool-copy strong {
+    font-size: 17px;
+}
+.tool-copy > span {
+    font-size: 12px;
+    color: var(--muted);
+}
+.tool-open {
+    color: var(--accent);
+    font-size: 19px;
+}
+/* 画面幅や利用環境に応じて配置を切り替える。 */
+@media (max-width: 900px) {
+    #tools {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+/* 画面幅や利用環境に応じて配置を切り替える。 */
+@media (max-width: 550px) {
+    #tools {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .tool-link {
+        min-height: 80px;
+        gap: 12px;
+    }
+    .tool-icon {
+        width: 38px;
+        height: 38px;
+    }
 }
